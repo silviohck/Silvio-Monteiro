@@ -131,11 +131,16 @@ struct GerarView: View {
                         .fonteApp(.apoio)
                         .foregroundStyle(.secondary)
                 } else {
-                    Picker("Subpasta", selection: $subpasta) {
-                        Text("Escolha…").tag("")
-                        ForEach(subpastasDisponiveis, id: \.self) { tipo in
-                            Text(tipo).tag(tipo)
+                    LabeledContent("Subpasta") {
+                        // Menu em níveis, como no Finder: 1 - APAC › Fisioterapia › coluna.
+                        Menu {
+                            itensDoMenu(NoSubpasta.arvore(subpastasDisponiveis))
+                        } label: {
+                            Text(subpasta.isEmpty
+                                ? "Escolha…"
+                                : subpasta.replacingOccurrences(of: Armazenamento.separadorDeSubpastas, with: " › "))
                         }
+                        .fixedSize()
                     }
                     Picker("Modelo", selection: $modeloSelecionado) {
                         if modeloSelecionado.isEmpty {
@@ -514,6 +519,36 @@ struct GerarView: View {
         }
     }
 
+    /// Itens do menu de subpastas: pasta com subpastas vira um submenu; uma pasta que também tem
+    /// modelos próprios ganha, no submenu, o item "Documentos em <pasta>".
+    private func itensDoMenu(_ nos: [NoSubpasta]) -> AnyView {
+        AnyView(ForEach(nos) { no in
+            if no.filhos.isEmpty {
+                botaoDaSubpasta(no.nome, caminho: no.caminho)
+            } else {
+                Menu(no.nome) {
+                    if no.temModelos {
+                        botaoDaSubpasta("Documentos em \(no.nome)", caminho: no.caminho)
+                        Divider()
+                    }
+                    itensDoMenu(no.filhos)
+                }
+            }
+        })
+    }
+
+    private func botaoDaSubpasta(_ titulo: String, caminho: String) -> some View {
+        Button {
+            subpasta = caminho
+        } label: {
+            if caminho == subpasta {
+                Label(titulo, systemImage: "checkmark")
+            } else {
+                Text(titulo)
+            }
+        }
+    }
+
     /// Quadro em destaque no topo: em qual local você está atendendo.
     private var quadroDoLocal: some View {
         HStack(spacing: 14) {
@@ -773,5 +808,51 @@ struct GerarView: View {
     private func abrirPasta(_ url: URL) {
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         NSWorkspace.shared.open(url)
+    }
+}
+
+/// Uma pasta na árvore de subpastas ("1 - APAC" › "Fisioterapia" › "coluna").
+struct NoSubpasta: Identifiable {
+    let nome: String
+    /// Caminho completo, como guardado nos modelos: "1 - APAC / Fisioterapia".
+    let caminho: String
+    /// Há modelos diretamente nesta pasta (não só nas de dentro).
+    var temModelos = false
+    var filhos: [NoSubpasta] = []
+    var id: String { caminho }
+
+    /// Monta a árvore a partir dos caminhos ("1 - APAC / Fisioterapia / coluna"…), em ordem alfabética.
+    static func arvore(_ caminhos: [String]) -> [NoSubpasta] {
+        var raizes: [NoSubpasta] = []
+        for caminho in caminhos {
+            inserir(caminho.components(separatedBy: Armazenamento.separadorDeSubpastas), prefixo: [], em: &raizes)
+        }
+        return ordenar(raizes)
+    }
+
+    private static func inserir(_ partes: [String], prefixo: [String], em nos: inout [NoSubpasta]) {
+        guard let primeira = partes.first else { return }
+        let caminho = (prefixo + [primeira]).joined(separator: Armazenamento.separadorDeSubpastas)
+        let indice: Int
+        if let existente = nos.firstIndex(where: { $0.nome == primeira }) {
+            indice = existente
+        } else {
+            nos.append(NoSubpasta(nome: primeira, caminho: caminho))
+            indice = nos.count - 1
+        }
+        if partes.count == 1 {
+            nos[indice].temModelos = true
+        } else {
+            inserir(Array(partes.dropFirst()), prefixo: prefixo + [primeira], em: &nos[indice].filhos)
+        }
+    }
+
+    private static func ordenar(_ nos: [NoSubpasta]) -> [NoSubpasta] {
+        nos.sorted { $0.nome.localizedStandardCompare($1.nome) == .orderedAscending }
+            .map { no in
+                var no = no
+                no.filhos = ordenar(no.filhos)
+                return no
+            }
     }
 }
