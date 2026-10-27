@@ -564,7 +564,7 @@ struct GerarView: View {
     }
 
     private var pastaDeDestino: URL {
-        pastaAvulsa ?? armazenamento.pastaDosDocumentos(subpasta: subpasta, local: local)
+        pastaAvulsa ?? armazenamento.pastaDosDocumentos(subpasta: modelo?.categoria ?? subpasta, local: local)
     }
 
     /// Nome repetido: lista os cadastros com data de nascimento e CPF para escolher o certo.
@@ -692,10 +692,10 @@ struct GerarView: View {
 
     private func gerar(_ modelo: ModeloDocumento) {
         guard !geracaoConcluida, !precisaEscolherPaciente else { return }
-        guard !subpasta.isEmpty,
-              modelo.categoria == subpasta,
-              armazenamento.modelos(para: local).contains(where: { $0.id == modelo.id }) else {
-            armazenamento.erro = "Escolha a subpasta e o modelo corretos antes de gerar o documento."
+        // O documento vai para a subpasta do próprio modelo; a caixa "Subpasta" pode estar
+        // desatualizada (ex.: a sincronização reorganizou as pastas) sem que o modelo esteja errado.
+        guard armazenamento.modelos(para: local).contains(where: { $0.id == modelo.id }) else {
+            armazenamento.erro = "Este modelo não é do local escolhido. Escolha a subpasta e o modelo de novo."
             return
         }
         let nome = nomeDigitado
@@ -707,7 +707,7 @@ struct GerarView: View {
         let destino: URL
         do {
             destino = try armazenamento.caminhoParaNovoDocumento(
-                modelo: modelo, subpasta: subpasta, local: local, paciente: nome, pastaAvulsa: pastaAvulsa
+                modelo: modelo, subpasta: modelo.categoria, local: local, paciente: nome, pastaAvulsa: pastaAvulsa
             )
             try DocxTemplate.fill(template: armazenamento.urlDoModelo(modelo), values: valoresFinais, output: destino)
         } catch {
