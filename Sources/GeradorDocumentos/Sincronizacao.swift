@@ -41,7 +41,7 @@ enum LeituraDaPasta {
             let local = pastaDoLocal.lastPathComponent
             resultado += documentos(em: pastaDoLocal).map { arquivo($0, raiz: raiz, local: local, tipo: nil, subpastas: []) }
             for pastaDoTipo in subpastas(de: pastaDoLocal) {
-                resultado += arquivos(em: pastaDoTipo, raiz: raiz, local: local, tipo: pastaDoTipo.lastPathComponent, subpastas: [], nivel: 1)
+                resultado += arquivos(em: pastaDoTipo, raiz: raiz, local: local, tipo: pastaDoTipo.lastPathComponent, caminho: [], nivel: 1)
             }
         }
         return resultado
@@ -52,13 +52,14 @@ enum LeituraDaPasta {
         subpastas(de: raiz).map(\.lastPathComponent)
     }
 
-    private static func arquivos(em pasta: URL, raiz: URL, local: String, tipo: String, subpastas: [String], nivel: Int) -> [ArquivoDaPasta] {
-        var resultado = documentos(em: pasta).map { arquivo($0, raiz: raiz, local: local, tipo: tipo, subpastas: subpastas) }
+    /// `caminho`: pastas entre a pasta do tipo e `pasta`.
+    private static func arquivos(em pasta: URL, raiz: URL, local: String, tipo: String, caminho: [String], nivel: Int) -> [ArquivoDaPasta] {
+        var resultado = documentos(em: pasta).map { arquivo($0, raiz: raiz, local: local, tipo: tipo, subpastas: caminho) }
         guard nivel < profundidadeMaxima else { return resultado }
         for subpasta in subpastas(de: pasta) {
             resultado += arquivos(
                 em: subpasta, raiz: raiz, local: local, tipo: tipo,
-                subpastas: subpastas + [subpasta.lastPathComponent], nivel: nivel + 1
+                caminho: caminho + [subpasta.lastPathComponent], nivel: nivel + 1
             )
         }
         return resultado
