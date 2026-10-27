@@ -244,8 +244,28 @@ final class Armazenamento: ObservableObject {
             .appendingPathComponent(nome.isEmpty ? "Sem local" : nome, isDirectory: true)
     }
 
-    func pastaDosDocumentos(modelo: ModeloDocumento, local: LocalAtendimento?) -> URL {
-        pastaDoLocal(local).appendingPathComponent(Self.nomeSeguro(modelo.categoria), isDirectory: true)
+    /// Pasta do local + subpasta escolhida (vazia = direto na pasta do local).
+    func pastaDosDocumentos(subpasta: String, local: LocalAtendimento?) -> URL {
+        let nome = Self.nomeSeguro(subpasta)
+        guard !nome.isEmpty else { return pastaDoLocal(local) }
+        return pastaDoLocal(local).appendingPathComponent(nome, isDirectory: true)
+    }
+
+    /// Subpastas para salvar: os tipos cadastrados e as pastas que já existem na pasta do local.
+    func opcoesDeSubpasta(_ local: LocalAtendimento?) -> [String] {
+        let existentes = ((try? FileManager.default.contentsOfDirectory(
+            at: pastaDoLocal(local),
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        )) ?? [])
+            .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true }
+            .map(\.lastPathComponent)
+            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+        var opcoes = dados.categorias
+        for pasta in existentes where !opcoes.contains(where: { Self.nomeSeguro($0) == pasta }) {
+            opcoes.append(pasta)
+        }
+        return opcoes
     }
 
     /// Cria as subpastas de todas as categorias dentro da pasta do local.
@@ -259,8 +279,14 @@ final class Armazenamento: ObservableObject {
     }
 
     /// Caminho livre para o novo documento: "<Modelo> - <Paciente> - 27-10-2026.docx", com (2), (3)… se já existir.
-    func caminhoParaNovoDocumento(modelo: ModeloDocumento, local: LocalAtendimento?, paciente: String, data: Date = Date()) throws -> URL {
-        let pasta = pastaDosDocumentos(modelo: modelo, local: local)
+    func caminhoParaNovoDocumento(
+        modelo: ModeloDocumento,
+        subpasta: String,
+        local: LocalAtendimento?,
+        paciente: String,
+        data: Date = Date()
+    ) throws -> URL {
+        let pasta = pastaDosDocumentos(subpasta: subpasta, local: local)
         try FileManager.default.createDirectory(at: pasta, withIntermediateDirectories: true)
 
         let formatador = DateFormatter()

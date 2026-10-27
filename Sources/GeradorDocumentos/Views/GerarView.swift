@@ -12,6 +12,12 @@ struct GerarView: View {
     @State private var abrirAoGerar = true
     @State private var aviso: String?
     @State private var ultimoDocumento: URL?
+    /// Subpasta onde o documento será salvo ("" = direto na pasta do local).
+    @State private var subpasta = ""
+    @State private var pedindoSubpasta = false
+    @State private var novaSubpasta = ""
+    @State private var mostrandoCadastro = false
+    @State private var pacienteEmEdicao: Paciente.ID?
     @FocusState private var focoNoNome: Bool
 
     private enum Escopo { case tudo, paciente, local }
@@ -76,6 +82,21 @@ struct GerarView: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
+                if modelo != nil {
+                    HStack {
+                        Picker("Subpasta", selection: $subpasta) {
+                            Text("Nenhuma (direto na pasta do local)").tag("")
+                            ForEach(opcoesDeSubpasta, id: \.self) { pasta in
+                                Text(pasta).tag(pasta)
+                            }
+                        }
+                        Button("Nova…") {
+                            novaSubpasta = ""
+                            pedindoSubpasta = true
+                        }
+                        .help("Salvar numa subpasta nova")
+                    }
+                }
             }
 
             Section("Paciente") {
@@ -92,6 +113,12 @@ struct GerarView: View {
                         .buttonStyle(.borderless)
                         .help("Limpar para o próximo paciente")
                     }
+                    Button(action: abrirCadastro) {
+                        Label("Cadastro", systemImage: pacienteCadastrado == nil ? "person.badge.plus" : "person.text.rectangle")
+                    }
+                    .controlSize(.small)
+                    .disabled(nomeDigitado.isEmpty)
+                    .help(pacienteCadastrado == nil ? "Criar o cadastro deste paciente e acrescentar informações" : "Abrir o cadastro do paciente para acrescentar informações")
                 }
                 if let paciente = pacienteCadastrado {
                     Label(
@@ -135,13 +162,13 @@ struct GerarView: View {
                 Section {
                     LabeledContent("Será salvo em") {
                         HStack {
-                            Text(caminhoAbreviado(armazenamento.pastaDosDocumentos(modelo: modelo, local: local)))
+                            Text(caminhoAbreviado(pastaDeDestino))
                                 .foregroundStyle(.secondary)
                                 .truncationMode(.head)
                                 .lineLimit(1)
-                                .help(armazenamento.pastaDosDocumentos(modelo: modelo, local: local).path)
+                                .help(pastaDeDestino.path)
                             Button {
-                                abrirPasta(armazenamento.pastaDosDocumentos(modelo: modelo, local: local))
+                                abrirPasta(pastaDeDestino)
                             } label: {
                                 Image(systemName: "folder")
                             }
@@ -174,6 +201,7 @@ struct GerarView: View {
         .onAppear {
             if local == nil { localSelecionado = "" }
             validarModelo()
+            subpasta = modelo?.categoria ?? ""
             preencher(.tudo)
             focoNoNome = true
         }
@@ -181,7 +209,26 @@ struct GerarView: View {
             aviso = nil
             ultimoDocumento = nil
         }
-        .onChange(of: modeloSelecionado) { _ in preencher(.tudo) }
+        .onChange(of: modeloSelecionado) { _ in
+            subpasta = modelo?.categoria ?? ""
+            preencher(.tudo)
+        }
+        .alert("Nova subpasta", isPresented: $pedindoSubpasta) {
+            TextField("Ex.: Exames", text: $novaSubpasta)
+            Button("Usar") {
+                let nome = novaSubpasta.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !nome.isEmpty { subpasta = nome }
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("A subpasta é criada dentro da pasta do local quando o documento for gerado.")
+        }
+        .sheet(isPresented: $mostrandoCadastro, onDismiss: voltarDoCadastro) {
+            if let id = pacienteEmEdicao {
+                CadastroPacienteSheet(id: id)
+                    .environmentObject(armazenamento)
+            }
+        }
         .onChange(of: pacienteCadastrado?.id) { _ in preencher(.paciente) }
         .onChange(of: localSelecionado) { _ in
             validarModelo()
@@ -195,6 +242,39 @@ struct GerarView: View {
         if !disponiveis.contains(where: { $0.id.uuidString == modeloSelecionado }) {
             modeloSelecionado = disponiveis.first?.id.uuidString ?? ""
         }
+    }
+
+    private var pastaDeDestino: URL {
+        armazenamento.pastaDosDocumentos(subpasta: subpasta, local: local)
+    }
+
+    /// Tipos, pastas que já existem no local e a subpasta atual (se for uma nova).
+    private var opcoesDeSubpasta: [String] {
+        let opcoes = armazenamento.opcoesDeSubpasta(local)
+        return subpasta.isEmpty || opcoes.contains(subpasta) ? opcoes : opcoes + [subpasta]
+    }
+
+    /// Abre o cadastro do paciente digitado, criando-o se ainda não existir.
+    private func abrirCadastro() {
+        var paciente: Paciente
+        if let cadastrado = pacienteCadastrado {
+            paciente = cadastrado
+        } else {
+            paciente = armazenamento.novoPaciente(nome: nomeDigitado)
+            paciente.localID = local?.id
+            armazenamento.atualizarPaciente(paciente)
+        }
+        pacienteEmEdicao = paciente.id
+        mostrandoCadastro = true
+    }
+
+    /// Depois de editar o cadastro: acompanha mudança de nome e recarrega os dados no formulário.
+    private func voltarDoCadastro() {
+        if let id = pacienteEmEdicao, let paciente = armazenamento.paciente(id), !paciente.nome.isEmpty {
+            nomePaciente = paciente.nome
+        }
+        pacienteEmEdicao = nil
+        preencher(.paciente)
     }
 
     private func valor(_ campo: String) -> Binding<String> {
@@ -225,7 +305,7 @@ struct GerarView: View {
 
         let destino: URL
         do {
-            destino = try armazenamento.caminhoParaNovoDocumento(modelo: modelo, local: local, paciente: nome)
+            destino = try armazenamento.caminhoParaNovoDocumento(modelo: modelo, subpasta: subpasta, local: local, paciente: nome)
             try DocxTemplate.fill(template: armazenamento.urlDoModelo(modelo), values: valoresFinais, output: destino)
         } catch {
             armazenamento.erro = error.localizedDescription

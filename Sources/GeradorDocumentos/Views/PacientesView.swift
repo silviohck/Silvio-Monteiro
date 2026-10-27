@@ -150,6 +150,49 @@ extension PacientesView {
     }
 }
 
+/// Cadastro do paciente aberto numa janela a partir da tela Gerar documento.
+struct CadastroPacienteSheet: View {
+    @EnvironmentObject private var armazenamento: Armazenamento
+    @Environment(\.dismiss) private var dismiss
+    let id: Paciente.ID
+    @State private var confirmarExclusao = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if let paciente = armazenamento.paciente(id) {
+                PacienteEditor(
+                    paciente: Binding(
+                        get: { armazenamento.paciente(id) ?? paciente },
+                        set: { armazenamento.atualizarPaciente($0) }
+                    ),
+                    aoExcluir: { confirmarExclusao = true }
+                )
+            } else {
+                AvisoVazio(titulo: "Paciente não encontrado", icone: "person.crop.circle.badge.questionmark")
+            }
+            Divider()
+            HStack {
+                Text("As alterações são salvas automaticamente.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Concluído") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding()
+        }
+        .frame(width: 560, height: 640)
+        .confirmationDialog("Excluir este paciente?", isPresented: $confirmarExclusao) {
+            Button("Excluir", role: .destructive) {
+                armazenamento.removerPaciente(id)
+                dismiss()
+            }
+        } message: {
+            Text("O cadastro será apagado. Os documentos já gerados não são apagados.")
+        }
+    }
+}
+
 struct PacienteEditor: View {
     @EnvironmentObject private var armazenamento: Armazenamento
     @Binding var paciente: Paciente
