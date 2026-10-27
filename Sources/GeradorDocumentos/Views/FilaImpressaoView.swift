@@ -142,7 +142,7 @@ struct FilaImpressaoView: View {
                 if let observacao = item.observacao {
                     Text(observacao)
                         .font(.caption)
-                        .foregroundStyle(item.situacao == .erro || item.situacao == .incerto ? .orange : .secondary)
+                        .foregroundStyle(item.situacao == .erro || item.situacao == .incerto ? Color.orange : Color.secondary)
                         .lineLimit(2)
                 }
                 if !existe {
