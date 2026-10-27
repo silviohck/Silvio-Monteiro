@@ -7,13 +7,11 @@ struct ModelosView: View {
     @State private var busca = ""
     @State private var modeloParaExcluir: ModeloDocumento?
     @State private var arrastando = false
-    /// "" = todos, "geral" = modelos de todos os locais, ou o id do local.
+    /// Id do local escolhido ("" só quando ainda não há locais cadastrados).
     @AppStorage("filtroLocalModelos") private var filtroLocal = ""
     /// "" = todos os tipos, ou o nome do tipo.
     @AppStorage("filtroTipoModelos") private var filtroTipo = ""
     @State private var gerenciandoTipos = false
-
-    private static let geral = "geral"
 
     private struct Grupo: Identifiable {
         let id: String
@@ -31,41 +29,31 @@ struct ModelosView: View {
         return "Importar \(tipo) para \(local.nome.isEmpty ? "este local" : local.nome)"
     }
 
+    /// Modelos do local escolhido mais os que valem para todos os locais (ex.: 1 - APAC).
     private func doFiltroDeLocal(_ modelo: ModeloDocumento) -> Bool {
-        switch filtroLocal {
-        case "": return true
-        case Self.geral: return armazenamento.localDoModelo(modelo) == nil
-        default: return modelo.localID?.uuidString == filtroLocal
-        }
+        guard let local = localFiltrado, let dono = armazenamento.localDoModelo(modelo) else { return true }
+        return dono.id == local.id
     }
 
-    /// Local cujos tipos aparecem no filtro: o local escolhido, nil para "todos os locais",
-    /// ou .none quando o filtro mostra todos os modelos (sem um local específico).
-    private var escopoDosTipos: UUID?? {
-        switch filtroLocal {
-        case "": return .none
-        case Self.geral: return .some(nil)
-        default:
-            guard let local = localFiltrado else { return .none }
-            return .some(local.id)
-        }
-    }
-
-    /// Só os tipos do local escolhido; sem local, a junção de todos.
+    /// Tipos do local escolhido, com as pastas compartilhadas (ex.: 1 - APAC) primeiro.
     private var tiposDoFiltro: [String] {
-        if let escopo = escopoDosTipos {
-            return armazenamento.tipos(doLocal: escopo)
+        guard let local = localFiltrado else { return armazenamento.tipos(doLocal: nil) }
+        let modelos = armazenamento.modelos(para: local)
+        var tipos = armazenamento.dados.pastasCompartilhadas.filter { tipo in modelos.contains { $0.categoria == tipo } }
+        for tipo in armazenamento.tipos(doLocal: local.id) + modelos.map(\.categoria) where !tipos.contains(tipo) {
+            tipos.append(tipo)
         }
-        var todos = armazenamento.tipos(doLocal: nil)
-        for local in armazenamento.locaisOrdenados {
-            for tipo in armazenamento.tipos(doLocal: local.id) where !todos.contains(tipo) {
-                todos.append(tipo)
-            }
-        }
-        return todos
+        return tipos
     }
 
-    /// Sem local escolhido: agrupa por local. Com local escolhido: agrupa por tipo.
+    /// Sempre há um local escolhido no filtro, se houver locais cadastrados.
+    private func escolherLocalSeNecessario() {
+        if localFiltrado == nil {
+            filtroLocal = armazenamento.locaisOrdenados.first?.id.uuidString ?? ""
+        }
+    }
+
+    /// Agrupa por tipo; sem nenhum local cadastrado, agrupa por local.
     private var grupos: [Grupo] {
         let termo = busca.trimmingCharacters(in: .whitespaces)
         let modelos = armazenamento.dados.modelos
@@ -74,7 +62,7 @@ struct ModelosView: View {
             .filter(doFiltroDeLocal)
             .sorted { $0.nome.localizedStandardCompare($1.nome) == .orderedAscending }
 
-        if !filtroLocal.isEmpty {
+        if localFiltrado != nil {
             var tipos = tiposDoFiltro
             for modelo in modelos where !tipos.contains(modelo.categoria) {
                 tipos.append(modelo.categoria)
@@ -94,7 +82,7 @@ struct ModelosView: View {
         }
         let gerais = modelos.filter { armazenamento.localDoModelo($0) == nil }
         if !gerais.isEmpty {
-            grupos.append(Grupo(id: Self.geral, titulo: "Todos os locais", modelos: gerais))
+            grupos.append(Grupo(id: "todos", titulo: "Todos os locais", modelos: gerais))
         }
         return grupos
     }
@@ -112,15 +100,15 @@ struct ModelosView: View {
                 .controlSize(.large)
                 .padding([.horizontal, .top], 8)
                 .help("Importa arquivos avulsos, fora da pasta sincronizada")
-                Picker("Local", selection: $filtroLocal) {
-                    Text("Todos os modelos").tag("")
-                    ForEach(armazenamento.locaisOrdenados) { local in
-                        Text(local.nome.isEmpty ? "Local sem nome" : local.nome).tag(local.id.uuidString)
+                if !armazenamento.dados.locais.isEmpty {
+                    Picker("Local", selection: $filtroLocal) {
+                        ForEach(armazenamento.locaisOrdenados) { local in
+                            Text(local.nome.isEmpty ? "Local sem nome" : local.nome).tag(local.id.uuidString)
+                        }
                     }
-                    Text("Modelos de todos os locais").tag(Self.geral)
+                    .labelsHidden()
+                    .padding([.horizontal, .top], 8)
                 }
-                .labelsHidden()
-                .padding([.horizontal, .top], 8)
                 HStack {
                     Picker("Tipo", selection: $filtroTipo) {
                         Text("Todos os tipos").tag("")
@@ -130,8 +118,8 @@ struct ModelosView: View {
                     }
                     .labelsHidden()
                     Button("Gerenciar…") { gerenciandoTipos = true }
-                        .disabled(escopoDosTipos == nil)
-                        .help(escopoDosTipos == nil
+                        .disabled(localFiltrado == nil)
+                        .help(localFiltrado == nil
                             ? "Escolha um local acima para gerenciar os tipos dele"
                             : "Criar, renomear, excluir e ordenar os tipos deste local")
                 }
@@ -216,9 +204,11 @@ struct ModelosView: View {
             .disabled(selecao == nil)
         }
         .sheet(isPresented: $gerenciandoTipos) {
-            GerenciarTiposView(localID: escopoDosTipos ?? nil)
+            GerenciarTiposView(localID: localFiltrado?.id)
                 .environmentObject(armazenamento)
         }
+        .onAppear(perform: escolherLocalSeNecessario)
+        .onChange(of: armazenamento.dados.locais.map(\.id)) { _ in escolherLocalSeNecessario() }
         .onChange(of: tiposDoFiltro) { tipos in
             if !filtroTipo.isEmpty && !tipos.contains(filtroTipo) { filtroTipo = "" }
         }
@@ -240,6 +230,12 @@ struct ModelosView: View {
         VStack(alignment: .leading) {
             HStack(spacing: 4) {
                 Text(modelo.nome)
+                if armazenamento.localDoModelo(modelo) == nil {
+                    Image(systemName: "globe")
+                        .fonteApp(.legenda)
+                        .foregroundStyle(Tema.destaque)
+                        .help("Vale para todos os locais")
+                }
                 if modelo.origem != nil {
                     Image(systemName: "arrow.triangle.2.circlepath")
                         .fonteApp(.legenda)
@@ -266,7 +262,8 @@ struct ModelosView: View {
             do {
                 let modelo = try armazenamento.importarModelo(
                     de: url,
-                    localID: localFiltrado?.id,
+                    // Tipo de pasta compartilhada (ex.: 1 - APAC): o modelo vale para todos os locais.
+                    localID: armazenamento.dados.ehCompartilhada(filtroTipo) ? nil : localFiltrado?.id,
                     tipo: filtroTipo.isEmpty ? nil : filtroTipo
                 )
                 selecao = modelo.id
