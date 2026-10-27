@@ -160,7 +160,8 @@ struct DadosApp: Codable {
             pastasCompartilhadas = salvas
         } else {
             // Primeira vez com pastas compartilhadas: a "1 - APAC" deixa de ser ignorada.
-            pastasIgnoradas.removeAll { ehCompartilhada($0) }
+            let ignoradas = pastasIgnoradas.filter { !ehCompartilhada($0) }
+            pastasIgnoradas = ignoradas
         }
         pastaDocumentos = try container.decodeIfPresent(String.self, forKey: .pastaDocumentos) ?? ""
     }
