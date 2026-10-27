@@ -58,7 +58,7 @@ No cadastro de cada modelo (aba *Modelos*), a seção **Impressão** define o n�
 
 ### Aparência
 
-O app usa cores suaves (fundo creme no modo claro, grafite no escuro) e texto maior que o padrão do Mac. Em **Orthck › Ajustes…** (⌘,) você escolhe o tamanho do texto — Normal, Grande ou Muito grande — e o tema claro, escuro ou automático. Atalhos: ⌘+ aumenta, ⌘− diminui, ⌘0 volta ao normal.
+O app usa a paleta “Sereno”: cinzas neutros e azul-petróleo suave, sem branco ou preto puros (modo claro e escuro) e texto maior que o padrão do Mac. Em **Orthck › Ajustes…** (⌘,) você escolhe o tamanho do texto — Normal, Grande ou Muito grande — e o tema claro, escuro ou automático. Atalhos: ⌘+ aumenta, ⌘− diminui, ⌘0 volta ao normal.
 
 ### CID-10
 

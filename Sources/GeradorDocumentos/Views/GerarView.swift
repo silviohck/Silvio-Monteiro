@@ -529,7 +529,9 @@ struct GerarView: View {
                     .foregroundStyle(.secondary)
                 Text(local.map { $0.nome.isEmpty ? "Local sem nome" : $0.nome } ?? "Escolha o local")
                     .fonteApp(.destaque)
-                    .foregroundStyle(local == nil ? Color.orange : Color.primary)
+                    .fontWeight(.bold)
+                    // O local continua bem marcado: é o que mais importa conferir antes de gerar.
+                    .foregroundStyle(local == nil ? Color.orange : Tema.destaque)
                     .lineLimit(1)
                 if armazenamento.dados.locais.isEmpty {
                     Text("Cadastre seus locais na aba “Locais de atendimento”.")

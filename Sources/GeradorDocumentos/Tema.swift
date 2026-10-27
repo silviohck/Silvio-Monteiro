@@ -141,13 +141,6 @@ extension View {
             .scrollContentBackground(.hidden)
             .background(cor)
     }
-
-    /// Superfície discreta, com contorno leve em vez de sombra forte.
-    func painelSuave(raio: CGFloat = 14) -> some View {
-        self
-            .background(RoundedRectangle(cornerRadius: raio).fill(Tema.superficie))
-            .overlay(RoundedRectangle(cornerRadius: raio).strokeBorder(Tema.borda.opacity(0.75), lineWidth: 1))
-    }
 }
 
 /// Título de seção com ícone, negrito e cor de destaque, para achar cada parte da tela rápido.

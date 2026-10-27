@@ -43,11 +43,11 @@ struct ContentView: View {
             .fundoSuave(Tema.lateral)
             .safeAreaInset(edge: .top, spacing: 0) {
                 HStack(spacing: 11) {
-                    Image(systemName: "doc.text.fill")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundStyle(Tema.destaque)
-                        .frame(width: 38, height: 38)
-                        .background(RoundedRectangle(cornerRadius: 11).fill(Tema.destaqueSuave))
+                    // A logo do Orthck (ícone do app).
+                    Image(nsImage: NSApp.applicationIconImage)
+                        .resizable()
+                        .interpolation(.high)
+                        .frame(width: 40, height: 40)
                     VStack(alignment: .leading, spacing: 1) {
                         Text("Orthck")
                             .font(.system(size: 18, weight: .semibold))
