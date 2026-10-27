@@ -12,6 +12,7 @@ struct ModelosView: View {
     /// "" = todos os tipos, ou o nome do tipo.
     @AppStorage("filtroTipoModelos") private var filtroTipo = ""
     @State private var gerenciandoTipos = false
+    @State private var pastaParaImportar: URL?
 
     private static let geral = "geral"
 
@@ -84,6 +85,13 @@ struct ModelosView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .padding([.horizontal, .top], 8)
+                Button(action: importarPasta) {
+                    Label("Importar pasta inteira…", systemImage: "folder.badge.plus")
+                        .frame(maxWidth: .infinity)
+                }
+                .controlSize(.large)
+                .padding([.horizontal, .top], 8)
+                .help("Importa todos os modelos de uma pasta, já separando por local e tipo")
                 Picker("Local", selection: $filtroLocal) {
                     Text("Todos os modelos").tag("")
                     ForEach(armazenamento.locaisOrdenados) { local in
@@ -178,6 +186,12 @@ struct ModelosView: View {
             }
             .disabled(selecao == nil)
         }
+        .sheet(isPresented: Binding(get: { pastaParaImportar != nil }, set: { if !$0 { pastaParaImportar = nil } })) {
+            if let pasta = pastaParaImportar {
+                ImportarPastaView(pasta: pasta)
+                    .environmentObject(armazenamento)
+            }
+        }
         .sheet(isPresented: $gerenciandoTipos) {
             GerenciarTiposView()
                 .environmentObject(armazenamento)
@@ -209,6 +223,10 @@ struct ModelosView: View {
                 .fonteApp(.legenda)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    private func importarPasta() {
+        pastaParaImportar = escolherPasta(mensagem: "Escolha a pasta principal (com uma subpasta para cada local) ou a pasta de um local.")
     }
 
     private func importarArquivos() {
