@@ -14,6 +14,8 @@ final class Armazenamento: ObservableObject {
     @Published var sincronizacao = EstadoSincronizacao()
     /// Criando o .zip da pasta sincronizada.
     @Published var compactando = false
+    /// Bloqueio global: não dispara duas sequências de impressão simultaneamente.
+    @Published private(set) var processandoFila = false
 
     let pasta: URL
     let pastaModelos: URL
@@ -458,6 +460,90 @@ final class Armazenamento: ObservableObject {
         dados.historico.insert(documento, at: 0)
     }
 
+    // MARK: Fila de impressão
+
+    var pendentesNaFila: Int {
+        dados.filaImpressao.filter { $0.situacao == .pendente }.count
+    }
+
+    /// Salva uma referência ao documento, nunca uma cópia do arquivo Word.
+    @discardableResult
+    func adicionarAFila(_ documento: DocumentoGerado, copias: Int) -> UUID {
+        if let existente = dados.filaImpressao.first(where: { $0.documentoID == documento.id }) {
+            return existente.id
+        }
+        let item = ItemFilaImpressao(documento: documento, copias: copias)
+        dados.filaImpressao.append(item)
+        return item.id
+    }
+
+    /// Remover da fila não apaga documentos nem registros do histórico.
+    func removerDaFila(_ id: UUID) {
+        guard !processandoFila else { return }
+        dados.filaImpressao.removeAll { $0.id == id }
+    }
+
+    func limparEnviadosDaFila() {
+        guard !processandoFila else { return }
+        dados.filaImpressao.removeAll { $0.situacao == .enviado }
+    }
+
+    /// Reenvio só após confirmação explícita na interface: pode causar impressão duplicada.
+    func reenfileirar(_ id: UUID) {
+        guard !processandoFila,
+              let indice = dados.filaImpressao.firstIndex(where: { $0.id == id }),
+              dados.filaImpressao[indice].situacao == .erro
+                || dados.filaImpressao[indice].situacao == .incerto else { return }
+        dados.filaImpressao[indice].situacao = .pendente
+        dados.filaImpressao[indice].observacao = nil
+    }
+
+    /// Envia os arquivos um por vez ao Word. Sucesso significa "comando enviado", não impressão física.
+    func imprimirFila(ids: Set<UUID>, impressora: String) async {
+        guard !processandoFila else { return }
+        processandoFila = true
+        defer { processandoFila = false }
+
+        // Fotografia da ordem no momento do clique. Novos itens aguardarão a próxima rodada.
+        let ordem = dados.filaImpressao
+            .filter { ids.contains($0.id) && $0.situacao == .pendente }
+            .map(\.id)
+
+        for id in ordem {
+            if Task.isCancelled { break }
+            guard let indice = dados.filaImpressao.firstIndex(where: { $0.id == id }),
+                  dados.filaImpressao[indice].situacao == .pendente else { continue }
+            let item = dados.filaImpressao[indice]
+            guard FileManager.default.fileExists(atPath: item.caminho) else {
+                dados.filaImpressao[indice].situacao = .erro
+                dados.filaImpressao[indice].observacao = "Arquivo não encontrado. Confira a pasta antes de tentar novamente."
+                continue
+            }
+
+            dados.filaImpressao[indice].situacao = .enviando
+            let erroDaImpressao: String? = await withCheckedContinuation { continuation in
+                Impressao.imprimir(
+                    URL(fileURLWithPath: item.caminho),
+                    impressora: impressora,
+                    manterAberto: false,
+                    copias: item.copias
+                ) { erro in
+                    continuation.resume(returning: erro)
+                }
+            }
+
+            guard let atualizado = dados.filaImpressao.firstIndex(where: { $0.id == id }) else { continue }
+            if let erroDaImpressao {
+                // Erro não prova que a impressão não saiu. Reenvio somente com confirmação.
+                dados.filaImpressao[atualizado].situacao = .erro
+                dados.filaImpressao[atualizado].observacao = erroDaImpressao
+            } else {
+                dados.filaImpressao[atualizado].situacao = .enviado
+                dados.filaImpressao[atualizado].observacao = "Comando enviado ao Word. Confira o resultado na impressora."
+            }
+        }
+    }
+
     // MARK: Disco
 
     func abrirPastaDeDados() {
@@ -468,6 +554,12 @@ final class Armazenamento: ObservableObject {
         guard let conteudo = try? Data(contentsOf: arquivoDados) else { return }
         do {
             dados = try Self.decodificador.decode(DadosApp.self, from: conteudo)
+            // O app pode ter sido encerrado enquanto o Word recebia o comando.
+            // Não reenviar automaticamente: a impressão anterior pode ter acontecido.
+            for indice in dados.filaImpressao.indices where dados.filaImpressao[indice].situacao == .enviando {
+                dados.filaImpressao[indice].situacao = .incerto
+                dados.filaImpressao[indice].observacao = "O aplicativo foi fechado durante o envio. Confira a impressora antes de reenviar."
+            }
             separarTiposPorLocal()
         } catch {
             // Mantém uma cópia do arquivo que não pôde ser lido em vez de sobrescrevê-lo.
