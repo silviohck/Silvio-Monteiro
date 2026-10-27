@@ -129,6 +129,28 @@ struct GerarView: View {
                         .buttonStyle(.borderless)
                         .help("Limpar para o próximo paciente")
                     }
+                    Button {
+                        // Cola o nome copiado de outro lugar (sistema da clínica, mensagem…), numa linha só.
+                        if let texto = NSPasteboard.general.string(forType: .string) {
+                            nomePaciente = texto.components(separatedBy: .newlines)
+                                .map { $0.trimmingCharacters(in: .whitespaces) }
+                                .first { !$0.isEmpty } ?? ""
+                            focoNoNome = true
+                        }
+                    } label: {
+                        Label("Colar", systemImage: "doc.on.clipboard")
+                    }
+                    .controlSize(.small)
+                    .help("Colar o nome copiado")
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(nomeDigitado, forType: .string)
+                    } label: {
+                        Label("Copiar", systemImage: "doc.on.doc")
+                    }
+                    .controlSize(.small)
+                    .disabled(nomeDigitado.isEmpty)
+                    .help("Copiar o nome do paciente")
                     Button(action: abrirCadastro) {
                         Label("Cadastro", systemImage: pacienteCadastrado == nil ? "person.badge.plus" : "person.text.rectangle")
                     }
