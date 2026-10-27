@@ -37,7 +37,9 @@ final class Armazenamento: ObservableObject {
         let destino = pastaModelos.appendingPathComponent(arquivo)
         let campos = try copiarModelo(origem, para: destino)
         let nome = origem.deletingPathExtension().lastPathComponent
-        dados.modelos.append(ModeloDocumento(nome: nome, arquivo: arquivo, campos: campos))
+        var categoria = ModeloDocumento.categoriaSugerida(para: nome)
+        if !dados.categorias.contains(categoria) { categoria = dados.categorias.last ?? categoria }
+        dados.modelos.append(ModeloDocumento(nome: nome, arquivo: arquivo, campos: campos, categoria: categoria))
     }
 
     /// Copia (ou converte, se não for .docx) o arquivo escolhido e devolve os campos encontrados.
@@ -151,6 +153,64 @@ final class Armazenamento: ObservableObject {
 
     func removerLocal(_ id: LocalAtendimento.ID) {
         dados.locais.removeAll { $0.id == id }
+    }
+
+    // MARK: Pastas dos documentos gerados
+
+    func adicionarCategoria(_ nome: String) {
+        let nome = nome.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !nome.isEmpty, !dados.categorias.contains(nome) else { return }
+        dados.categorias.append(nome)
+    }
+
+    /// Pasta escolhida para o local ou, se nenhuma, Documentos/Gerador de Documentos/<local>.
+    func pastaDoLocal(_ local: LocalAtendimento?) -> URL {
+        if let pasta = local?.pasta, !pasta.isEmpty {
+            return URL(fileURLWithPath: pasta, isDirectory: true)
+        }
+        let documentos = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let nome = Self.nomeSeguro(local?.nome ?? "")
+        return documentos
+            .appendingPathComponent("Gerador de Documentos", isDirectory: true)
+            .appendingPathComponent(nome.isEmpty ? "Sem local" : nome, isDirectory: true)
+    }
+
+    func pastaDosDocumentos(modelo: ModeloDocumento, local: LocalAtendimento?) -> URL {
+        pastaDoLocal(local).appendingPathComponent(Self.nomeSeguro(modelo.categoria), isDirectory: true)
+    }
+
+    /// Cria as subpastas de todas as categorias dentro da pasta do local.
+    func criarSubpastas(_ local: LocalAtendimento?) throws {
+        for categoria in dados.categorias {
+            try FileManager.default.createDirectory(
+                at: pastaDoLocal(local).appendingPathComponent(Self.nomeSeguro(categoria), isDirectory: true),
+                withIntermediateDirectories: true
+            )
+        }
+    }
+
+    /// Caminho livre para o novo documento: "<Modelo> - <Paciente> - 27-10-2026.docx", com (2), (3)… se já existir.
+    func caminhoParaNovoDocumento(modelo: ModeloDocumento, local: LocalAtendimento?, paciente: String, data: Date = Date()) throws -> URL {
+        let pasta = pastaDosDocumentos(modelo: modelo, local: local)
+        try FileManager.default.createDirectory(at: pasta, withIntermediateDirectories: true)
+
+        let formatador = DateFormatter()
+        formatador.dateFormat = "dd-MM-yyyy"
+        let base = Self.nomeSeguro([modelo.nome, paciente, formatador.string(from: data)].filter { !$0.isEmpty }.joined(separator: " - "))
+
+        var destino = pasta.appendingPathComponent(base + ".docx")
+        var numero = 2
+        while FileManager.default.fileExists(atPath: destino.path) {
+            destino = pasta.appendingPathComponent("\(base) (\(numero)).docx")
+            numero += 1
+        }
+        return destino
+    }
+
+    static func nomeSeguro(_ nome: String) -> String {
+        nome.replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: Histórico

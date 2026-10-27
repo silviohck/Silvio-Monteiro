@@ -11,8 +11,9 @@ App para Mac com Apple Silicon (M1, M2, M3, M4…) que gera documentos do Word a
    A formatação do Word (negrito, fonte, tabelas, cabeçalho e rodapé) é mantida. Há um exemplo pronto em [`Exemplos/Atestado-Exemplo.docx`](Exemplos/Atestado-Exemplo.docx).
 
 2. **Importe o modelo** na aba *Modelos*. O app encontra os campos sozinho.
-3. **Cadastre seus locais de atendimento** na aba *Locais de atendimento* (clínica, hospital, consultório).
-4. Na aba **Gerar documento**, escolha o modelo e o local, **digite o nome do paciente**, confira os valores e clique em *Gerar documento…*. O novo `.docx` é salvo onde você escolher e aberto no Word.
+   Escolha o **tipo** de cada modelo (Receitas, Laudos, Relatórios médicos ou outro que você criar).
+3. **Cadastre seus locais de atendimento** na aba *Locais de atendimento* (clínica, hospital, consultório) e escolha a **pasta** de cada um.
+4. Na aba **Gerar documento**, escolha o modelo e o local, **digite o nome do paciente**, confira os valores e clique em *Gerar documento*. O `.docx` é salvo automaticamente na pasta do local, na subpasta do tipo, e aberto no Word.
    - Se o paciente já tem cadastro, o app sugere o nome e preenche CPF, nascimento etc.
    - Se é um paciente novo, o cadastro é criado sozinho com o que você digitou.
 
@@ -30,6 +31,18 @@ App para Mac com Apple Silicon (M1, M2, M3, M4…) que gera documentos do Word a
 | `{{DATA_EXTENSO}}` | Data por extenso (27 de outubro de 2026) |
 
 Maiúsculas, acentos e espaços não importam (`{{Data de Nascimento}}` também funciona). Qualquer outro campo, como `{{CID}}` ou `{{DIAS_AFASTAMENTO}}`, aparece para ser digitado, e o valor fica salvo no cadastro do paciente para a próxima vez.
+
+### Organização dos documentos gerados
+
+```
+OPERA PB/                      ← pasta escolhida para o local
+├── Receitas/
+│   └── Receita - Silvio Romero - 27-10-2026.docx
+├── Laudos/
+└── Relatórios médicos/
+```
+
+Se o local não tiver pasta escolhida, o app usa `Documentos/Gerador de Documentos/<nome do local>`. Se já existir um arquivo com o mesmo nome, o novo recebe "(2)", "(3)"… no final; nada é sobrescrito.
 
 ### Onde os dados ficam salvos
 

@@ -11,6 +11,7 @@ struct GerarView: View {
     @State private var valores: [String: String] = [:]
     @State private var abrirAoGerar = true
     @State private var aviso: String?
+    @State private var ultimoDocumento: URL?
     @FocusState private var focoNoNome: Bool
 
     private enum Escopo { case tudo, paciente, local }
@@ -127,14 +128,36 @@ struct GerarView: View {
                 }
 
                 Section {
+                    LabeledContent("Será salvo em") {
+                        HStack {
+                            Text(caminhoAbreviado(armazenamento.pastaDosDocumentos(modelo: modelo, local: local)))
+                                .foregroundStyle(.secondary)
+                                .truncationMode(.head)
+                                .lineLimit(1)
+                                .help(armazenamento.pastaDosDocumentos(modelo: modelo, local: local).path)
+                            Button {
+                                abrirPasta(armazenamento.pastaDosDocumentos(modelo: modelo, local: local))
+                            } label: {
+                                Image(systemName: "folder")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("Abrir esta pasta no Finder")
+                        }
+                    }
                     Toggle("Abrir o documento depois de gerar", isOn: $abrirAoGerar)
                     HStack {
                         if let aviso {
                             Label(aviso, systemImage: "checkmark.circle.fill")
                                 .foregroundStyle(.green)
+                            if let ultimoDocumento {
+                                Button("Mostrar no Finder") {
+                                    NSWorkspace.shared.activateFileViewerSelecting([ultimoDocumento])
+                                }
+                                .buttonStyle(.link)
+                            }
                         }
                         Spacer()
-                        Button("Gerar documento…") { gerar(modelo) }
+                        Button("Gerar documento") { gerar(modelo) }
                             .buttonStyle(.borderedProminent)
                             .keyboardShortcut(.defaultAction)
                             .disabled(nomeDigitado.isEmpty && modelo.campos.contains(where: CamposAutomaticos.ehNomeDoPaciente))
@@ -149,6 +172,10 @@ struct GerarView: View {
             preencher(.tudo)
             focoNoNome = true
         }
+        .onChange(of: nomePaciente) { _ in
+            aviso = nil
+            ultimoDocumento = nil
+        }
         .onChange(of: modeloSelecionado) { _ in preencher(.tudo) }
         .onChange(of: pacienteCadastrado?.id) { _ in preencher(.paciente) }
         .onChange(of: localSelecionado) { _ in preencher(.local) }
@@ -160,7 +187,6 @@ struct GerarView: View {
 
     /// Recalcula os campos; ao trocar o local, os dados do paciente já digitados não são apagados (e vice-versa).
     private func preencher(_ escopo: Escopo) {
-        aviso = nil
         guard let modelo else { return }
         for campo in modelo.campos where !CamposAutomaticos.ehNomeDoPaciente(campo) {
             var doLocal = false
@@ -181,13 +207,9 @@ struct GerarView: View {
             valoresFinais[campo] = nome
         }
 
-        let painel = NSSavePanel()
-        painel.allowedContentTypes = [.documentoWord]
-        painel.canCreateDirectories = true
-        painel.nameFieldStringValue = nomeDoArquivo(modelo: modelo.nome, paciente: nome)
-        guard painel.runModal() == .OK, let destino = painel.url else { return }
-
+        let destino: URL
         do {
+            destino = try armazenamento.caminhoParaNovoDocumento(modelo: modelo, local: local, paciente: nome)
             try DocxTemplate.fill(template: armazenamento.urlDoModelo(modelo), values: valoresFinais, output: destino)
         } catch {
             armazenamento.erro = error.localizedDescription
@@ -200,14 +222,20 @@ struct GerarView: View {
             armazenamento.atualizarPaciente(paciente)
         }
         armazenamento.registrar(DocumentoGerado(modelo: modelo.nome, paciente: nome, local: local?.nome, caminho: destino.path))
-        aviso = "Documento salvo: \(destino.lastPathComponent)"
+        aviso = "Salvo: \(destino.lastPathComponent)"
+        ultimoDocumento = destino
         if abrirAoGerar {
             NSWorkspace.shared.open(destino)
         }
     }
 
-    private func nomeDoArquivo(modelo: String, paciente: String) -> String {
-        let base = paciente.isEmpty ? modelo : "\(modelo) - \(paciente)"
-        return base.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-") + ".docx"
+    /// "/Users/silvio/Documents/…" → "~/Documents/…"
+    private func caminhoAbreviado(_ url: URL) -> String {
+        (url.path as NSString).abbreviatingWithTildeInPath
+    }
+
+    private func abrirPasta(_ url: URL) {
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        NSWorkspace.shared.open(url)
     }
 }

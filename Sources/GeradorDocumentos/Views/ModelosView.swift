@@ -6,6 +6,8 @@ struct ModelosView: View {
     @State private var modeloParaExcluir: ModeloDocumento?
     @State private var arrastando = false
     @State private var aviso: String?
+    @State private var pedindoCategoria = false
+    @State private var novaCategoria = ""
 
     var body: some View {
         ScrollView {
@@ -22,6 +24,11 @@ struct ModelosView: View {
                     .controlSize(.large)
                     Text("ou arraste o arquivo do Word para esta janela")
                         .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Novo tipo de documento…") {
+                        novaCategoria = ""
+                        pedindoCategoria = true
+                    }
                 }
                 if let aviso {
                     Label(aviso, systemImage: "checkmark.circle.fill")
@@ -36,9 +43,18 @@ struct ModelosView: View {
                 ForEach($armazenamento.dados.modelos) { $modelo in
                     GroupBox {
                         VStack(alignment: .leading, spacing: 10) {
-                            TextField("Nome do modelo", text: $modelo.nome)
-                                .textFieldStyle(.roundedBorder)
-                                .font(.headline)
+                            HStack {
+                                TextField("Nome do modelo", text: $modelo.nome)
+                                    .textFieldStyle(.roundedBorder)
+                                    .font(.headline)
+                                Picker("Tipo", selection: $modelo.categoria) {
+                                    ForEach(categorias(incluindo: modelo.categoria), id: \.self) { categoria in
+                                        Text(categoria).tag(categoria)
+                                    }
+                                }
+                                .frame(maxWidth: 240)
+                                .help("Subpasta onde os documentos deste modelo são salvos, dentro da pasta do local de atendimento.")
+                            }
                             Text(modelo.campos.isEmpty ? "Nenhum campo encontrado." : "Campos: " + modelo.campos.joined(separator: ", "))
                                 .font(.callout)
                                 .foregroundStyle(.secondary)
@@ -84,6 +100,13 @@ struct ModelosView: View {
                 Label("Importar modelo", systemImage: "square.and.arrow.down")
             }
         }
+        .alert("Novo tipo de documento", isPresented: $pedindoCategoria) {
+            TextField("Ex.: Atestados", text: $novaCategoria)
+            Button("Adicionar") { armazenamento.adicionarCategoria(novaCategoria) }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("Cada tipo vira uma subpasta dentro da pasta de cada local de atendimento.")
+        }
         .confirmationDialog(
             "Excluir o modelo “\(modeloParaExcluir?.nome ?? "")”?",
             isPresented: Binding(get: { modeloParaExcluir != nil }, set: { if !$0 { modeloParaExcluir = nil } }),
@@ -106,6 +129,11 @@ struct ModelosView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(6)
         }
+    }
+
+    private func categorias(incluindo atual: String) -> [String] {
+        let lista = armazenamento.dados.categorias
+        return lista.contains(atual) ? lista : lista + [atual]
     }
 
     private func importar(_ urls: [URL]) {
