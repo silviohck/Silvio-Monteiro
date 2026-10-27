@@ -20,8 +20,7 @@ enum Impressao {
     }
 
     /// Imprime `arquivo` pelo Word. Com uma impressora escolhida, ela passa a ser a padrão do Mac
-    /// (o Word sempre imprime na impressora padrão). "2 páginas por folha" já vem gravado no próprio
-    /// documento quando o modelo pede (ver `DocxTemplate.fill`). `concluir` recebe nil ou a mensagem de erro.
+    /// (o Word sempre imprime na impressora padrão). `concluir` recebe nil ou a mensagem de erro.
     static func imprimir(
         _ arquivo: URL,
         impressora: String,

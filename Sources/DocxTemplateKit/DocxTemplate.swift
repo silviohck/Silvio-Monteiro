@@ -32,9 +32,7 @@ public enum DocxTemplate {
     }
 
     /// Gera `output` a partir de `template`, trocando cada `{{CAMPO}}` pelo valor correspondente.
-    /// Com `twoPagesPerSheet`, liga no documento a opção do Word "2 páginas por folha"
-    /// (Layout › Margens › Várias páginas), e o Word passa a imprimir duas páginas em cada folha.
-    public static func fill(template: URL, values: [String: String], output: URL, twoPagesPerSheet: Bool = false) throws {
+    public static func fill(template: URL, values: [String: String], output: URL) throws {
         try withExtracted(template) { dir in
             for part in try xmlParts(in: dir) {
                 let xml = try String(contentsOf: part, encoding: .utf8)
@@ -42,10 +40,6 @@ public enum DocxTemplate {
                 if filled != xml {
                     try filled.write(to: part, atomically: true, encoding: .utf8)
                 }
-            }
-            let settings = dir.appendingPathComponent("word/settings.xml")
-            if twoPagesPerSheet, let xml = try? String(contentsOf: settings, encoding: .utf8) {
-                try SettingsXML.withTwoPagesPerSheet(xml).write(to: settings, atomically: true, encoding: .utf8)
             }
             let temporary = dir.deletingLastPathComponent().appendingPathComponent("saida.docx")
             try Zip.compress(directory: dir, to: temporary)

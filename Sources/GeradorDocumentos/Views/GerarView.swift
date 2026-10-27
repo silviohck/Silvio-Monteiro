@@ -281,7 +281,7 @@ struct GerarView: View {
         }
     }
 
-    /// Imprime com os ajustes do modelo (páginas por folha e cópias).
+    /// Imprime com os ajustes do modelo (cópias).
     private func imprimir(_ arquivo: URL, modelo: ModeloDocumento?, manterAberto: Bool) {
         imprimindo = true
         Impressao.imprimir(
@@ -357,12 +357,7 @@ struct GerarView: View {
             destino = try armazenamento.caminhoParaNovoDocumento(
                 modelo: modelo, subpasta: subpasta, local: local, paciente: nome, pastaAvulsa: pastaAvulsa
             )
-            try DocxTemplate.fill(
-                template: armazenamento.urlDoModelo(modelo),
-                values: valoresFinais,
-                output: destino,
-                twoPagesPerSheet: modelo.paginasPorFolha >= 2
-            )
+            try DocxTemplate.fill(template: armazenamento.urlDoModelo(modelo), values: valoresFinais, output: destino)
         } catch {
             armazenamento.erro = error.localizedDescription
             return

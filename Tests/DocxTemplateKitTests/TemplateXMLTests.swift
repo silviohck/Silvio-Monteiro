@@ -53,19 +53,3 @@ final class TemplateXMLTests: XCTestCase {
         XCTAssertEqual(TemplateXML.decodeEntities("a &amp; b &lt;&#123;&#x7D;&gt; &desconhecida;"), "a & b <{}> &desconhecida;")
     }
 }
-
-final class SettingsXMLTests: XCTestCase {
-    func testInsereDuasPaginasPorFolhaNaPosicaoCerta() {
-        let xml = #"<w:settings xmlns:w="w"><w:zoom w:percent="100"/><w:defaultTabStop w:val="708"/><w:characterSpacingControl w:val="doNotCompress"/><w:compat><w:compatSetting/></w:compat><w:rsids/><w15:docId/></w:settings>"#
-        XCTAssertEqual(
-            SettingsXML.withTwoPagesPerSheet(xml),
-            #"<w:settings xmlns:w="w"><w:zoom w:percent="100"/><w:defaultTabStop w:val="708"/><w:characterSpacingControl w:val="doNotCompress"/><w:printTwoOnOne/><w:compat><w:compatSetting/></w:compat><w:rsids/><w15:docId/></w:settings>"#
-        )
-    }
-
-    func testNaoDuplicaENaoQuebraSettingsSimples() {
-        let comOpcao = #"<w:settings><w:printTwoOnOne/></w:settings>"#
-        XCTAssertEqual(SettingsXML.withTwoPagesPerSheet(comOpcao), comOpcao)
-        XCTAssertEqual(SettingsXML.withTwoPagesPerSheet("<w:settings></w:settings>"), "<w:settings><w:printTwoOnOne/></w:settings>")
-    }
-}
