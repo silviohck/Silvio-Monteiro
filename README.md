@@ -89,4 +89,5 @@ Para editar o código, abra `Package.swift` no Xcode e rode com ⌘R.
 
 - `Sources/DocxTemplateKit/`: leitura e preenchimento dos `.docx`. Também trata campos que o Word divide em vários trechos internos.
 - `Sources/GeradorDocumentos/`: o app SwiftUI (telas, cadastro e armazenamento).
+- `Recursos/`: ícone do app (`AppIcon.png` e `AppIcon.icns`).
 - `Tests/`: testes automáticos (`swift test`).

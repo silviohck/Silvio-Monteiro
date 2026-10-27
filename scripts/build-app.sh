@@ -14,6 +14,7 @@ BIN_DIR="$(swift build -c release --arch arm64 --show-bin-path)"
 rm -rf dist
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/$EXECUTAVEL" "$APP/Contents/MacOS/$EXECUTAVEL"
+cp Recursos/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -26,6 +27,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleIdentifier</key><string>com.silviomonteiro.GeradorDocumentos</string>
     <key>CFBundleExecutable</key><string>$EXECUTAVEL</string>
     <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundleShortVersionString</key><string>$VERSAO</string>
     <key>CFBundleVersion</key><string>$VERSAO</string>
     <key>CFBundleDevelopmentRegion</key><string>pt-BR</string>
