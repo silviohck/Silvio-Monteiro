@@ -6,9 +6,9 @@ struct ArquivoDaPasta {
     /// Caminho dentro da pasta sincronizada, usado para reconhecer o mesmo arquivo depois.
     let caminho: String
     let nome: String
-    /// Subpasta principal (o local); nil = arquivo solto ou pasta compartilhada, vale para todos os locais.
+    /// Subpasta principal (o local); nil = arquivo solto, vale para todos os locais.
     let local: String?
-    /// Subpasta dentro do local, ou a própria pasta compartilhada (o tipo); nil = tipo adivinhado pelo nome do arquivo.
+    /// Subpasta dentro do local (o tipo); nil = tipo adivinhado pelo nome do arquivo.
     let tipo: String?
     let modificadoEm: Date
 }
@@ -26,19 +26,14 @@ struct EstadoSincronizacao {
 }
 
 /// Lê a pasta no formato: Pasta → LOCAL → (arquivos soltos | TIPO → arquivos [→ subpastas]).
-/// Uma pasta compartilhada (ex.: "1 - APAC") fica na pasta principal e é um tipo de todos os locais.
 enum LeituraDaPasta {
     static let extensoes: Set<String> = ["docx", "doc", "rtf", "odt"]
     private static let profundidadeMaxima = 4
 
-    static func ler(raiz: URL, ignorar: Set<String>, compartilhada: (String) -> Bool = { _ in false }) -> [ArquivoDaPasta] {
+    static func ler(raiz: URL, ignorar: Set<String>) -> [ArquivoDaPasta] {
         var resultado = documentos(em: raiz).map { arquivo($0, raiz: raiz, local: nil, tipo: nil, prefixo: "") }
         for pastaDoLocal in subpastas(de: raiz) where !ignorar.contains(pastaDoLocal.lastPathComponent) {
             let local = pastaDoLocal.lastPathComponent
-            if compartilhada(local) {
-                resultado += arquivos(em: pastaDoLocal, raiz: raiz, local: nil, tipo: local, prefixo: "", nivel: 1)
-                continue
-            }
             resultado += documentos(em: pastaDoLocal).map { arquivo($0, raiz: raiz, local: local, tipo: nil, prefixo: "") }
             for pastaDoTipo in subpastas(de: pastaDoLocal) {
                 resultado += arquivos(em: pastaDoTipo, raiz: raiz, local: local, tipo: pastaDoTipo.lastPathComponent, prefixo: "", nivel: 1)
@@ -52,7 +47,7 @@ enum LeituraDaPasta {
         subpastas(de: raiz).map(\.lastPathComponent)
     }
 
-    private static func arquivos(em pasta: URL, raiz: URL, local: String?, tipo: String, prefixo: String, nivel: Int) -> [ArquivoDaPasta] {
+    private static func arquivos(em pasta: URL, raiz: URL, local: String, tipo: String, prefixo: String, nivel: Int) -> [ArquivoDaPasta] {
         var resultado = documentos(em: pasta).map { arquivo($0, raiz: raiz, local: local, tipo: tipo, prefixo: prefixo) }
         guard nivel < profundidadeMaxima else { return resultado }
         for subpasta in subpastas(de: pasta) {
@@ -137,15 +132,13 @@ extension Armazenamento {
         }
 
         var estado = EstadoSincronizacao(emAndamento: true, ultima: sincronizacao.ultima)
-        let arquivos = LeituraDaPasta.ler(raiz: raiz, ignorar: Set(dados.pastasIgnoradas), compartilhada: dados.ehCompartilhada)
+        let arquivos = LeituraDaPasta.ler(raiz: raiz, ignorar: Set(dados.pastasIgnoradas))
         let caminhos = Set(arquivos.map(\.caminho))
         if arquivos.isEmpty && dados.modelos.contains(where: { $0.origem != nil }) {
             // Pasta vazia de repente (iCloud carregando, disco desconectado): não apaga nada.
             sincronizacao.erros = ["Nenhum documento encontrado na pasta sincronizada agora. Nada foi removido; tente “Sincronizar agora” daqui a pouco."]
             return
         }
-
-        ajustarPastasCompartilhadas(arquivos)
 
         let pendentes = arquivos.filter { arquivo in
             guard let existente = dados.modelos.first(where: { $0.origem == arquivo.caminho }),
@@ -205,38 +198,6 @@ extension Armazenamento {
         estado.emAndamento = false
         estado.ultima = Date()
         sincronizacao = estado
-    }
-
-    /// Modelos de uma pasta que passou a ser compartilhada (ou deixou de ser) mudam de local e de tipo;
-    /// o local criado só para a pasta compartilhada sai do app se ficou vazio.
-    private func ajustarPastasCompartilhadas(_ arquivos: [ArquivoDaPasta]) {
-        for arquivo in arquivos {
-            guard let indice = dados.modelos.firstIndex(where: { $0.origem == arquivo.caminho }) else { continue }
-            let modelo = dados.modelos[indice]
-            if arquivo.local == nil, let pasta = arquivo.tipo {
-                // Arquivo de pasta compartilhada: vale para todos os locais, no tipo com o nome da pasta.
-                if modelo.localID != nil || modelo.categoria != pasta {
-                    dados.modelos[indice].localID = nil
-                    dados.modelos[indice].categoria = pasta
-                    adicionarCategoria(pasta, local: nil)
-                }
-            } else if let pasta = arquivo.local, modelo.localID == nil,
-                      dados.modelos[indice].categoria == arquivo.caminho.split(separator: "/").first.map(String.init) {
-                // Pasta que deixou de ser compartilhada: os modelos vão para o local com o nome dela.
-                let local = localID(paraPasta: pasta)
-                dados.modelos[indice].localID = local
-                dados.modelos[indice].categoria = tipo(para: arquivo, local: local)
-            }
-        }
-        let usados = Set(dados.modelos.compactMap(\.localID) + dados.pacientes.compactMap(\.localID))
-        let vazios = dados.locais.filter { local in
-            guard let pasta = local.pastaSincronizada else { return false }
-            return dados.ehCompartilhada(pasta) && !usados.contains(local.id)
-        }
-        if !vazios.isEmpty {
-            let ids = Set(vazios.map(\.id))
-            dados.locais.removeAll { ids.contains($0.id) }
-        }
     }
 
     /// Local ligado à subpasta: o que já foi ligado antes, um com o mesmo nome, ou um novo.

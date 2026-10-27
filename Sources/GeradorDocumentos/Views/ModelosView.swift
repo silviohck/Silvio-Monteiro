@@ -29,18 +29,17 @@ struct ModelosView: View {
         return "Importar \(tipo) para \(local.nome.isEmpty ? "este local" : local.nome)"
     }
 
-    /// Modelos do local escolhido mais os que valem para todos os locais (ex.: 1 - APAC).
+    /// Modelos do local escolhido mais os que valem para todos os locais.
     private func doFiltroDeLocal(_ modelo: ModeloDocumento) -> Bool {
         guard let local = localFiltrado, let dono = armazenamento.localDoModelo(modelo) else { return true }
         return dono.id == local.id
     }
 
-    /// Tipos do local escolhido, com as pastas compartilhadas (ex.: 1 - APAC) primeiro.
+    /// Tipos do local escolhido e dos modelos que aparecem para ele.
     private var tiposDoFiltro: [String] {
         guard let local = localFiltrado else { return armazenamento.tipos(doLocal: nil) }
-        let modelos = armazenamento.modelos(para: local)
-        var tipos = armazenamento.dados.pastasCompartilhadas.filter { tipo in modelos.contains { $0.categoria == tipo } }
-        for tipo in armazenamento.tipos(doLocal: local.id) + modelos.map(\.categoria) where !tipos.contains(tipo) {
+        var tipos: [String] = []
+        for tipo in armazenamento.tipos(doLocal: local.id) + armazenamento.modelos(para: local).map(\.categoria) where !tipos.contains(tipo) {
             tipos.append(tipo)
         }
         return tipos
@@ -262,8 +261,7 @@ struct ModelosView: View {
             do {
                 let modelo = try armazenamento.importarModelo(
                     de: url,
-                    // Tipo de pasta compartilhada (ex.: 1 - APAC): o modelo vale para todos os locais.
-                    localID: armazenamento.dados.ehCompartilhada(filtroTipo) ? nil : localFiltrado?.id,
+                    localID: localFiltrado?.id,
                     tipo: filtroTipo.isEmpty ? nil : filtroTipo
                 )
                 selecao = modelo.id

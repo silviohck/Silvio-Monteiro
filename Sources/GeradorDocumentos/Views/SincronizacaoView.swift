@@ -130,25 +130,20 @@ struct AjustesSincronizacaoView: View {
             }
 
             if !subpastas.isEmpty {
-                Text("O que é cada subpasta?").bold()
+                Text("Quais subpastas são locais de atendimento?").bold()
                 List {
                     ForEach(subpastas, id: \.self) { pasta in
-                        HStack {
-                            Text(pasta)
-                            Spacer()
-                            Picker(pasta, selection: papel(de: pasta)) {
-                                ForEach(PapelDaPasta.allCases) { papel in
-                                    Text(papel.nome).tag(papel)
-                                }
+                        Toggle(pasta, isOn: Binding(
+                            get: { !armazenamento.dados.pastasIgnoradas.contains(pasta) },
+                            set: { usar in
+                                armazenamento.dados.pastasIgnoradas.removeAll { $0 == pasta }
+                                if !usar { armazenamento.dados.pastasIgnoradas.append(pasta) }
                             }
-                            .labelsHidden()
-                            .pickerStyle(.segmented)
-                            .frame(width: 300)
-                        }
+                        ))
                     }
                 }
                 .fundoSuave(Tema.lateral)
-                Text("“Local”: uma pasta por local de atendimento. “Todos os locais”: os modelos dela (ex.: 1 - APAC) aparecem em todos os locais, e os documentos gerados vão para uma subpasta com o mesmo nome dentro da pasta de cada local. “Ignorar”: pastas que não têm modelos (ex.: mídias). Arquivos .docx soltos na pasta principal também valem para todos os locais.")
+                Text("Desmarque as pastas que não são locais (ex.: TCLE, mídias). Arquivos .docx soltos na pasta principal valem para todos os locais.")
                     .fonteApp(.legenda)
                     .foregroundStyle(.secondary)
             } else {
@@ -184,45 +179,7 @@ struct AjustesSincronizacaoView: View {
         }
     }
 
-    private func papel(de pasta: String) -> Binding<PapelDaPasta> {
-        Binding(
-            get: {
-                if armazenamento.dados.pastasIgnoradas.contains(pasta) { return .ignorar }
-                if armazenamento.dados.ehCompartilhada(pasta) { return .todos }
-                return .local
-            },
-            set: { papel in
-                armazenamento.dados.pastasIgnoradas.removeAll { $0 == pasta }
-                armazenamento.dados.pastasCompartilhadas.removeAll {
-                    $0.compare(pasta, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
-                }
-                switch papel {
-                case .local: break
-                case .todos: armazenamento.dados.pastasCompartilhadas.append(pasta)
-                case .ignorar: armazenamento.dados.pastasIgnoradas.append(pasta)
-                }
-            }
-        )
-    }
-
     private func lerSubpastas() {
         subpastas = armazenamento.urlPastaSincronizada.map(LeituraDaPasta.subpastasPrincipais) ?? []
-    }
-}
-
-/// Papel de uma subpasta da pasta sincronizada.
-enum PapelDaPasta: String, CaseIterable, Identifiable {
-    case local
-    case todos
-    case ignorar
-
-    var id: Self { self }
-
-    var nome: String {
-        switch self {
-        case .local: return "Local"
-        case .todos: return "Todos os locais"
-        case .ignorar: return "Ignorar"
-        }
     }
 }

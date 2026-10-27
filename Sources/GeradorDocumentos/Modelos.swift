@@ -127,20 +127,8 @@ struct DadosApp: Codable {
     var pastaSincronizada = ""
     /// Subpastas da pasta sincronizada que não são locais de atendimento.
     var pastasIgnoradas: [String] = []
-    /// Subpastas da pasta sincronizada cujos modelos valem para todos os locais (ex.: "1 - APAC").
-    /// Os documentos gerados com eles vão para uma subpasta com o mesmo nome dentro da pasta do local.
-    var pastasCompartilhadas = DadosApp.pastasCompartilhadasPadrao
     /// Pasta padrão dos documentos gerados para locais sem pasta própria (vazia = Documentos/Orthck).
     var pastaDocumentos = ""
-
-    static let pastasCompartilhadasPadrao = ["1 - APAC"]
-
-    /// Sem diferenciar maiúsculas e acentos ("1 - Apac" = "1 - APAC").
-    func ehCompartilhada(_ pasta: String) -> Bool {
-        pastasCompartilhadas.contains {
-            $0.compare(pasta, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
-        }
-    }
 
     static let categoriasPadrao = ["Receitas", "Atestados", "Laudos", "Relatórios médicos", "Radiografias", "Outros"]
 
@@ -156,13 +144,6 @@ struct DadosApp: Codable {
         historico = try container.decodeIfPresent([DocumentoGerado].self, forKey: .historico) ?? []
         pastaSincronizada = try container.decodeIfPresent(String.self, forKey: .pastaSincronizada) ?? ""
         pastasIgnoradas = try container.decodeIfPresent([String].self, forKey: .pastasIgnoradas) ?? []
-        if let salvas = try container.decodeIfPresent([String].self, forKey: .pastasCompartilhadas) {
-            pastasCompartilhadas = salvas
-        } else {
-            // Primeira vez com pastas compartilhadas: a "1 - APAC" deixa de ser ignorada.
-            let ignoradas = pastasIgnoradas.filter { !ehCompartilhada($0) }
-            pastasIgnoradas = ignoradas
-        }
         pastaDocumentos = try container.decodeIfPresent(String.self, forKey: .pastaDocumentos) ?? ""
     }
 }
