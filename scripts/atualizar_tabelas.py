@@ -172,8 +172,8 @@ def tabela22(nome_arquivo, conteudo):
                 return i
         return None
 
-    i_codigo = coluna("código", "codigo", "cod_termo", "cd_")
-    i_termo = coluna("termo", "descri", "nome", evitar=("código", "codigo", "cod"))
+    i_codigo = coluna("cd_termo", "código", "codigo", "cod_termo")
+    i_termo = coluna("nm_termo", "descri", "termo", "nome", evitar=("cd_", "código", "codigo", "cod"))
     i_fim = coluna("fim de vig", "fim_vig", "dt_fim_vig", "fim vig")
     if i_codigo is None or i_termo is None:
         raise SystemExit(f"Colunas de código/termo não encontradas em {nome_arquivo}")

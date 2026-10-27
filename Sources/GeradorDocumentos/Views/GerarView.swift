@@ -11,13 +11,14 @@ struct GerarView: View {
     @State private var valores: [String: String] = [:]
     @State private var abrirAoGerar = true
     @AppStorage("imprimirAoGerar") private var imprimirAoGerar = false
+    /// Cópias a imprimir; começa com o número definido no modelo e pode ser mudado aqui.
+    @State private var copias = 1
     @AppStorage("impressora") private var impressora = ""
     @State private var imprimindo = false
     @State private var aviso: String?
     @State private var ultimoDocumento: URL?
     /// Pasta escolhida em "Só este documento…"; volta para nil depois de gerar.
     @State private var pastaAvulsa: URL?
-    @State private var ultimoModeloID: ModeloDocumento.ID?
     /// Subpasta = tipo do modelo (Receitas, Atestados…); filtra os modelos e é onde o documento é salvo.
     @AppStorage("subpastaSelecionada") private var subpasta = ""
     @State private var mostrandoCadastro = false
@@ -256,9 +257,18 @@ struct GerarView: View {
                     }
                     .padding(.vertical, 4)
                     Toggle("Abrir o documento depois de gerar", isOn: $abrirAoGerar)
-                    Toggle(isOn: $imprimirAoGerar) {
-                        Text("Imprimir ao gerar")
-                        Text("Impressora: \(impressora.isEmpty ? "padrão do sistema" : Impressao.nomeAmigavel(impressora)) (escolha na barra lateral)")
+                    HStack {
+                        Toggle(isOn: $imprimirAoGerar) {
+                            Text("Imprimir ao gerar")
+                            Text("Impressora: \(impressora.isEmpty ? "padrão do sistema" : Impressao.nomeAmigavel(impressora)) (escolha na barra lateral)")
+                        }
+                        Spacer()
+                        Stepper(value: $copias, in: 1...20) {
+                            Text("\(copias) \(copias == 1 ? "cópia" : "cópias")")
+                                .monospacedDigit()
+                        }
+                        .fixedSize()
+                        .help("Quantas cópias imprimir deste documento")
                     }
                     HStack {
                         if let aviso {
@@ -270,7 +280,7 @@ struct GerarView: View {
                                 }
                                 .buttonStyle(.link)
                                 Button(imprimindo ? "Imprimindo…" : "Imprimir") {
-                                    imprimir(ultimoDocumento, modelo: armazenamento.modelo(ultimoModeloID), manterAberto: true)
+                                    imprimir(ultimoDocumento, manterAberto: true)
                                 }
                                 .buttonStyle(.link)
                                 .disabled(imprimindo)
@@ -298,6 +308,7 @@ struct GerarView: View {
             if local == nil { localSelecionado = "" }
             validarModelo()
             preencher(.tudo)
+            copias = armazenamento.dados.modelos.first { $0.id.uuidString == modeloSelecionado }?.copias ?? 1
             focoNoNome = true
         }
         .onChange(of: nomePaciente) { _ in
@@ -312,7 +323,10 @@ struct GerarView: View {
                 nascimentoDoNovo = ""
             }
         }
-        .onChange(of: modeloSelecionado) { _ in preencher(.tudo) }
+        .onChange(of: modeloSelecionado) { id in
+            preencher(.tudo)
+            copias = armazenamento.dados.modelos.first { $0.id.uuidString == id }?.copias ?? 1
+        }
         .onChange(of: subpasta) { _ in validarModelo() }
         .sheet(isPresented: $mostrandoCadastro, onDismiss: voltarDoCadastro) {
             if let id = pacienteEmEdicao {
@@ -355,14 +369,14 @@ struct GerarView: View {
         }
     }
 
-    /// Imprime com os ajustes do modelo (cópias).
-    private func imprimir(_ arquivo: URL, modelo: ModeloDocumento?, manterAberto: Bool) {
+    /// Imprime com o número de cópias escolhido ao lado de "Imprimir ao gerar".
+    private func imprimir(_ arquivo: URL, manterAberto: Bool) {
         imprimindo = true
         Impressao.imprimir(
             arquivo,
             impressora: impressora,
             manterAberto: manterAberto,
-            copias: modelo?.copias ?? 1
+            copias: copias
         ) { erro in
             imprimindo = false
             if let erro {
@@ -535,9 +549,8 @@ struct GerarView: View {
         aviso = "Salvo: \(destino.lastPathComponent)"
         ultimoDocumento = destino
         pastaAvulsa = nil
-        ultimoModeloID = modelo.id
         if imprimirAoGerar {
-            imprimir(destino, modelo: modelo, manterAberto: abrirAoGerar)
+            imprimir(destino, manterAberto: abrirAoGerar)
         } else if abrirAoGerar {
             NSWorkspace.shared.open(destino)
         }
