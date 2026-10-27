@@ -20,7 +20,7 @@ struct GerenciarTiposView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(titulo).fonteApp(.titulo)
-            Text("Cada tipo vira uma subpasta dentro da pasta do local, onde ficam os documentos gerados. Clique no nome para renomear. A lista fica sempre em ordem alfabética (use números, como "1 - RX", para pôr um tipo na frente).")
+            Text("Cada tipo vira uma subpasta dentro da pasta do local, onde ficam os documentos gerados. Clique no nome para renomear. A lista fica sempre em ordem alfabética (use números, como “1 - RX”, para pôr um tipo na frente).")
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
