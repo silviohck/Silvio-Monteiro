@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 enum Secao: String, CaseIterable, Identifiable {
     case gerar = "Gerar documento"
+    case fila = "Fila de impressão"
     case pacientes = "Pacientes"
     case locais = "Locais de atendimento"
     case modelos = "Modelos"
@@ -17,6 +18,7 @@ enum Secao: String, CaseIterable, Identifiable {
     var icone: String {
         switch self {
         case .gerar: return "doc.badge.plus"
+        case .fila: return "printer"
         case .pacientes: return "person.2"
         case .locais: return "building.2"
         case .modelos: return "doc.text"
@@ -35,7 +37,11 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             List(Secao.allCases, selection: $secao) { item in
-                Label(item.rawValue, systemImage: item.icone)
+                if item == .fila {
+                    Label("\(item.rawValue) (\(armazenamento.pendentesNaFila))", systemImage: item.icone)
+                } else {
+                    Label(item.rawValue, systemImage: item.icone)
+                }
             }
             .fundoSuave(Tema.lateral)
             .navigationSplitViewColumnWidth(min: 210, ideal: 230)
@@ -49,6 +55,7 @@ struct ContentView: View {
         } detail: {
             switch secao ?? .gerar {
             case .gerar: GerarView()
+            case .fila: FilaImpressaoView()
             case .pacientes: PacientesView()
             case .locais: LocaisView()
             case .modelos: ModelosView()
