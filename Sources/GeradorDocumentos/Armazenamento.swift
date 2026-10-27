@@ -251,23 +251,6 @@ final class Armazenamento: ObservableObject {
         return pastaDoLocal(local).appendingPathComponent(nome, isDirectory: true)
     }
 
-    /// Subpastas para salvar: os tipos cadastrados e as pastas que já existem na pasta do local.
-    func opcoesDeSubpasta(_ local: LocalAtendimento?) -> [String] {
-        let existentes = ((try? FileManager.default.contentsOfDirectory(
-            at: pastaDoLocal(local),
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        )) ?? [])
-            .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true }
-            .map(\.lastPathComponent)
-            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
-        var opcoes = dados.categorias
-        for pasta in existentes where !opcoes.contains(where: { Self.nomeSeguro($0) == pasta }) {
-            opcoes.append(pasta)
-        }
-        return opcoes
-    }
-
     /// Cria as subpastas de todas as categorias dentro da pasta do local.
     func criarSubpastas(_ local: LocalAtendimento?) throws {
         for categoria in dados.categorias {

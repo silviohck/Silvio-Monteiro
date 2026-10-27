@@ -12,10 +12,28 @@ struct HistoricoView: View {
             if armazenamento.dados.historico.isEmpty {
                 AvisoVazio(titulo: "Nenhum documento gerado ainda", icone: "clock")
             } else {
-                List(armazenamento.dados.historico) { documento in
-                    linha(documento)
+                VStack(spacing: 0) {
+                    HStack {
+                        Text("\(armazenamento.dados.historico.count) \(armazenamento.dados.historico.count == 1 ? "documento" : "documentos")")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button(role: .destructive) {
+                            confirmarLimpeza = true
+                        } label: {
+                            Label("Limpar histórico…", systemImage: "trash")
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    List(armazenamento.dados.historico) { documento in
+                        linha(documento)
+                            .contextMenu {
+                                Button("Remover do histórico") { remover(documento) }
+                            }
+                    }
+                    .fundoSuave()
                 }
-                .fundoSuave()
+                .background(Tema.fundo)
             }
         }
         .toolbar {
@@ -27,10 +45,15 @@ struct HistoricoView: View {
             .disabled(armazenamento.dados.historico.isEmpty)
         }
         .confirmationDialog("Limpar o histórico?", isPresented: $confirmarLimpeza) {
-            Button("Limpar", role: .destructive) { armazenamento.dados.historico.removeAll() }
+            Button("Limpar histórico", role: .destructive) { armazenamento.dados.historico.removeAll() }
         } message: {
-            Text("Apenas a lista é apagada; os arquivos gerados continuam onde foram salvos.")
+            Text("Apenas a lista é apagada. Os arquivos dos documentos não são apagados e continuam nas pastas onde foram salvos.")
         }
+    }
+
+    /// Tira só o item da lista; o arquivo continua na pasta.
+    private func remover(_ documento: DocumentoGerado) {
+        armazenamento.dados.historico.removeAll { $0.id == documento.id }
     }
 
     private func linha(_ documento: DocumentoGerado) -> some View {
@@ -63,6 +86,14 @@ struct HistoricoView: View {
                 }
             }
             .disabled(!existe || imprimindo != nil)
+            Button {
+                remover(documento)
+            } label: {
+                Image(systemName: "xmark.circle")
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(.secondary)
+            .help("Remover da lista (o arquivo não é apagado)")
         }
         .padding(.vertical, 2)
     }

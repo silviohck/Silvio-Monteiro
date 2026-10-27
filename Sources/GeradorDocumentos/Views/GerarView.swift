@@ -16,10 +16,8 @@ struct GerarView: View {
     @State private var aviso: String?
     @State private var ultimoDocumento: URL?
     @State private var ultimoModeloID: ModeloDocumento.ID?
-    /// Subpasta onde o documento será salvo ("" = direto na pasta do local).
-    @State private var subpasta = ""
-    @State private var pedindoSubpasta = false
-    @State private var novaSubpasta = ""
+    /// Subpasta = tipo do modelo (Receitas, Atestados…); filtra os modelos e é onde o documento é salvo.
+    @AppStorage("subpastaSelecionada") private var subpasta = ""
     @State private var mostrandoCadastro = false
     @State private var pacienteEmEdicao: Paciente.ID?
     @FocusState private var focoNoNome: Bool
@@ -75,30 +73,20 @@ struct GerarView: View {
                         .fonteApp(.apoio)
                         .foregroundStyle(.secondary)
                 }
-                Picker("Modelo", selection: $modeloSelecionado) {
-                    Text("Selecione…").tag("")
-                    ForEach(armazenamento.modelos(para: local)) { modelo in
-                        Text("\(modelo.categoria) — \(modelo.nome)").tag(modelo.id.uuidString)
-                    }
-                }
                 if armazenamento.modelos(para: local).isEmpty {
                     Text("Nenhum modelo para este local. Importe na aba “Modelos”.")
                         .fonteApp(.apoio)
                         .foregroundStyle(.secondary)
-                }
-                if modelo != nil {
-                    HStack {
-                        Picker("Subpasta", selection: $subpasta) {
-                            Text("Nenhuma (direto na pasta do local)").tag("")
-                            ForEach(opcoesDeSubpasta, id: \.self) { pasta in
-                                Text(pasta).tag(pasta)
-                            }
+                } else {
+                    Picker("Subpasta", selection: $subpasta) {
+                        ForEach(subpastasDisponiveis, id: \.self) { tipo in
+                            Text(tipo).tag(tipo)
                         }
-                        Button("Nova…") {
-                            novaSubpasta = ""
-                            pedindoSubpasta = true
+                    }
+                    Picker("Modelo", selection: $modeloSelecionado) {
+                        ForEach(modelosDaSubpasta) { modelo in
+                            Text(modelo.nome).tag(modelo.id.uuidString)
                         }
-                        .help("Salvar numa subpasta nova")
                     }
                 }
             }
@@ -215,7 +203,6 @@ struct GerarView: View {
         .onAppear {
             if local == nil { localSelecionado = "" }
             validarModelo()
-            subpasta = modelo?.categoria ?? ""
             preencher(.tudo)
             focoNoNome = true
         }
@@ -223,20 +210,8 @@ struct GerarView: View {
             aviso = nil
             ultimoDocumento = nil
         }
-        .onChange(of: modeloSelecionado) { _ in
-            subpasta = modelo?.categoria ?? ""
-            preencher(.tudo)
-        }
-        .alert("Nova subpasta", isPresented: $pedindoSubpasta) {
-            TextField("Ex.: Exames", text: $novaSubpasta)
-            Button("Usar") {
-                let nome = novaSubpasta.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !nome.isEmpty { subpasta = nome }
-            }
-            Button("Cancelar", role: .cancel) {}
-        } message: {
-            Text("A subpasta é criada dentro da pasta do local quando o documento for gerado.")
-        }
+        .onChange(of: modeloSelecionado) { _ in preencher(.tudo) }
+        .onChange(of: subpasta) { _ in validarModelo() }
         .sheet(isPresented: $mostrandoCadastro, onDismiss: voltarDoCadastro) {
             if let id = pacienteEmEdicao {
                 CadastroPacienteSheet(id: id)
@@ -250,11 +225,31 @@ struct GerarView: View {
         }
     }
 
-    /// Ao trocar de local, mantém o modelo só se ele também vale para o novo local.
+    /// Tipos que têm modelos para o local escolhido, na ordem cadastrada.
+    private var subpastasDisponiveis: [String] {
+        var tipos: [String] = []
+        for modelo in armazenamento.modelos(para: local) where !tipos.contains(modelo.categoria) {
+            tipos.append(modelo.categoria)
+        }
+        return tipos
+    }
+
+    private var modelosDaSubpasta: [ModeloDocumento] {
+        armazenamento.modelos(para: local)
+            .filter { $0.categoria == subpasta }
+            .sorted { $0.nome.localizedStandardCompare($1.nome) == .orderedAscending }
+    }
+
+    /// Mantém subpasta e modelo coerentes com o local: a subpasta precisa ter modelos
+    /// e o modelo precisa ser dessa subpasta.
     private func validarModelo() {
-        let disponiveis = armazenamento.modelos(para: local)
-        if !disponiveis.contains(where: { $0.id.uuidString == modeloSelecionado }) {
-            modeloSelecionado = disponiveis.first?.id.uuidString ?? ""
+        let tipos = subpastasDisponiveis
+        if !tipos.contains(subpasta) {
+            subpasta = modelo.map(\.categoria).flatMap { tipos.contains($0) ? $0 : nil } ?? tipos.first ?? ""
+        }
+        let modelos = modelosDaSubpasta
+        if !modelos.contains(where: { $0.id.uuidString == modeloSelecionado }) {
+            modeloSelecionado = modelos.first?.id.uuidString ?? ""
         }
     }
 
@@ -281,11 +276,6 @@ struct GerarView: View {
         armazenamento.pastaDosDocumentos(subpasta: subpasta, local: local)
     }
 
-    /// Tipos, pastas que já existem no local e a subpasta atual (se for uma nova).
-    private var opcoesDeSubpasta: [String] {
-        let opcoes = armazenamento.opcoesDeSubpasta(local)
-        return subpasta.isEmpty || opcoes.contains(subpasta) ? opcoes : opcoes + [subpasta]
-    }
 
     /// Abre o cadastro do paciente digitado, criando-o se ainda não existir.
     private func abrirCadastro() {
