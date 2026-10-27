@@ -65,9 +65,15 @@ struct GerarView: View {
 
     private var sugestoes: [Paciente] {
         guard nomeDigitado.count >= 2, homonimos.isEmpty else { return [] }
-        return Array(armazenamento.pacientesOrdenados.filter {
+        // Pacientes de todos os locais; os já atendidos no local escolhido vêm primeiro.
+        let encontrados = armazenamento.pacientesOrdenados.filter {
             $0.nome.range(of: nomeDigitado, options: [.caseInsensitive, .diacriticInsensitive]) != nil
-        }.prefix(6))
+        }
+        let daqui = encontrados.filter { paciente in
+            armazenamento.locaisDoPaciente(paciente).contains { $0.id == local?.id }
+        }
+        let ids = Set(daqui.map(\.id))
+        return Array((daqui + encontrados.filter { !ids.contains($0.id) }).prefix(8))
     }
 
     var body: some View {
@@ -138,6 +144,11 @@ struct GerarView: View {
                         systemImage: "person.crop.circle.badge.checkmark"
                     )
                     .foregroundStyle(Tema.sucesso)
+                    if let outro = localDeOrigem(paciente) {
+                        Label("Paciente de \(outro) — o documento sai como \(local?.nome ?? "sem local") e fica na pasta deste local.", systemImage: "arrow.left.arrow.right")
+                            .fonteApp(.apoio)
+                            .foregroundStyle(.secondary)
+                    }
                     HStack {
                         if homonimos.count > 1 {
                             Button("Trocar de paciente") { pacienteEscolhido = nil }
@@ -163,7 +174,7 @@ struct GerarView: View {
                             nomePaciente = paciente.nome
                             pacienteEscolhido = paciente.id
                         } label: {
-                            Label("Usar o cadastro de \(paciente.nome) (\(Armazenamento.identificacao(paciente)))", systemImage: "person.crop.circle")
+                            Label(textoDaSugestao(paciente), systemImage: "person.crop.circle")
                         }
                         .buttonStyle(.link)
                     }
@@ -449,7 +460,11 @@ struct GerarView: View {
                 Button {
                     pacienteEscolhido = paciente.id
                 } label: {
-                    Label(Armazenamento.identificacao(paciente), systemImage: "person.crop.circle")
+                    Label(
+                        [Armazenamento.identificacao(paciente), armazenamento.nomesDosLocais(paciente)]
+                            .filter { !$0.isEmpty }.joined(separator: " · "),
+                        systemImage: "person.crop.circle"
+                    )
                 }
                 .buttonStyle(.link)
             }
@@ -461,6 +476,19 @@ struct GerarView: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    /// Nome do local do cadastro, quando o paciente é de outro local.
+    private func localDeOrigem(_ paciente: Paciente) -> String? {
+        guard let origem = armazenamento.local(paciente.localID), origem.id != local?.id else { return nil }
+        return origem.nome.isEmpty ? "outro local" : origem.nome
+    }
+
+    private func textoDaSugestao(_ paciente: Paciente) -> String {
+        var texto = "Usar o cadastro de \(paciente.nome) (\(Armazenamento.identificacao(paciente)))"
+        let locais = armazenamento.nomesDosLocais(paciente)
+        if !locais.isEmpty { texto += " · \(locais)" }
+        return texto
     }
 
     /// Cadastro novo com o nome digitado (e a data de nascimento informada, se for homônimo).

@@ -187,6 +187,23 @@ final class Armazenamento: ObservableObject {
         }
     }
 
+    /// Locais onde o paciente já foi atendido: o do cadastro e os dos documentos gerados para ele.
+    func locaisDoPaciente(_ paciente: Paciente) -> [LocalAtendimento] {
+        var ids: [UUID] = paciente.localID.map { [$0] } ?? []
+        for documento in dados.historico where documento.pacienteID == paciente.id {
+            guard let nome = documento.local,
+                  let local = dados.locais.first(where: { Self.mesmoNome($0.nome, nome) }),
+                  !ids.contains(local.id) else { continue }
+            ids.append(local.id)
+        }
+        return ids.compactMap(local)
+    }
+
+    /// "Alagoa Grande" ou "Alagoa Grande, Araruna"
+    func nomesDosLocais(_ paciente: Paciente) -> String {
+        locaisDoPaciente(paciente).map(\.nome).filter { !$0.isEmpty }.joined(separator: ", ")
+    }
+
     func removerPaciente(_ id: Paciente.ID) {
         dados.pacientes.removeAll { $0.id == id }
     }

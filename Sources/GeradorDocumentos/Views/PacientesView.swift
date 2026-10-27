@@ -23,7 +23,10 @@ struct PacientesView: View {
         }
         var grupos: [Grupo] = []
         for local in armazenamento.locaisOrdenados where filtroLocal.isEmpty || filtroLocal == local.id.uuidString {
-            let doLocal = pacientes.filter { $0.localID == local.id }
+            // Pacientes do local e os de outros locais que já foram atendidos aqui.
+            let doLocal = pacientes.filter { paciente in
+                paciente.localID == local.id || armazenamento.locaisDoPaciente(paciente).contains { $0.id == local.id }
+            }
             if !doLocal.isEmpty {
                 grupos.append(Grupo(id: local.id.uuidString, titulo: local.nome.isEmpty ? "Local sem nome" : local.nome, pacientes: doLocal))
             }
@@ -231,6 +234,9 @@ struct PacienteEditor: View {
                     ForEach(armazenamento.locaisOrdenados) { local in
                         Text(local.nome.isEmpty ? "Local sem nome" : local.nome).tag(Optional(local.id))
                     }
+                }
+                if armazenamento.locaisDoPaciente(paciente).count > 1 {
+                    LabeledContent("Atendido em", value: armazenamento.nomesDosLocais(paciente))
                 }
                 TextField("CPF", text: $paciente.cpf)
                 TextField("RG", text: $paciente.rg)
