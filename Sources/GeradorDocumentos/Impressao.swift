@@ -41,7 +41,7 @@ enum Impressao {
                 }
             }
             if erro == nil {
-                let argumentos = [arquivo.path, manterAberto ? "sim" : "nao", String(max(1, copias))]
+                let argumentos = [arquivo.path, manterAberto ? "sim" : "nao", String(max(1, copias)), arquivo.lastPathComponent]
                 let resultado = executar("/usr/bin/osascript", ["-e", script] + argumentos)
                 if resultado.status != 0 {
                     erro = mensagem(paraErroDoAppleScript: resultado.erro)
@@ -51,17 +51,29 @@ enum Impressao {
         }
     }
 
+    /// Abre o arquivo e imprime exatamente ele, achado pelo nome — não o "documento ativo", que pode
+    /// ainda ser o anterior enquanto o Word abre o novo.
     private static let script = """
     on run argv
         set arquivo to (POSIX file (item 1 of argv)) as alias
         set manterAberto to item 2 of argv
         set copias to (item 3 of argv) as integer
+        set nomeDoArquivo to item 4 of argv
         tell application "Microsoft Word"
             open arquivo
-            repeat copias times
-                print out active document
+            set alvo to missing value
+            repeat 60 times
+                repeat with documento in documents
+                    if name of documento is nomeDoArquivo then set alvo to contents of documento
+                end repeat
+                if alvo is not missing value then exit repeat
+                delay 0.25
             end repeat
-            if manterAberto is "nao" then close active document saving no
+            if alvo is missing value then error "O Word não abriu " & nomeDoArquivo
+            repeat copias times
+                print out alvo
+            end repeat
+            if manterAberto is "nao" then close alvo saving no
         end tell
     end run
     """
