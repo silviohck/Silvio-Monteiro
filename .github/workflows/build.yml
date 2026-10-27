@@ -1,0 +1,23 @@
+name: Compilar app para Mac
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Testes
+        run: swift test
+
+      - name: Montar o app (Apple Silicon)
+        run: ./scripts/build-app.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GeradorDocumentos-AppleSilicon
+          path: dist/GeradorDocumentos-AppleSilicon.zip
