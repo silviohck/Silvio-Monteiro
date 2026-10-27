@@ -125,12 +125,22 @@ def sigtap():
 
 # MARK: TUSS
 
-PASTA_TUSS = "https://dadosabertos.ans.gov.br/FTP/PDA/terminologia_unificada_saude_suplementar_TUSS/"
+RAIZ_PDA = "https://dadosabertos.ans.gov.br/FTP/PDA/"
 
 
 def links(url):
     html = baixar(url).decode("utf-8", "replace")
     return [l for l in re.findall(r'href="([^"?#]+)"', html) if not l.startswith(("/", "..", "http"))]
+
+
+def pasta_tuss():
+    """Pasta da TUSS nos dados abertos da ANS (o nome já mudou antes; procura pelo nome)."""
+    itens = links(RAIZ_PDA)
+    candidatas = [i for i in itens if i.endswith("/") and ("tuss" in i.lower() or "terminologia" in i.lower())]
+    print("  pastas candidatas:", candidatas or itens)
+    if not candidatas:
+        raise SystemExit("Pasta da TUSS não encontrada nos dados abertos da ANS")
+    return RAIZ_PDA + sorted(candidatas, key=lambda i: "tuss" not in i.lower())[0]
 
 
 def data(texto):
@@ -186,11 +196,12 @@ def tabela22(nome_arquivo, conteudo):
 
 def tuss():
     print("TUSS: procurando a tabela 22 nos dados abertos da ANS…")
-    itens = links(PASTA_TUSS)
+    pasta = pasta_tuss()
+    itens = links(pasta)
     print("  itens:", itens)
-    arquivos = []  # (nome, conteúdo)
+    arquivos = []  # (nome, url)
     for item in itens:
-        url = PASTA_TUSS + item
+        url = pasta + item
         if item.endswith("/"):
             for sub in links(url):
                 if sub.lower().endswith((".zip", ".csv")):
@@ -226,7 +237,7 @@ def tuss():
     versao = f"atualizada em {datetime.date.today():%m/%Y}"
     texto = (
         CABECALHO
-        + f"// Fonte: ANS, dados abertos da TUSS ({PASTA_TUSS}), tabela 22 (termos vigentes).\n"
+        + f"// Fonte: ANS, dados abertos da TUSS ({pasta}), tabela 22 (termos vigentes).\n"
         + "// Formato: \"código|termo\".\n\n"
         + "enum TUSSDados {\n"
         + f'    static let versao = "{versao}"\n'
