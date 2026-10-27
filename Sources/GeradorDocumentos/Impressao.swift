@@ -35,6 +35,11 @@ enum Impressao {
         }
         DispatchQueue.global(qos: .userInitiated).async {
             var erro: String?
+            if paginasPorFolha > 1 {
+                erro = imprimirVariasPorFolha(arquivo, impressora: impressora, manterAberto: manterAberto, paginasPorFolha: paginasPorFolha, copias: copias)
+                DispatchQueue.main.async { concluir(erro) }
+                return
+            }
             if !impressora.isEmpty {
                 let resultado = executar("/usr/bin/lpoptions", ["-d", impressora])
                 if resultado.status != 0 {
@@ -43,35 +48,74 @@ enum Impressao {
             }
             if erro == nil {
                 let argumentos = [arquivo.path, manterAberto ? "sim" : "nao", String(max(1, copias))]
-                let (colunas, linhas) = grade(paginasPorFolha)
-                if colunas * linhas > 1 {
-                    let resultado = executar("/usr/bin/osascript", ["-e", scriptVariasPorFolha] + argumentos + [String(colunas), String(linhas)])
-                    if resultado.status != 0 {
-                        // Se o Word não aceitar o ajuste, imprime normal para não perder a impressão.
-                        let normal = executar("/usr/bin/osascript", ["-e", script] + argumentos)
-                        erro = normal.status != 0
-                            ? mensagem(paraErroDoAppleScript: normal.erro)
-                            : "O documento foi impresso, mas o Word não aceitou “\(paginasPorFolha) páginas por folha”. Ajuste na janela de impressão do Word. (\(resultado.erro))"
-                    }
-                } else {
-                    let resultado = executar("/usr/bin/osascript", ["-e", script] + argumentos)
-                    if resultado.status != 0 {
-                        erro = mensagem(paraErroDoAppleScript: resultado.erro)
-                    }
+                let resultado = executar("/usr/bin/osascript", ["-e", script] + argumentos)
+                if resultado.status != 0 {
+                    erro = mensagem(paraErroDoAppleScript: resultado.erro)
                 }
             }
             DispatchQueue.main.async { concluir(erro) }
         }
     }
 
-    /// 2 por folha = 2 colunas × 1 linha; 4 por folha = 2 × 2.
-    private static func grade(_ paginasPorFolha: Int) -> (colunas: Int, linhas: Int) {
-        switch paginasPorFolha {
-        case 2: return (2, 1)
-        case 4: return (2, 2)
-        default: return (1, 1)
+    /// O Word não tem comando de "páginas por folha"; então ele exporta um PDF (mantendo a formatação)
+    /// e o sistema de impressão do Mac imprime esse PDF com várias páginas por folha (`lp -o number-up`).
+    /// Se a exportação falhar, imprime normal pelo Word para não perder a impressão.
+    private static func imprimirVariasPorFolha(
+        _ arquivo: URL,
+        impressora: String,
+        manterAberto: Bool,
+        paginasPorFolha: Int,
+        copias: Int
+    ) -> String? {
+        let pasta = pastaDeImpressao
+        try? FileManager.default.createDirectory(at: pasta, withIntermediateDirectories: true)
+        let pdf = pasta.appendingPathComponent("\(UUID().uuidString).pdf")
+        defer { try? FileManager.default.removeItem(at: pdf) }
+
+        let exportacao = executar("/usr/bin/osascript", ["-e", scriptExportarPDF, arquivo.path, pdf.path, manterAberto ? "sim" : "nao"])
+        guard exportacao.status == 0, FileManager.default.fileExists(atPath: pdf.path) else {
+            if exportacao.erro.contains("-1743") {
+                return mensagem(paraErroDoAppleScript: exportacao.erro)
+            }
+            if !impressora.isEmpty {
+                _ = executar("/usr/bin/lpoptions", ["-d", impressora])
+            }
+            let normal = executar("/usr/bin/osascript", ["-e", script, arquivo.path, manterAberto ? "sim" : "nao", String(max(1, copias))])
+            if normal.status != 0 {
+                return mensagem(paraErroDoAppleScript: normal.erro)
+            }
+            return "O documento foi impresso, mas sem “\(paginasPorFolha) páginas por folha”: o Word não conseguiu gerar o PDF para impressão. Se o Word pediu acesso a uma pasta, clique em “Selecionar” e conceda o acesso, e tente imprimir de novo. (\(exportacao.erro))"
         }
+
+        var argumentos = ["-n", String(max(1, copias)), "-o", "number-up=\(paginasPorFolha)", "-o", "number-up-layout=lrtb"]
+        if !impressora.isEmpty {
+            argumentos = ["-d", impressora] + argumentos
+        }
+        let impressao = executar("/usr/bin/lp", argumentos + [pdf.path])
+        if impressao.status != 0 {
+            return "Não foi possível enviar para a impressora. \(impressao.erro)"
+        }
+        return nil
     }
+
+    /// Pasta fixa para os PDFs temporários, para o Word pedir acesso só uma vez.
+    private static var pastaDeImpressao: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("GeradorDocumentos/Impressao", isDirectory: true)
+    }
+
+    private static let scriptExportarPDF = """
+    on run argv
+        set arquivo to (POSIX file (item 1 of argv)) as alias
+        set destino to (POSIX file (item 2 of argv)) as text
+        set manterAberto to item 3 of argv
+        tell application "Microsoft Word"
+            open arquivo
+            save as active document file name destino file format format PDF
+            if manterAberto is "nao" then close active document saving no
+        end tell
+    end run
+    """
 
     private static let script = """
     on run argv
@@ -82,23 +126,6 @@ enum Impressao {
             open arquivo
             repeat copias times
                 print out active document
-            end repeat
-            if manterAberto is "nao" then close active document saving no
-        end tell
-    end run
-    """
-
-    private static let scriptVariasPorFolha = """
-    on run argv
-        set arquivo to (POSIX file (item 1 of argv)) as alias
-        set manterAberto to item 2 of argv
-        set copias to (item 3 of argv) as integer
-        set colunas to (item 4 of argv) as integer
-        set linhas to (item 5 of argv) as integer
-        tell application "Microsoft Word"
-            open arquivo
-            repeat copias times
-                print out active document print zoom column colunas print zoom row linhas
             end repeat
             if manterAberto is "nao" then close active document saving no
         end tell

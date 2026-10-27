@@ -321,7 +321,7 @@ struct ModeloEditor: View {
             } header: {
                 Text("Impressão")
             } footer: {
-                Text("Usado sempre que este modelo é impresso pelo app (tela Gerar documento e Histórico). Ex.: receita de controle especial com 2 páginas por folha.")
+                Text("Usado sempre que este modelo é impresso pelo app (tela Gerar documento e Histórico). Ex.: receita de controle especial com 2 páginas por folha. Com 2 ou 4 por folha, o Word gera um PDF e o Mac imprime as páginas lado a lado; na primeira vez o Word pode pedir acesso a uma pasta — clique em “Selecionar” e conceda.")
                     .foregroundStyle(.secondary)
             }
 
