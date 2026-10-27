@@ -120,10 +120,7 @@ struct GerarView: View {
                     TextField("Nome do paciente", text: $nomePaciente)
                         .focused($focoNoNome)
                     if !nomePaciente.isEmpty {
-                        Button {
-                            nomePaciente = ""
-                            focoNoNome = true
-                        } label: {
+                        Button(action: proximoPaciente) {
                             Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
                         }
                         .buttonStyle(.borderless)
@@ -320,6 +317,13 @@ struct GerarView: View {
                             }
                         }
                         Spacer()
+                        Button(action: proximoPaciente) {
+                            Label("Próximo paciente", systemImage: "person.badge.plus")
+                        }
+                        .controlSize(.large)
+                        .keyboardShortcut("n", modifiers: [.command, .shift])
+                        .disabled(nomePaciente.isEmpty && aviso == nil)
+                        .help("Limpa o nome e os campos do documento (⇧⌘N). O local, a subpasta e o modelo continuam os mesmos.")
                         Button("Gerar documento") { gerar(modelo) }
                             .buttonStyle(.borderedProminent)
                             .keyboardShortcut(.defaultAction)
@@ -549,6 +553,22 @@ struct GerarView: View {
     }
 
     /// Recalcula os campos; ao trocar o local, os dados do paciente já digitados não são apagados (e vice-versa).
+    /// Limpa nome, identificação e campos clínicos para o próximo atendimento;
+    /// mantém local, subpasta, modelo e as opções de abrir e imprimir.
+    private func proximoPaciente() {
+        nomePaciente = ""
+        pacienteEscolhido = nil
+        outroPaciente = false
+        nascimentoDoNovo = ""
+        pastaAvulsa = nil
+        aviso = nil
+        ultimoDocumento = nil
+        valores = [:]
+        preencher(.tudo)
+        copias = modelo?.copias ?? 1
+        focoNoNome = true
+    }
+
     private func preencher(_ escopo: Escopo) {
         guard let modelo else { return }
         for campo in modelo.campos where !CamposAutomaticos.ehNomeDoPaciente(campo) {

@@ -18,6 +18,7 @@ App para Mac com Apple Silicon (M1, M2, M3, M4…) que gera documentos do Word a
 4. Na aba **Gerar documento**, escolha o modelo e o local, **digite o nome do paciente**, confira os valores e clique em *Gerar documento*. O `.docx` é salvo automaticamente na pasta do local, na subpasta do tipo, e aberto no Word.
    - Se o paciente já tem cadastro, o app sugere o nome e preenche CPF, nascimento etc. — mesmo que ele seja de outro local: a sugestão mostra onde ele já foi atendido, e o documento sai com o local escolhido na tela. Na aba *Pacientes*, ele passa a aparecer também nesse local.
    - Se é um paciente novo, o cadastro é criado sozinho com o que você digitou.
+   - Depois de gerar, **Próximo paciente** (⇧⌘N) limpa o nome e os campos do documento e mantém o local, a subpasta e o modelo.
    - Se houver **mais de um paciente com o mesmo nome**, o app não escolhe sozinho: mostra os cadastros com data de nascimento e CPF para você escolher (ou “É outro paciente”, com a data de nascimento para diferenciar). Os documentos ficam ligados ao cadastro escolhido.
 
 ### Campos preenchidos automaticamente
