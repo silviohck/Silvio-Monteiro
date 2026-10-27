@@ -4,14 +4,37 @@ struct PacientesView: View {
     @EnvironmentObject private var armazenamento: Armazenamento
     @State private var selecao: Paciente.ID?
     @State private var busca = ""
-    @State private var confirmarExclusao = false
+    @State private var pacienteParaExcluir: Paciente?
+    /// "" = todos os locais, "sem" = sem local, ou o id do local.
+    @AppStorage("filtroLocalPacientes") private var filtroLocal = ""
 
-    private var filtrados: [Paciente] {
+    private static let semLocal = "sem"
+
+    private struct Grupo: Identifiable {
+        let id: String
+        let titulo: String
+        let pacientes: [Paciente]
+    }
+
+    private var grupos: [Grupo] {
         let termo = busca.trimmingCharacters(in: .whitespaces)
-        guard !termo.isEmpty else { return armazenamento.pacientesOrdenados }
-        return armazenamento.pacientesOrdenados.filter {
-            $0.nome.localizedCaseInsensitiveContains(termo) || $0.cpf.contains(termo)
+        let pacientes = armazenamento.pacientesOrdenados.filter {
+            termo.isEmpty || $0.nome.localizedCaseInsensitiveContains(termo) || $0.cpf.contains(termo)
         }
+        var grupos: [Grupo] = []
+        for local in armazenamento.locaisOrdenados where filtroLocal.isEmpty || filtroLocal == local.id.uuidString {
+            let doLocal = pacientes.filter { $0.localID == local.id }
+            if !doLocal.isEmpty {
+                grupos.append(Grupo(id: local.id.uuidString, titulo: local.nome.isEmpty ? "Local sem nome" : local.nome, pacientes: doLocal))
+            }
+        }
+        if filtroLocal.isEmpty || filtroLocal == Self.semLocal {
+            let semLocal = pacientes.filter { armazenamento.local($0.localID) == nil }
+            if !semLocal.isEmpty {
+                grupos.append(Grupo(id: Self.semLocal, titulo: "Sem local de atendimento", pacientes: semLocal))
+            }
+        }
+        return grupos
     }
 
     var body: some View {
@@ -24,26 +47,48 @@ struct PacientesView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .padding([.horizontal, .top], 8)
+                Picker("Local", selection: $filtroLocal) {
+                    Text("Todos os locais").tag("")
+                    ForEach(armazenamento.locaisOrdenados) { local in
+                        Text(local.nome.isEmpty ? "Local sem nome" : local.nome).tag(local.id.uuidString)
+                    }
+                    Text("Sem local de atendimento").tag(Self.semLocal)
+                }
+                .labelsHidden()
+                .padding([.horizontal, .top], 8)
                 TextField("Buscar por nome ou CPF", text: $busca)
                     .textFieldStyle(.roundedBorder)
                     .padding(8)
-                List(filtrados, selection: $selecao) { paciente in
-                    VStack(alignment: .leading) {
-                        Text(paciente.nome.isEmpty ? "Sem nome" : paciente.nome)
-                        if !paciente.cpf.isEmpty {
-                            Text(paciente.cpf).font(.caption).foregroundStyle(.secondary)
+                List(selection: $selecao) {
+                    ForEach(grupos) { grupo in
+                        Section("\(grupo.titulo) (\(grupo.pacientes.count))") {
+                            ForEach(grupo.pacientes) { paciente in
+                                linha(paciente)
+                                    .tag(paciente.id)
+                                    .contextMenu {
+                                        Button("Excluir paciente…", role: .destructive) {
+                                            pacienteParaExcluir = paciente
+                                        }
+                                    }
+                            }
                         }
                     }
                 }
+                .onDeleteCommand {
+                    pacienteParaExcluir = armazenamento.paciente(selecao)
+                }
             }
-            .frame(minWidth: 220, idealWidth: 260, maxWidth: 340)
+            .frame(minWidth: 240, idealWidth: 280, maxWidth: 360)
 
             Group {
                 if let paciente = armazenamento.paciente(selecao) {
-                    PacienteEditor(paciente: Binding(
-                        get: { armazenamento.paciente(paciente.id) ?? paciente },
-                        set: { armazenamento.atualizarPaciente($0) }
-                    ))
+                    PacienteEditor(
+                        paciente: Binding(
+                            get: { armazenamento.paciente(paciente.id) ?? paciente },
+                            set: { armazenamento.atualizarPaciente($0) }
+                        ),
+                        aoExcluir: { pacienteParaExcluir = paciente }
+                    )
                     .id(paciente.id)
                 } else {
                     AvisoVazio(
@@ -62,39 +107,64 @@ struct PacientesView: View {
                 Label("Novo paciente", systemImage: "person.badge.plus")
             }
             Button(role: .destructive) {
-                confirmarExclusao = true
+                pacienteParaExcluir = armazenamento.paciente(selecao)
             } label: {
                 Label("Excluir paciente", systemImage: "trash")
             }
             .disabled(selecao == nil)
         }
-        .confirmationDialog("Excluir este paciente?", isPresented: $confirmarExclusao) {
+        .confirmationDialog(
+            "Excluir \(pacienteParaExcluir.map { $0.nome.isEmpty ? "este paciente" : $0.nome } ?? "este paciente")?",
+            isPresented: Binding(get: { pacienteParaExcluir != nil }, set: { if !$0 { pacienteParaExcluir = nil } }),
+            presenting: pacienteParaExcluir
+        ) { paciente in
             Button("Excluir", role: .destructive) {
-                if let id = selecao {
-                    selecao = nil
-                    armazenamento.removerPaciente(id)
-                }
+                if selecao == paciente.id { selecao = nil }
+                armazenamento.removerPaciente(paciente.id)
             }
-        } message: {
-            Text("Os documentos já gerados não são apagados.")
+        } message: { _ in
+            Text("O cadastro será apagado. Os documentos já gerados não são apagados.")
+        }
+    }
+
+    private func linha(_ paciente: Paciente) -> some View {
+        VStack(alignment: .leading) {
+            Text(paciente.nome.isEmpty ? "Sem nome" : paciente.nome)
+            if !paciente.cpf.isEmpty {
+                Text(paciente.cpf).font(.caption).foregroundStyle(.secondary)
+            }
         }
     }
 }
 
 extension PacientesView {
+    /// Novo paciente já ligado ao local que está sendo filtrado.
     private func novoPaciente() {
         busca = ""
-        selecao = armazenamento.novoPaciente().id
+        var paciente = armazenamento.novoPaciente()
+        if let local = armazenamento.dados.locais.first(where: { $0.id.uuidString == filtroLocal }) {
+            paciente.localID = local.id
+            armazenamento.atualizarPaciente(paciente)
+        }
+        selecao = paciente.id
     }
 }
 
 struct PacienteEditor: View {
+    @EnvironmentObject private var armazenamento: Armazenamento
     @Binding var paciente: Paciente
+    let aoExcluir: () -> Void
 
     var body: some View {
         Form {
             Section("Identificação") {
                 TextField("Nome completo", text: $paciente.nome)
+                Picker("Local de atendimento", selection: $paciente.localID) {
+                    Text("Nenhum").tag(UUID?.none)
+                    ForEach(armazenamento.locaisOrdenados) { local in
+                        Text(local.nome.isEmpty ? "Local sem nome" : local.nome).tag(Optional(local.id))
+                    }
+                }
                 TextField("CPF", text: $paciente.cpf)
                 TextField("RG", text: $paciente.rg)
                 LabeledContent("Data de nascimento") {
@@ -141,6 +211,14 @@ struct PacienteEditor: View {
                 } footer: {
                     Text("Valores digitados ao gerar documentos para este paciente; são reaproveitados na próxima vez.")
                         .foregroundStyle(.secondary)
+                }
+            }
+            Section {
+                HStack {
+                    Spacer()
+                    Button(role: .destructive, action: aoExcluir) {
+                        Label("Excluir paciente…", systemImage: "trash")
+                    }
                 }
             }
         }

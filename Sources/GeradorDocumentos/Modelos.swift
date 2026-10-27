@@ -44,6 +44,8 @@ struct Paciente: Identifiable, Codable, Hashable {
     var endereco = ""
     var convenio = ""
     var observacoes = ""
+    /// Local de atendimento onde o paciente é atendido (opcional).
+    var localID: UUID?
     /// Valores digitados para campos que não são do cadastro fixo, para reaproveitar depois.
     var outrosCampos: [String: String] = [:]
 }

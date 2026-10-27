@@ -218,6 +218,9 @@ struct GerarView: View {
 
         if !nome.isEmpty {
             var paciente = pacienteCadastrado ?? armazenamento.novoPaciente(nome: nome)
+            if armazenamento.local(paciente.localID) == nil {
+                paciente.localID = local?.id
+            }
             CamposAutomaticos.guardar(valoresFinais, campos: modelo.campos, em: &paciente)
             armazenamento.atualizarPaciente(paciente)
         }
