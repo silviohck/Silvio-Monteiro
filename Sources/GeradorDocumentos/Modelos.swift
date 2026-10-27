@@ -109,6 +109,8 @@ struct DocumentoGerado: Identifiable, Codable, Hashable {
     /// Para reaproveitar os ajustes de impressão do modelo no Histórico.
     var modeloID: UUID?
     var paciente: String
+    /// Identificador do cadastro do paciente (o nome sozinho pode se repetir).
+    var pacienteID: UUID?
     var local: String?
     var caminho: String
     var data = Date()

@@ -153,6 +153,25 @@ final class Armazenamento: ObservableObject {
     }
 
     /// Paciente cadastrado com exatamente este nome (sem diferenciar maiúsculas e acentos).
+    /// Todos os pacientes com exatamente este nome (homônimos).
+    func pacientes(chamados nome: String) -> [Paciente] {
+        let nome = nome.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !nome.isEmpty else { return [] }
+        return dados.pacientes.filter {
+            $0.nome.trimmingCharacters(in: .whitespacesAndNewlines)
+                .compare(nome, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+        }
+    }
+
+    /// "nasc. 01/02/1990 · CPF 123" — para diferenciar pacientes com o mesmo nome.
+    static func identificacao(_ paciente: Paciente) -> String {
+        var partes: [String] = []
+        let nascimento = paciente.dataNascimento.trimmingCharacters(in: .whitespaces)
+        partes.append(nascimento.isEmpty ? "sem data de nascimento" : "nasc. \(nascimento)")
+        if !paciente.cpf.isEmpty { partes.append("CPF \(paciente.cpf)") }
+        return partes.joined(separator: " · ")
+    }
+
     func paciente(chamado nome: String) -> Paciente? {
         let nome = nome.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !nome.isEmpty else { return nil }
@@ -188,7 +207,26 @@ final class Armazenamento: ObservableObject {
         return local
     }
 
-    func removerLocal(_ id: LocalAtendimento.ID) {
+    /// Exclui o local depois de decidir o destino dos modelos e pacientes dele:
+    /// `destino` = outro local (transferir) ou nil (desvincular: modelos de todos os locais, pacientes sem local).
+    func excluirLocal(_ id: LocalAtendimento.ID, transferirPara destino: LocalAtendimento.ID?) {
+        guard let local = local(id) else { return }
+        for i in dados.modelos.indices where dados.modelos[i].localID == id {
+            dados.modelos[i].localID = destino
+        }
+        for i in dados.pacientes.indices where dados.pacientes[i].localID == id {
+            dados.pacientes[i].localID = destino
+        }
+        // Pasta sincronizada do local: passa para o destino, se ele ainda não tiver uma;
+        // senão deixa de ser acompanhada, para o local não voltar na próxima sincronização.
+        if let pasta = local.pastaSincronizada {
+            if let destino, let indice = dados.locais.firstIndex(where: { $0.id == destino }),
+               dados.locais[indice].pastaSincronizada == nil {
+                dados.locais[indice].pastaSincronizada = pasta
+            } else if !dados.pastasIgnoradas.contains(pasta) {
+                dados.pastasIgnoradas.append(pasta)
+            }
+        }
         dados.locais.removeAll { $0.id == id }
     }
 

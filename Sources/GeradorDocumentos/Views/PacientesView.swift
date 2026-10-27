@@ -130,9 +130,20 @@ struct PacientesView: View {
     }
 
     private func linha(_ paciente: Paciente) -> some View {
-        VStack(alignment: .leading) {
-            Text(paciente.nome.isEmpty ? "Sem nome" : paciente.nome)
-            if !paciente.cpf.isEmpty {
+        let repetido = !paciente.nome.isEmpty && armazenamento.pacientes(chamados: paciente.nome).count > 1
+        let semNascimento = paciente.dataNascimento.trimmingCharacters(in: .whitespaces).isEmpty
+        return VStack(alignment: .leading) {
+            HStack(spacing: 4) {
+                Text(paciente.nome.isEmpty ? "Sem nome" : paciente.nome)
+                if repetido && semNascimento {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .help("Há outro paciente com este nome. Cadastre a data de nascimento para diferenciá-los.")
+                }
+            }
+            if repetido {
+                Text(Armazenamento.identificacao(paciente)).fonteApp(.legenda).foregroundColor(semNascimento ? .orange : .secondary)
+            } else if !paciente.cpf.isEmpty {
                 Text(paciente.cpf).fonteApp(.legenda).foregroundStyle(.secondary)
             }
         }
@@ -205,6 +216,16 @@ struct PacienteEditor: View {
         Form {
             Section("Identificação") {
                 TextField("Nome completo", text: $paciente.nome)
+                if armazenamento.pacientes(chamados: paciente.nome).count > 1 {
+                    Label(
+                        paciente.dataNascimento.trimmingCharacters(in: .whitespaces).isEmpty
+                            ? "Há outro paciente com este nome. Preencha a data de nascimento para diferenciá-los."
+                            : "Há outro paciente com este nome; a data de nascimento diferencia os dois.",
+                        systemImage: "exclamationmark.triangle.fill"
+                    )
+                    .fonteApp(.apoio)
+                    .foregroundStyle(.orange)
+                }
                 Picker("Local de atendimento", selection: $paciente.localID) {
                     Text("Nenhum").tag(UUID?.none)
                     ForEach(armazenamento.locaisOrdenados) { local in

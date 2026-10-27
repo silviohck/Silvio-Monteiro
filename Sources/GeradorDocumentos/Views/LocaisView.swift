@@ -4,7 +4,7 @@ import SwiftUI
 struct LocaisView: View {
     @EnvironmentObject private var armazenamento: Armazenamento
     @State private var selecao: LocalAtendimento.ID?
-    @State private var confirmarExclusao = false
+    @State private var localParaExcluir: LocalAtendimento?
 
     var body: some View {
         HSplitView {
@@ -26,10 +26,13 @@ struct LocaisView: View {
 
             Group {
                 if let local = armazenamento.local(selecao) {
-                    LocalEditor(local: Binding(
-                        get: { armazenamento.local(local.id) ?? local },
-                        set: { armazenamento.atualizarLocal($0) }
-                    ))
+                    LocalEditor(
+                        local: Binding(
+                            get: { armazenamento.local(local.id) ?? local },
+                            set: { armazenamento.atualizarLocal($0) }
+                        ),
+                        aoExcluir: { localParaExcluir = local }
+                    )
                     .id(local.id)
                 } else {
                     AvisoVazio(
@@ -48,19 +51,17 @@ struct LocaisView: View {
                 Label("Novo local", systemImage: "plus")
             }
             Button(role: .destructive) {
-                confirmarExclusao = true
+                localParaExcluir = armazenamento.local(selecao)
             } label: {
                 Label("Excluir local", systemImage: "trash")
             }
             .disabled(selecao == nil)
         }
-        .confirmationDialog("Excluir este local de atendimento?", isPresented: $confirmarExclusao) {
-            Button("Excluir", role: .destructive) {
-                if let id = selecao {
-                    selecao = nil
-                    armazenamento.removerLocal(id)
-                }
+        .sheet(item: $localParaExcluir) { local in
+            ExcluirLocalView(local: local) {
+                if selecao == local.id { selecao = nil }
             }
+            .environmentObject(armazenamento)
         }
     }
 }
@@ -74,6 +75,7 @@ extension LocaisView {
 struct LocalEditor: View {
     @EnvironmentObject private var armazenamento: Armazenamento
     @Binding var local: LocalAtendimento
+    let aoExcluir: () -> Void
 
     var body: some View {
         Form {
@@ -98,6 +100,14 @@ struct LocalEditor: View {
             } footer: {
                 Text("Os documentos gerados são salvos aqui, separados em subpastas por tipo (Receitas, Laudos…).")
                     .foregroundStyle(.secondary)
+            }
+            Section {
+                HStack {
+                    Spacer()
+                    Button(role: .destructive, action: aoExcluir) {
+                        Label("Excluir local…", systemImage: "trash")
+                    }
+                }
             }
         }
         .formStyle(.grouped)
@@ -128,5 +138,91 @@ struct LocalEditor: View {
         } catch {
             armazenamento.erro = "Não foi possível criar as pastas: \(error.localizedDescription)"
         }
+    }
+}
+
+/// Exclusão de local: exige decidir antes o que acontece com os modelos e pacientes dele.
+struct ExcluirLocalView: View {
+    @EnvironmentObject private var armazenamento: Armazenamento
+    @Environment(\.dismiss) private var dismiss
+    let local: LocalAtendimento
+    let aoExcluir: () -> Void
+
+    private enum Opcao { case transferir, desvincular }
+    @State private var opcao: Opcao?
+    @State private var destino: LocalAtendimento.ID?
+
+    private var nome: String { local.nome.isEmpty ? "este local" : "“\(local.nome)”" }
+    private var modelos: Int { armazenamento.dados.modelos.filter { $0.localID == local.id }.count }
+    private var pacientes: Int { armazenamento.dados.pacientes.filter { $0.localID == local.id }.count }
+    private var outrosLocais: [LocalAtendimento] { armazenamento.locaisOrdenados.filter { $0.id != local.id } }
+    private var temVinculos: Bool { modelos > 0 || pacientes > 0 }
+
+    private var podeExcluir: Bool {
+        guard temVinculos else { return true }
+        switch opcao {
+        case .transferir: return destino != nil
+        case .desvincular: return true
+        case nil: return false
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Excluir \(nome)").fonteApp(.titulo)
+
+            if temVinculos {
+                Text("Este local tem \(modelos) \(modelos == 1 ? "modelo" : "modelos") e \(pacientes) \(pacientes == 1 ? "paciente" : "pacientes"). Antes de excluir, escolha o que fazer com eles:")
+                    .fixedSize(horizontal: false, vertical: true)
+                Picker("", selection: $opcao) {
+                    Text("Transferir para outro local").tag(Opcao?.some(.transferir))
+                    Text("Desvincular: os modelos passam a valer para todos os locais e os pacientes ficam sem local").tag(Opcao?.some(.desvincular))
+                }
+                .pickerStyle(.radioGroup)
+                .labelsHidden()
+                if opcao == .transferir {
+                    if outrosLocais.isEmpty {
+                        Text("Não há outro local cadastrado para receber os modelos.")
+                            .foregroundStyle(.orange)
+                    } else {
+                        Picker("Transferir para", selection: $destino) {
+                            Text("Escolha o local…").tag(LocalAtendimento.ID?.none)
+                            ForEach(outrosLocais) { outro in
+                                Text(outro.nome.isEmpty ? "Local sem nome" : outro.nome).tag(Optional(outro.id))
+                            }
+                        }
+                    }
+                }
+            } else {
+                Text("Este local não tem modelos nem pacientes vinculados.")
+            }
+
+            if let pasta = local.pastaSincronizada {
+                Text("Este local vem da pasta sincronizada “\(pasta)”. Ao transferir para um local sem pasta sincronizada, os arquivos dessa pasta passam a ser desse local; caso contrário, a pasta deixa de ser acompanhada e os modelos que vieram dela saem do app na próxima sincronização.")
+                    .fonteApp(.apoio)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Text("Os documentos já gerados não são apagados.")
+                .fonteApp(.apoio)
+                .foregroundStyle(.secondary)
+
+            Spacer(minLength: 0)
+            HStack {
+                Spacer()
+                Button("Cancelar") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("Excluir local", role: .destructive) {
+                    armazenamento.excluirLocal(local.id, transferirPara: opcao == .transferir ? destino : nil)
+                    aoExcluir()
+                    dismiss()
+                }
+                .disabled(!podeExcluir)
+            }
+        }
+        .padding(20)
+        .frame(width: 560, height: 420)
+        .background(Tema.fundo)
     }
 }

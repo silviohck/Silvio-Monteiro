@@ -23,6 +23,11 @@ struct GerarView: View {
     @State private var mostrandoCadastro = false
     @State private var pacienteEmEdicao: Paciente.ID?
     @FocusState private var focoNoNome: Bool
+    /// Paciente escolhido quando há mais de um cadastro com o mesmo nome.
+    @State private var pacienteEscolhido: Paciente.ID?
+    /// "É outro paciente": cria um cadastro novo mesmo com o nome já existente.
+    @State private var outroPaciente = false
+    @State private var nascimentoDoNovo = ""
 
     private enum Escopo { case tudo, paciente, local }
 
@@ -38,12 +43,27 @@ struct GerarView: View {
         nomePaciente.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// Cadastros com exatamente o nome digitado (pode haver mais de um: homônimos).
+    private var homonimos: [Paciente] {
+        armazenamento.pacientes(chamados: nomeDigitado)
+    }
+
+    /// O paciente escolhido; com nome repetido, só depois de você escolher qual é.
     private var pacienteCadastrado: Paciente? {
-        armazenamento.paciente(chamado: nomeDigitado)
+        if outroPaciente { return nil }
+        if let id = pacienteEscolhido, let escolhido = homonimos.first(where: { $0.id == id }) {
+            return escolhido
+        }
+        return homonimos.count == 1 ? homonimos[0] : nil
+    }
+
+    /// Nome repetido e ainda não foi dito qual paciente é.
+    private var precisaEscolherPaciente: Bool {
+        homonimos.count > 1 && pacienteCadastrado == nil && !outroPaciente
     }
 
     private var sugestoes: [Paciente] {
-        guard nomeDigitado.count >= 2, pacienteCadastrado == nil else { return [] }
+        guard nomeDigitado.count >= 2, homonimos.isEmpty else { return [] }
         return Array(armazenamento.pacientesOrdenados.filter {
             $0.nome.range(of: nomeDigitado, options: [.caseInsensitive, .diacriticInsensitive]) != nil
         }.prefix(6))
@@ -111,21 +131,43 @@ struct GerarView: View {
                         Label("Cadastro", systemImage: pacienteCadastrado == nil ? "person.badge.plus" : "person.text.rectangle")
                     }
                     .controlSize(.small)
-                    .disabled(nomeDigitado.isEmpty)
+                    .disabled(nomeDigitado.isEmpty || precisaEscolherPaciente)
                     .help(pacienteCadastrado == nil ? "Criar o cadastro deste paciente e acrescentar informações" : "Abrir o cadastro do paciente para acrescentar informações")
                 }
-                if let paciente = pacienteCadastrado {
+                if precisaEscolherPaciente {
+                    escolhaDeHomonimo
+                } else if let paciente = pacienteCadastrado {
                     Label(
-                        "Paciente cadastrado" + (paciente.cpf.isEmpty ? "" : " · CPF \(paciente.cpf)") + " — dados preenchidos abaixo",
+                        "Paciente cadastrado · \(Armazenamento.identificacao(paciente)) — dados preenchidos abaixo",
                         systemImage: "person.crop.circle.badge.checkmark"
                     )
                     .foregroundStyle(Tema.sucesso)
+                    HStack {
+                        if homonimos.count > 1 {
+                            Button("Trocar de paciente") { pacienteEscolhido = nil }
+                        }
+                        Button("É outro paciente com o mesmo nome") { outroPaciente = true }
+                    }
+                    .buttonStyle(.link)
+                    .fonteApp(.apoio)
+                } else if outroPaciente {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label("Novo cadastro, diferente dos que já têm este nome.", systemImage: "person.badge.plus")
+                        TextField("Data de nascimento (dd/mm/aaaa) — ajuda a diferenciar", text: $nascimentoDoNovo)
+                        Button("Cancelar: é um paciente já cadastrado") {
+                            outroPaciente = false
+                            nascimentoDoNovo = ""
+                        }
+                        .buttonStyle(.link)
+                        .fonteApp(.apoio)
+                    }
                 } else if !nomeDigitado.isEmpty {
                     ForEach(sugestoes) { paciente in
                         Button {
                             nomePaciente = paciente.nome
+                            pacienteEscolhido = paciente.id
                         } label: {
-                            Label("Usar o cadastro de \(paciente.nome)", systemImage: "person.crop.circle")
+                            Label("Usar o cadastro de \(paciente.nome) (\(Armazenamento.identificacao(paciente)))", systemImage: "person.crop.circle")
                         }
                         .buttonStyle(.link)
                     }
@@ -233,7 +275,11 @@ struct GerarView: View {
                         Button("Gerar documento") { gerar(modelo) }
                             .buttonStyle(.borderedProminent)
                             .keyboardShortcut(.defaultAction)
-                            .disabled(nomeDigitado.isEmpty && modelo.campos.contains(where: CamposAutomaticos.ehNomeDoPaciente))
+                            .disabled(
+                                precisaEscolherPaciente
+                                    || (nomeDigitado.isEmpty && modelo.campos.contains(where: CamposAutomaticos.ehNomeDoPaciente))
+                            )
+                            .help(precisaEscolherPaciente ? "Escolha qual dos pacientes com este nome é o certo" : "")
                     }
                 }
             }
@@ -249,6 +295,14 @@ struct GerarView: View {
         .onChange(of: nomePaciente) { _ in
             aviso = nil
             ultimoDocumento = nil
+            // Nome mudou: a escolha entre homônimos só vale se ainda for o mesmo nome.
+            if let id = pacienteEscolhido, !homonimos.contains(where: { $0.id == id }) {
+                pacienteEscolhido = nil
+            }
+            if homonimos.isEmpty {
+                outroPaciente = false
+                nascimentoDoNovo = ""
+            }
         }
         .onChange(of: modeloSelecionado) { _ in preencher(.tudo) }
         .onChange(of: subpasta) { _ in validarModelo() }
@@ -315,16 +369,46 @@ struct GerarView: View {
         pastaAvulsa ?? armazenamento.pastaDosDocumentos(subpasta: subpasta, local: local)
     }
 
+    /// Nome repetido: lista os cadastros com data de nascimento e CPF para escolher o certo.
+    private var escolhaDeHomonimo: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("Há \(homonimos.count) pacientes chamados “\(nomeDigitado)”. Qual deles é?", systemImage: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            ForEach(homonimos) { paciente in
+                Button {
+                    pacienteEscolhido = paciente.id
+                } label: {
+                    Label(Armazenamento.identificacao(paciente), systemImage: "person.crop.circle")
+                }
+                .buttonStyle(.link)
+            }
+            Button("É outro paciente (novo cadastro)") { outroPaciente = true }
+                .buttonStyle(.link)
+            if homonimos.contains(where: { $0.dataNascimento.trimmingCharacters(in: .whitespaces).isEmpty }) {
+                Text("Dica: cadastre a data de nascimento desses pacientes para diferenciá-los com segurança.")
+                    .fonteApp(.apoio)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    /// Cadastro novo com o nome digitado (e a data de nascimento informada, se for homônimo).
+    private func criarPaciente() -> Paciente {
+        var paciente = armazenamento.novoPaciente(nome: nomeDigitado)
+        paciente.localID = local?.id
+        let nascimento = nascimentoDoNovo.trimmingCharacters(in: .whitespaces)
+        if !nascimento.isEmpty { paciente.dataNascimento = nascimento }
+        armazenamento.atualizarPaciente(paciente)
+        pacienteEscolhido = paciente.id
+        outroPaciente = false
+        nascimentoDoNovo = ""
+        return paciente
+    }
+
     /// Abre o cadastro do paciente digitado, criando-o se ainda não existir.
     private func abrirCadastro() {
-        var paciente: Paciente
-        if let cadastrado = pacienteCadastrado {
-            paciente = cadastrado
-        } else {
-            paciente = armazenamento.novoPaciente(nome: nomeDigitado)
-            paciente.localID = local?.id
-            armazenamento.atualizarPaciente(paciente)
-        }
+        guard !precisaEscolherPaciente else { return }
+        let paciente = pacienteCadastrado ?? criarPaciente()
         pacienteEmEdicao = paciente.id
         mostrandoCadastro = true
     }
@@ -333,6 +417,7 @@ struct GerarView: View {
     private func voltarDoCadastro() {
         if let id = pacienteEmEdicao, let paciente = armazenamento.paciente(id), !paciente.nome.isEmpty {
             nomePaciente = paciente.nome
+            pacienteEscolhido = id
         }
         pacienteEmEdicao = nil
         preencher(.paciente)
@@ -358,6 +443,7 @@ struct GerarView: View {
     }
 
     private func gerar(_ modelo: ModeloDocumento) {
+        guard !precisaEscolherPaciente else { return }
         let nome = nomeDigitado
         var valoresFinais = valores
         for campo in modelo.campos where CamposAutomaticos.ehNomeDoPaciente(campo) {
@@ -375,15 +461,20 @@ struct GerarView: View {
             return
         }
 
+        var pacienteID: UUID?
         if !nome.isEmpty {
-            var paciente = pacienteCadastrado ?? armazenamento.novoPaciente(nome: nome)
+            var paciente = pacienteCadastrado ?? criarPaciente()
+            pacienteID = paciente.id
             if armazenamento.local(paciente.localID) == nil {
                 paciente.localID = local?.id
             }
             CamposAutomaticos.guardar(valoresFinais, campos: modelo.campos, em: &paciente)
             armazenamento.atualizarPaciente(paciente)
         }
-        armazenamento.registrar(DocumentoGerado(modelo: modelo.nome, modeloID: modelo.id, paciente: nome, local: local?.nome, caminho: destino.path))
+        armazenamento.registrar(DocumentoGerado(
+            modelo: modelo.nome, modeloID: modelo.id, paciente: nome, pacienteID: pacienteID,
+            local: local?.nome, caminho: destino.path
+        ))
         aviso = "Salvo: \(destino.lastPathComponent)"
         ultimoDocumento = destino
         pastaAvulsa = nil
