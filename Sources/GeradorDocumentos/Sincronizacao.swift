@@ -13,9 +13,6 @@ struct ArquivoDaPasta {
     /// Pastas dentro do tipo até o arquivo (ex.: ["Joelho"] em RX/Joelho/arquivo.docx).
     let subpastas: [String]
     let modificadoEm: Date
-
-    /// Nome usado por versões anteriores, com as pastas internas no começo ("Joelho / RX joelho").
-    var nomeAntigo: String { (subpastas + [nome]).joined(separator: " / ") }
 }
 
 /// Situação da sincronização, mostrada na aba Modelos.
@@ -31,6 +28,8 @@ struct EstadoSincronizacao {
 }
 
 /// Lê a pasta no formato: Pasta → LOCAL → (arquivos soltos | TIPO → arquivos [→ subpastas]).
+/// Dentro da pasta de um local, atalhos (alias) do Finder para outras pastas são seguidos:
+/// o atalho "1 - APAC" dentro de ALAGOA GRANDE vira o tipo "1 - APAC" desse local, com as subpastas dele.
 enum LeituraDaPasta {
     static let extensoes: Set<String> = ["docx", "doc", "rtf", "odt"]
     private static let profundidadeMaxima = 4
@@ -40,8 +39,11 @@ enum LeituraDaPasta {
         for pastaDoLocal in subpastas(de: raiz) where !ignorar.contains(pastaDoLocal.lastPathComponent) {
             let local = pastaDoLocal.lastPathComponent
             resultado += documentos(em: pastaDoLocal).map { arquivo($0, raiz: raiz, local: local, tipo: nil, subpastas: []) }
-            for pastaDoTipo in subpastas(de: pastaDoLocal) {
-                resultado += arquivos(em: pastaDoTipo, raiz: raiz, local: local, tipo: pastaDoTipo.lastPathComponent, caminho: [], nivel: 1)
+            for pastaDoTipo in pastasEAtalhos(de: pastaDoLocal) {
+                resultado += arquivos(
+                    em: pastaDoLocal.appendingPathComponent(pastaDoTipo.nome), real: pastaDoTipo.real,
+                    raiz: raiz, local: local, tipo: pastaDoTipo.nome, caminho: [], nivel: 1
+                )
             }
         }
         return resultado
@@ -52,24 +54,45 @@ enum LeituraDaPasta {
         subpastas(de: raiz).map(\.lastPathComponent)
     }
 
-    /// `caminho`: pastas entre a pasta do tipo e `pasta`.
-    private static func arquivos(em pasta: URL, raiz: URL, local: String, tipo: String, caminho: [String], nivel: Int) -> [ArquivoDaPasta] {
-        var resultado = documentos(em: pasta).map { arquivo($0, raiz: raiz, local: local, tipo: tipo, subpastas: caminho) }
+    /// `pasta`: caminho como aparece dentro da pasta sincronizada (passando pelos atalhos);
+    /// `real`: a pasta de verdade, para ler os arquivos. `caminho`: pastas entre a pasta do tipo e `pasta`.
+    private static func arquivos(
+        em pasta: URL, real: URL, raiz: URL, local: String, tipo: String, caminho: [String], nivel: Int
+    ) -> [ArquivoDaPasta] {
+        var resultado = documentos(em: real).map {
+            arquivo($0, caminhoNaPasta: pasta.appendingPathComponent($0.lastPathComponent), raiz: raiz, local: local, tipo: tipo, subpastas: caminho)
+        }
         guard nivel < profundidadeMaxima else { return resultado }
-        for subpasta in subpastas(de: pasta) {
+        for subpasta in pastasEAtalhos(de: real) {
             resultado += arquivos(
-                em: subpasta, raiz: raiz, local: local, tipo: tipo,
-                caminho: caminho + [subpasta.lastPathComponent], nivel: nivel + 1
+                em: pasta.appendingPathComponent(subpasta.nome), real: subpasta.real, raiz: raiz, local: local, tipo: tipo,
+                caminho: caminho + [subpasta.nome], nivel: nivel + 1
             )
         }
         return resultado
     }
 
-    private static func arquivo(_ url: URL, raiz: URL, local: String?, tipo: String?, subpastas: [String]) -> ArquivoDaPasta {
+    private static func arquivo(
+        _ url: URL, caminhoNaPasta: URL? = nil, raiz: URL, local: String?, tipo: String?, subpastas: [String]
+    ) -> ArquivoDaPasta {
         let modificado = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
-        let caminho = String(url.standardizedFileURL.path.dropFirst(raiz.standardizedFileURL.path.count))
+        let caminho = String((caminhoNaPasta ?? url).standardizedFileURL.path.dropFirst(raiz.standardizedFileURL.path.count))
             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         return ArquivoDaPasta(url: url, caminho: caminho, nome: nomeLimpo(url), local: local, tipo: tipo, subpastas: subpastas, modificadoEm: modificado)
+    }
+
+    /// Subpastas e atalhos para pastas: nome que aparece no Finder e a pasta de verdade.
+    private static func pastasEAtalhos(de pasta: URL) -> [(nome: String, real: URL)] {
+        conteudo(de: pasta).compactMap { url in
+            let valores = try? url.resourceValues(forKeys: [.isDirectoryKey, .isAliasFileKey, .isSymbolicLinkKey])
+            if valores?.isAliasFile == true || valores?.isSymbolicLink == true {
+                guard let destino = try? URL(resolvingAliasFileAt: url, options: [.withoutUI, .withoutMounting]),
+                      (try? destino.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true
+                else { return nil }
+                return (url.lastPathComponent, destino)
+            }
+            return valores?.isDirectory == true ? (url.lastPathComponent, url) : nil
+        }
     }
 
     private static func conteudo(de pasta: URL) -> [URL] {
@@ -208,15 +231,24 @@ extension Armazenamento {
         sincronizacao = estado
     }
 
-    /// Modelos em pastas dentro do tipo (RX/Joelho) ficam na subpasta "RX / Joelho", com o nome do arquivo.
-    /// Corrige os que versões anteriores guardaram como tipo "RX" e nome "Joelho / …".
+    /// Deixa local, subpasta e nome dos modelos sincronizados de acordo com o lugar do arquivo na pasta.
+    /// Corrige modelos de versões anteriores (tipo "RX" com nome "Joelho / …", ou "todos os locais" por engano).
     private func ajustarSubpastas(_ arquivos: [ArquivoDaPasta]) {
-        for arquivo in arquivos where !arquivo.subpastas.isEmpty {
+        let separador = Armazenamento.separadorDeSubpastas
+        for arquivo in arquivos {
             guard let indice = dados.modelos.firstIndex(where: { $0.origem == arquivo.caminho }) else { continue }
             let modelo = dados.modelos[indice]
-            guard !modelo.categoria.contains(Armazenamento.separadorDeSubpastas) else { continue }
-            dados.modelos[indice].categoria = Armazenamento.subpasta(modelo.categoria, dentro: arquivo.subpastas)
-            if modelo.nome == arquivo.nomeAntigo {
+            let local = localID(paraPasta: arquivo.local)
+            let fimEsperado = arquivo.subpastas.isEmpty ? "" : separador + arquivo.subpastas.joined(separator: separador)
+            let subpastaCerta = arquivo.tipo == nil
+                || (fimEsperado.isEmpty ? !modelo.categoria.contains(separador) : modelo.categoria.hasSuffix(fimEsperado))
+            if modelo.localID != local || !subpastaCerta {
+                dados.modelos[indice].localID = local
+                if arquivo.tipo != nil {
+                    dados.modelos[indice].categoria = Armazenamento.subpasta(tipo(para: arquivo, local: local), dentro: arquivo.subpastas)
+                }
+            }
+            if modelo.nome != arquivo.nome && modelo.nome.contains(separador) {
                 dados.modelos[indice].nome = arquivo.nome
             }
         }

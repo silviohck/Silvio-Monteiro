@@ -339,18 +339,24 @@ final class Armazenamento: ObservableObject {
     }
 
     /// Subpasta de `base` com este nome, se já existir (sem diferenciar maiúsculas e acentos);
-    /// senão, o caminho da que será criada ao salvar.
+    /// senão, o caminho da que será criada ao salvar. Um atalho (alias) do Finder com esse nome
+    /// é seguido até a pasta original (ex.: o atalho "1 - APAC" dentro da pasta do local).
     static func pasta(em base: URL, chamada nome: String) -> URL {
         let existentes = (try? FileManager.default.contentsOfDirectory(
             at: base,
-            includingPropertiesForKeys: [.isDirectoryKey],
+            includingPropertiesForKeys: [.isDirectoryKey, .isAliasFileKey, .isSymbolicLinkKey],
             options: [.skipsHiddenFiles]
         )) ?? []
-        if let existente = existentes.first(where: {
-            (try? $0.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true
-                && mesmoNome($0.lastPathComponent, nome)
-        }) {
-            return existente
+        for item in existentes where mesmoNome(item.lastPathComponent, nome) {
+            let valores = try? item.resourceValues(forKeys: [.isDirectoryKey, .isAliasFileKey, .isSymbolicLinkKey])
+            if valores?.isAliasFile == true || valores?.isSymbolicLink == true {
+                if let destino = try? URL(resolvingAliasFileAt: item, options: [.withoutUI, .withoutMounting]),
+                   (try? destino.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true {
+                    return destino
+                }
+            } else if valores?.isDirectory == true {
+                return item
+            }
         }
         return base.appendingPathComponent(nomeSeguro(nome), isDirectory: true)
     }
