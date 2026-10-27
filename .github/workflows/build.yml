@@ -19,5 +19,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: GeradorDocumentos-AppleSilicon
-          path: dist/GeradorDocumentos-AppleSilicon.zip
+          name: Orthck-AppleSilicon
+          path: dist/Orthck-AppleSilicon.zip

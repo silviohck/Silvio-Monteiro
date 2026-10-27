@@ -107,7 +107,7 @@ enum Impressao {
 
     private static func mensagem(paraErroDoAppleScript erro: String) -> String {
         if erro.contains("-1743") {
-            return "O macOS bloqueou o controle do Word. Libere em Ajustes do Sistema → Privacidade e Segurança → Automação → Gerador de Documentos → Microsoft Word."
+            return "O macOS bloqueou o controle do Word. Libere em Ajustes do Sistema → Privacidade e Segurança → Automação → Orthck → Microsoft Word."
         }
         return "O Word não conseguiu imprimir o documento. \(erro)"
     }

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Compila o app para Apple Silicon (arm64) e monta "dist/Gerador de Documentos.app".
+# Compila o app para Apple Silicon (arm64) e monta "dist/Orthck.app".
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-APP_NAME="Gerador de Documentos"
+APP_NAME="Orthck"
 EXECUTAVEL="GeradorDocumentos"
 VERSAO="${VERSAO:-1.0}"
 APP="dist/$APP_NAME.app"
@@ -22,6 +22,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <dict>
     <key>CFBundleName</key><string>$APP_NAME</string>
     <key>CFBundleDisplayName</key><string>$APP_NAME</string>
+    <!-- Identificador antigo mantido: preserva ajustes salvos e a permissão de controlar o Word. -->
     <key>CFBundleIdentifier</key><string>com.silviomonteiro.GeradorDocumentos</string>
     <key>CFBundleExecutable</key><string>$EXECUTAVEL</string>
     <key>CFBundlePackageType</key><string>APPL</string>
@@ -31,7 +32,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
     <key>NSHighResolutionCapable</key><true/>
-    <key>NSAppleEventsUsageDescription</key><string>O Gerador de Documentos usa o Microsoft Word para imprimir os documentos gerados.</string>
+    <key>NSAppleEventsUsageDescription</key><string>O Orthck usa o Microsoft Word para imprimir os documentos gerados.</string>
 </dict>
 </plist>
 PLIST
@@ -39,5 +40,5 @@ PLIST
 # Assinatura local (ad-hoc), exigida para executar binários arm64.
 codesign --force --sign - "$APP"
 
-(cd dist && ditto -c -k --keepParent "$APP_NAME.app" "GeradorDocumentos-AppleSilicon.zip")
+(cd dist && ditto -c -k --keepParent "$APP_NAME.app" "Orthck-AppleSilicon.zip")
 echo "Pronto: $APP"

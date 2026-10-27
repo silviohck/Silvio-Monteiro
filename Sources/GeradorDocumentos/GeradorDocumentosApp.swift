@@ -11,7 +11,7 @@ struct GeradorDocumentosApp: App {
     private var tamanho: TamanhoTexto { TamanhoTexto(rawValue: tamanhoTexto) ?? .normal }
 
     var body: some Scene {
-        WindowGroup("Gerador de Documentos") {
+        WindowGroup("Orthck") {
             ContentView()
                 .environmentObject(armazenamento)
                 .temaDoApp(tamanho: tamanho, aparencia: Aparencia(rawValue: aparencia) ?? .automatica)

@@ -1,4 +1,4 @@
-# Gerador de Documentos
+# Orthck
 
 App para Mac com Apple Silicon (M1, M2, M3, M4…) que gera documentos do Word a partir de modelos, preenchendo automaticamente nome do paciente, CPF, datas e outros campos.
 
@@ -43,7 +43,7 @@ OPERA PB/                      ← pasta escolhida para o local
 └── Relatórios médicos/
 ```
 
-Se o local não tiver pasta escolhida, o app usa `Documentos/Gerador de Documentos/<nome do local>`. Se já existir um arquivo com o mesmo nome, o novo recebe "(2)", "(3)"… no final; nada é sobrescrito.
+Se o local não tiver pasta escolhida, o app usa `Documentos/Orthck/<nome do local>`. Se já existir um arquivo com o mesmo nome, o novo recebe "(2)", "(3)"… no final; nada é sobrescrito.
 
 ### Impressão
 
@@ -63,19 +63,19 @@ Tudo fica no próprio Mac, em `~/Library/Application Support/GeradorDocumentos/`
 
 ### Opção 1: baixar o app pronto
 
-1. No GitHub, abra a aba **Actions**, entre na execução mais recente de *Compilar app para Mac* e baixe o artefato `GeradorDocumentos-AppleSilicon`.
-2. Descompacte até aparecer **Gerador de Documentos.app** e arraste para a pasta *Aplicativos*.
+1. No GitHub, abra a aba **Actions**, entre na execução mais recente de *Compilar app para Mac* e baixe o artefato `Orthck-AppleSilicon`.
+2. Descompacte até aparecer **Orthck.app** e arraste para a pasta *Aplicativos*.
 3. Como o app não é assinado com um certificado de desenvolvedor da Apple, o macOS bloqueia a primeira abertura. Para liberar, use um destes caminhos:
    - Clique com o botão direito no app → *Abrir* → *Abrir*. No macOS 15, tente abrir uma vez e depois vá em *Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim*.
-   - Ou, no Terminal: `xattr -dr com.apple.quarantine "/Applications/Gerador de Documentos.app"`
+   - Ou, no Terminal: `xattr -dr com.apple.quarantine "/Applications/Orthck.app"`
 
 ### Opção 2: compilar no seu Mac
 
 Requer o Xcode (ou as Command Line Tools) instalado.
 
 ```bash
-./scripts/build-app.sh                 # gera dist/Gerador de Documentos.app
-open "dist/Gerador de Documentos.app"
+./scripts/build-app.sh                 # gera dist/Orthck.app
+open "dist/Orthck.app"
 ```
 
 Para editar o código, abra `Package.swift` no Xcode e rode com ⌘R.

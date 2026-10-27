@@ -3,7 +3,8 @@ import DocxTemplateKit
 import Foundation
 import SwiftUI
 
-/// Guarda modelos, pacientes e histórico em ~/Library/Application Support/GeradorDocumentos.
+/// Guarda modelos, pacientes e histórico em ~/Library/Application Support/GeradorDocumentos
+/// (nome da versão anterior do app, mantido para não perder os dados).
 @MainActor
 final class Armazenamento: ObservableObject {
     @Published var dados = DadosApp() {
@@ -233,7 +234,14 @@ final class Armazenamento: ObservableObject {
         dados.modelos.filter { $0.categoria == tipo }.count
     }
 
-    /// Pasta escolhida para o local ou, se nenhuma, Documentos/Gerador de Documentos/<local>.
+    /// Documentos/Orthck, ou Documentos/Gerador de Documentos se já existir da época do nome antigo.
+    private static let pastaPadraoDosDocumentos: String = {
+        let documentos = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let antiga = documentos.appendingPathComponent("Gerador de Documentos").path
+        return FileManager.default.fileExists(atPath: antiga) ? "Gerador de Documentos" : "Orthck"
+    }()
+
+    /// Pasta escolhida para o local ou, se nenhuma, Documentos/Orthck/<local>.
     func pastaDoLocal(_ local: LocalAtendimento?) -> URL {
         if let pasta = local?.pasta, !pasta.isEmpty {
             return URL(fileURLWithPath: pasta, isDirectory: true)
@@ -241,7 +249,7 @@ final class Armazenamento: ObservableObject {
         let documentos = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let nome = Self.nomeSeguro(local?.nome ?? "")
         return documentos
-            .appendingPathComponent("Gerador de Documentos", isDirectory: true)
+            .appendingPathComponent(Self.pastaPadraoDosDocumentos, isDirectory: true)
             .appendingPathComponent(nome.isEmpty ? "Sem local" : nome, isDirectory: true)
     }
 
