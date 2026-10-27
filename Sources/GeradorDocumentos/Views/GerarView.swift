@@ -719,7 +719,12 @@ struct GerarView: View {
             modelo: modelo.nome, modeloID: modelo.id, paciente: nome, pacienteID: pacienteID,
             local: local?.nome, caminho: destino.path
         ))
-        aviso = "Salvo: \(destino.lastPathComponent)"
+        // O nome do paciente fica copiado, pronto para colar (⌘V) em outro sistema.
+        if !nome.isEmpty {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(nome, forType: .string)
+        }
+        aviso = nome.isEmpty ? "Salvo: \(destino.lastPathComponent)" : "Salvo: \(destino.lastPathComponent) · nome copiado"
         ultimoDocumento = destino
         geracaoConcluida = true
         pastaAvulsa = nil
