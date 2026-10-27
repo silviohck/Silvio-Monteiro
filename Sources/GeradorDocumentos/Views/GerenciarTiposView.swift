@@ -6,25 +6,35 @@ struct GerenciarTiposView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var novoTipo = ""
     @State private var tipoParaExcluir: String?
+    /// Local cujos tipos estão sendo ajustados (nil = modelos de todos os locais).
+    let localID: UUID?
+
+    private var tipos: [String] { armazenamento.tipos(doLocal: localID) }
+
+    private var titulo: String {
+        guard let localID else { return "Tipos de documento — todos os locais" }
+        let nome = armazenamento.local(localID)?.nome ?? ""
+        return nome.isEmpty ? "Tipos de documento" : "Tipos de documento — \(nome)"
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Tipos de documento").fonteApp(.titulo)
+            Text(titulo).fonteApp(.titulo)
             Text("Cada tipo vira uma subpasta dentro da pasta do local, onde ficam os documentos gerados. Clique no nome para renomear e arraste para mudar a ordem.")
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             List {
-                ForEach(armazenamento.dados.categorias, id: \.self) { tipo in
+                ForEach(tipos, id: \.self) { tipo in
                     LinhaDeTipo(
                         tipo: tipo,
-                        quantidade: armazenamento.quantidadeDeModelos(doTipo: tipo),
-                        podeExcluir: armazenamento.dados.categorias.count > 1,
-                        aoRenomear: { armazenamento.renomearCategoria(tipo, para: $0) },
+                        quantidade: armazenamento.quantidadeDeModelos(doTipo: tipo, local: localID),
+                        podeExcluir: tipos.count > 1,
+                        aoRenomear: { armazenamento.renomearCategoria(tipo, para: $0, local: localID) },
                         aoExcluir: { tipoParaExcluir = tipo }
                     )
                 }
-                .onMove { armazenamento.moverCategorias(de: $0, para: $1) }
+                .onMove { armazenamento.moverCategorias(de: $0, para: $1, local: localID) }
             }
             .frame(minHeight: 260)
             .fundoSuave(Tema.lateral)
@@ -52,10 +62,10 @@ struct GerenciarTiposView: View {
             presenting: tipoParaExcluir
         ) { tipo in
             Button("Excluir", role: .destructive) {
-                armazenamento.removerCategoria(tipo, moverPara: destino(aoExcluir: tipo))
+                armazenamento.removerCategoria(tipo, moverPara: destino(aoExcluir: tipo), local: localID)
             }
         } message: { tipo in
-            let quantidade = armazenamento.quantidadeDeModelos(doTipo: tipo)
+            let quantidade = armazenamento.quantidadeDeModelos(doTipo: tipo, local: localID)
             if quantidade == 0 {
                 Text("Nenhum modelo usa este tipo.")
             } else {
@@ -66,13 +76,13 @@ struct GerenciarTiposView: View {
 
     /// Para onde vão os modelos do tipo excluído: "Outros", se existir, senão o primeiro tipo restante.
     private func destino(aoExcluir tipo: String) -> String {
-        let restantes = armazenamento.dados.categorias.filter { $0 != tipo }
+        let restantes = tipos.filter { $0 != tipo }
         return restantes.first { $0.compare("Outros", options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame }
             ?? restantes.first ?? "Outros"
     }
 
     private func adicionar() {
-        armazenamento.adicionarCategoria(novoTipo)
+        armazenamento.adicionarCategoria(novoTipo, local: localID)
         novoTipo = ""
     }
 }

@@ -85,6 +85,8 @@ struct LocalAtendimento: Identifiable, Codable, Hashable {
     var pasta = ""
     /// Subpasta da pasta sincronizada que pertence a este local (ex.: "OPERA PB").
     var pastaSincronizada: String?
+    /// Tipos de documento (subpastas) deste local, na ordem escolhida.
+    var tipos: [String] = []
 }
 
 extension LocalAtendimento {
@@ -99,6 +101,7 @@ extension LocalAtendimento {
         cnpj = try container.decodeIfPresent(String.self, forKey: .cnpj) ?? ""
         pasta = try container.decodeIfPresent(String.self, forKey: .pasta) ?? ""
         pastaSincronizada = try container.decodeIfPresent(String.self, forKey: .pastaSincronizada)
+        tipos = try container.decodeIfPresent([String].self, forKey: .tipos) ?? []
     }
 }
 
@@ -117,6 +120,7 @@ struct DadosApp: Codable {
     var modelos: [ModeloDocumento] = []
     var pacientes: [Paciente] = []
     var locais: [LocalAtendimento] = []
+    /// Tipos dos modelos de "Todos os locais" e lista inicial de cada local novo.
     var categorias = DadosApp.categoriasPadrao
     var historico: [DocumentoGerado] = []
     /// Pasta com os modelos (uma subpasta por local, uma subpasta por tipo) acompanhada pelo app.

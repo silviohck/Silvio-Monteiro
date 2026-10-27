@@ -164,12 +164,13 @@ extension Armazenamento {
                     dados.modelos[indice].origemModificadaEm = arquivo.modificadoEm
                     estado.atualizados += 1
                 } else {
+                    let local = localID(paraPasta: arquivo.local)
                     dados.modelos.append(ModeloDocumento(
                         nome: arquivo.nome,
                         arquivo: nomeCopia,
                         campos: campos,
-                        categoria: tipo(para: arquivo),
-                        localID: localID(paraPasta: arquivo.local),
+                        categoria: tipo(para: arquivo, local: local),
+                        localID: local,
                         origem: arquivo.caminho,
                         origemModificadaEm: arquivo.modificadoEm
                     ))
@@ -218,11 +219,14 @@ extension Armazenamento {
         return novo.id
     }
 
-    /// Subpasta → tipo com o mesmo nome (sem diferenciar maiúsculas, acentos e plural) ou um tipo novo;
-    /// arquivo solto → tipo adivinhado pelo nome.
-    private func tipo(para arquivo: ArquivoDaPasta) -> String {
+    /// Subpasta → tipo do local com o mesmo nome (sem diferenciar maiúsculas, acentos e plural)
+    /// ou um tipo novo só desse local; arquivo solto → tipo adivinhado pelo nome.
+    private func tipo(para arquivo: ArquivoDaPasta, local: UUID?) -> String {
+        let doLocal = tipos(doLocal: local)
         guard let pasta = arquivo.tipo else {
-            return ModeloDocumento.categoriaSugerida(para: arquivo.nome, entre: dados.categorias)
+            let tipo = ModeloDocumento.categoriaSugerida(para: arquivo.nome, entre: doLocal.isEmpty ? dados.categorias : doLocal)
+            adicionarCategoria(tipo, local: local)
+            return tipo
         }
         func simples(_ texto: String) -> String {
             var texto = texto.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
@@ -230,10 +234,10 @@ extension Armazenamento {
             if texto.hasSuffix("s") { texto.removeLast() }
             return texto
         }
-        if let existente = dados.categorias.first(where: { simples($0) == simples(pasta) }) {
+        if let existente = doLocal.first(where: { simples($0) == simples(pasta) }) {
             return existente
         }
-        adicionarCategoria(pasta)
+        adicionarCategoria(pasta, local: local)
         return pasta
     }
 }

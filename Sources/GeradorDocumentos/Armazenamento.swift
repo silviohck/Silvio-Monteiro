@@ -41,7 +41,8 @@ final class Armazenamento: ObservableObject {
         let destino = pastaModelos.appendingPathComponent(arquivo)
         let campos = try Self.copiarModelo(origem, para: destino)
         let nome = origem.deletingPathExtension().lastPathComponent
-        let categoria = tipo ?? ModeloDocumento.categoriaSugerida(para: nome, entre: dados.categorias)
+        let categoria = tipo ?? ModeloDocumento.categoriaSugerida(para: nome, entre: tipos(doLocal: localID))
+        adicionarCategoria(categoria, local: localID)
         let modelo = ModeloDocumento(nome: nome, arquivo: arquivo, campos: campos, categoria: categoria, localID: localID)
         dados.modelos.append(modelo)
         return modelo
@@ -121,8 +122,9 @@ final class Armazenamento: ObservableObject {
                 return dono.id == local?.id
             }
             .sorted { a, b in
-                let tipoA = dados.categorias.firstIndex(of: a.categoria) ?? Int.max
-                let tipoB = dados.categorias.firstIndex(of: b.categoria) ?? Int.max
+                let ordem = tipos(doLocal: local?.id)
+                let tipoA = ordem.firstIndex(of: a.categoria) ?? Int.max
+                let tipoB = ordem.firstIndex(of: b.categoria) ?? Int.max
                 if tipoA != tipoB { return tipoA < tipoB }
                 return a.nome.localizedStandardCompare(b.nome) == .orderedAscending
             }
@@ -180,7 +182,8 @@ final class Armazenamento: ObservableObject {
     }
 
     func novoLocal() -> LocalAtendimento {
-        let local = LocalAtendimento()
+        var local = LocalAtendimento()
+        local.tipos = dados.categorias
         dados.locais.append(local)
         return local
     }
@@ -191,47 +194,82 @@ final class Armazenamento: ObservableObject {
 
     // MARK: Pastas dos documentos gerados
 
-    func adicionarCategoria(_ nome: String) {
-        let nome = nome.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !nome.isEmpty, !dados.categorias.contains(nome) else { return }
-        dados.categorias.append(nome)
+    // MARK: Tipos de documento
+    // Cada local tem a sua lista de tipos; `local == nil` são os modelos de "Todos os locais".
+
+    /// Tipos do local, na ordem escolhida, mais algum tipo usado por modelo dele que não esteja na lista.
+    func tipos(doLocal id: UUID?) -> [String] {
+        var lista = listaDeTipos(id)
+        for modelo in dados.modelos where pertence(modelo, ao: id) && !lista.contains(modelo.categoria) {
+            lista.append(modelo.categoria)
+        }
+        return lista
     }
 
-    /// Renomeia o tipo e os modelos dele; se o novo nome já existir, junta os dois tipos.
-    func renomearCategoria(_ antigo: String, para novo: String) {
-        let novo = novo.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !novo.isEmpty, novo != antigo, let indice = dados.categorias.firstIndex(of: antigo) else { return }
-        var categorias = dados.categorias
-        if categorias.contains(novo) {
-            categorias.remove(at: indice)
+    func pertence(_ modelo: ModeloDocumento, ao local: UUID?) -> Bool {
+        local == nil ? localDoModelo(modelo) == nil : modelo.localID == local
+    }
+
+    private func listaDeTipos(_ id: UUID?) -> [String] {
+        if let id, let local = local(id) { return local.tipos }
+        return dados.categorias
+    }
+
+    private func definirListaDeTipos(_ lista: [String], _ id: UUID?) {
+        if let id, let indice = dados.locais.firstIndex(where: { $0.id == id }) {
+            dados.locais[indice].tipos = lista
         } else {
-            categorias[indice] = novo
+            dados.categorias = lista
+        }
+    }
+
+    func adicionarCategoria(_ nome: String, local id: UUID?) {
+        let nome = nome.trimmingCharacters(in: .whitespacesAndNewlines)
+        var lista = listaDeTipos(id)
+        guard !nome.isEmpty, !lista.contains(nome) else { return }
+        lista.append(nome)
+        definirListaDeTipos(lista, id)
+    }
+
+    /// Renomeia o tipo e os modelos dele no local; se o novo nome já existir, junta os dois tipos.
+    func renomearCategoria(_ antigo: String, para novo: String, local id: UUID?) {
+        let novo = novo.trimmingCharacters(in: .whitespacesAndNewlines)
+        var lista = tipos(doLocal: id)
+        guard !novo.isEmpty, novo != antigo, let indice = lista.firstIndex(of: antigo) else { return }
+        if lista.contains(novo) {
+            lista.remove(at: indice)
+        } else {
+            lista[indice] = novo
         }
         var modelos = dados.modelos
-        for i in modelos.indices where modelos[i].categoria == antigo {
+        for i in modelos.indices where modelos[i].categoria == antigo && pertence(modelos[i], ao: id) {
             modelos[i].categoria = novo
         }
-        dados.categorias = categorias
+        definirListaDeTipos(lista, id)
         dados.modelos = modelos
     }
 
-    /// Exclui o tipo; os modelos dele passam para `destino`.
-    func removerCategoria(_ nome: String, moverPara destino: String) {
-        guard nome != destino, dados.categorias.count > 1 else { return }
+    /// Exclui o tipo do local; os modelos dele passam para `destino`.
+    func removerCategoria(_ nome: String, moverPara destino: String, local id: UUID?) {
+        var lista = tipos(doLocal: id)
+        guard nome != destino, lista.count > 1 else { return }
         var modelos = dados.modelos
-        for i in modelos.indices where modelos[i].categoria == nome {
+        for i in modelos.indices where modelos[i].categoria == nome && pertence(modelos[i], ao: id) {
             modelos[i].categoria = destino
         }
         dados.modelos = modelos
-        dados.categorias.removeAll { $0 == nome }
+        lista.removeAll { $0 == nome }
+        definirListaDeTipos(lista, id)
     }
 
-    func moverCategorias(de origem: IndexSet, para destino: Int) {
-        dados.categorias.move(fromOffsets: origem, toOffset: destino)
+    func moverCategorias(de origem: IndexSet, para destino: Int, local id: UUID?) {
+        var lista = tipos(doLocal: id)
+        lista.move(fromOffsets: origem, toOffset: destino)
+        definirListaDeTipos(lista, id)
     }
 
-    func quantidadeDeModelos(doTipo tipo: String) -> Int {
-        dados.modelos.filter { $0.categoria == tipo }.count
+    func quantidadeDeModelos(doTipo tipo: String, local id: UUID?) -> Int {
+        dados.modelos.filter { $0.categoria == tipo && pertence($0, ao: id) }.count
     }
 
     /// Documentos/Orthck, ou Documentos/Gerador de Documentos se já existir da época do nome antigo.
@@ -262,7 +300,7 @@ final class Armazenamento: ObservableObject {
 
     /// Cria as subpastas de todas as categorias dentro da pasta do local.
     func criarSubpastas(_ local: LocalAtendimento?) throws {
-        for categoria in dados.categorias {
+        for categoria in tipos(doLocal: local?.id) {
             try FileManager.default.createDirectory(
                 at: pastaDoLocal(local).appendingPathComponent(Self.nomeSeguro(categoria), isDirectory: true),
                 withIntermediateDirectories: true
@@ -316,11 +354,24 @@ final class Armazenamento: ObservableObject {
         guard let conteudo = try? Data(contentsOf: arquivoDados) else { return }
         do {
             dados = try Self.decodificador.decode(DadosApp.self, from: conteudo)
+            separarTiposPorLocal()
         } catch {
             // Mantém uma cópia do arquivo que não pôde ser lido em vez de sobrescrevê-lo.
             let copia = pasta.appendingPathComponent("dados-ilegivel-\(Int(Date().timeIntervalSince1970)).json")
             try? FileManager.default.copyItem(at: arquivoDados, to: copia)
             erro = "Não foi possível ler os dados salvos. Uma cópia foi guardada em \(copia.lastPathComponent)."
+        }
+    }
+
+    /// Versões anteriores tinham uma lista de tipos só: cada local passa a ter a sua,
+    /// começando pelos tipos que os modelos dele já usam.
+    private func separarTiposPorLocal() {
+        for indice in dados.locais.indices where dados.locais[indice].tipos.isEmpty {
+            let id = dados.locais[indice].id
+            let usados = Set(dados.modelos.filter { $0.localID == id }.map(\.categoria))
+            var lista = dados.categorias.filter { usados.contains($0) }
+            lista += usados.subtracting(lista).sorted()
+            dados.locais[indice].tipos = lista.isEmpty ? dados.categorias : lista
         }
     }
 

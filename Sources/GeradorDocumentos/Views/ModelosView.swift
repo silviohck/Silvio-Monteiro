@@ -39,6 +39,32 @@ struct ModelosView: View {
         }
     }
 
+    /// Local cujos tipos aparecem no filtro: o local escolhido, nil para "todos os locais",
+    /// ou .none quando o filtro mostra todos os modelos (sem um local específico).
+    private var escopoDosTipos: UUID?? {
+        switch filtroLocal {
+        case "": return .none
+        case Self.geral: return .some(nil)
+        default:
+            guard let local = localFiltrado else { return .none }
+            return .some(local.id)
+        }
+    }
+
+    /// Só os tipos do local escolhido; sem local, a junção de todos.
+    private var tiposDoFiltro: [String] {
+        if let escopo = escopoDosTipos {
+            return armazenamento.tipos(doLocal: escopo)
+        }
+        var todos = armazenamento.tipos(doLocal: nil)
+        for local in armazenamento.locaisOrdenados {
+            for tipo in armazenamento.tipos(doLocal: local.id) where !todos.contains(tipo) {
+                todos.append(tipo)
+            }
+        }
+        return todos
+    }
+
     /// Sem local escolhido: agrupa por local. Com local escolhido: agrupa por tipo.
     private var grupos: [Grupo] {
         let termo = busca.trimmingCharacters(in: .whitespaces)
@@ -49,7 +75,7 @@ struct ModelosView: View {
             .sorted { $0.nome.localizedStandardCompare($1.nome) == .orderedAscending }
 
         if !filtroLocal.isEmpty {
-            var tipos = armazenamento.dados.categorias
+            var tipos = tiposDoFiltro
             for modelo in modelos where !tipos.contains(modelo.categoria) {
                 tipos.append(modelo.categoria)
             }
@@ -98,13 +124,16 @@ struct ModelosView: View {
                 HStack {
                     Picker("Tipo", selection: $filtroTipo) {
                         Text("Todos os tipos").tag("")
-                        ForEach(armazenamento.dados.categorias, id: \.self) { tipo in
+                        ForEach(tiposDoFiltro, id: \.self) { tipo in
                             Text(tipo).tag(tipo)
                         }
                     }
                     .labelsHidden()
                     Button("Gerenciar…") { gerenciandoTipos = true }
-                        .help("Criar, renomear, excluir e ordenar os tipos de documento")
+                        .disabled(escopoDosTipos == nil)
+                        .help(escopoDosTipos == nil
+                            ? "Escolha um local acima para gerenciar os tipos dele"
+                            : "Criar, renomear, excluir e ordenar os tipos deste local")
                 }
                 .padding([.horizontal, .top], 8)
                 TextField("Buscar modelo", text: $busca)
@@ -187,11 +216,11 @@ struct ModelosView: View {
             .disabled(selecao == nil)
         }
         .sheet(isPresented: $gerenciandoTipos) {
-            GerenciarTiposView()
+            GerenciarTiposView(localID: escopoDosTipos ?? nil)
                 .environmentObject(armazenamento)
         }
-        .onChange(of: armazenamento.dados.categorias) { categorias in
-            if !filtroTipo.isEmpty && !categorias.contains(filtroTipo) { filtroTipo = "" }
+        .onChange(of: tiposDoFiltro) { tipos in
+            if !filtroTipo.isEmpty && !tipos.contains(filtroTipo) { filtroTipo = "" }
         }
         .confirmationDialog(
             "Excluir o modelo “\(modeloParaExcluir?.nome ?? "")”?",
@@ -357,7 +386,7 @@ struct ModeloEditor: View {
         .alert("Novo tipo de documento", isPresented: $pedindoTipo) {
             TextField("Ex.: Atestados", text: $novoTipo)
             Button("Adicionar") {
-                armazenamento.adicionarCategoria(novoTipo)
+                armazenamento.adicionarCategoria(novoTipo, local: modelo.localID)
                 let nome = novoTipo.trimmingCharacters(in: .whitespacesAndNewlines)
                 if !nome.isEmpty { modelo.categoria = nome }
             }
@@ -367,8 +396,9 @@ struct ModeloEditor: View {
         }
     }
 
+    /// Tipos do local deste modelo.
     private var tipos: [String] {
-        let lista = armazenamento.dados.categorias
+        let lista = armazenamento.tipos(doLocal: modelo.localID)
         return lista.contains(modelo.categoria) ? lista : lista + [modelo.categoria]
     }
 
