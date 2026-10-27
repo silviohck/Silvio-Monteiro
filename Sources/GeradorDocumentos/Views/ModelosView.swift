@@ -128,7 +128,7 @@ struct ModelosView: View {
                     .padding(8)
                 List(selection: $selecao) {
                     ForEach(grupos) { grupo in
-                        Section(header: Text("\(grupo.titulo) (\(grupo.modelos.count))").bold().foregroundStyle(Tema.destaque)) {
+                        Section(header: Text("\(grupo.titulo) (\(grupo.modelos.count))").fontWeight(.semibold).foregroundStyle(.secondary)) {
                             ForEach(grupo.modelos) { modelo in
                                 linha(modelo)
                                     .tag(modelo.id)

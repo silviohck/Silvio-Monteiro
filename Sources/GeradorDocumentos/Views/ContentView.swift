@@ -41,13 +41,43 @@ struct ContentView: View {
                     .badge(item == .fila ? armazenamento.pendentesNaFila : 0)
             }
             .fundoSuave(Tema.lateral)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                HStack(spacing: 11) {
+                    Image(systemName: "doc.text.fill")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(Tema.destaque)
+                        .frame(width: 38, height: 38)
+                        .background(RoundedRectangle(cornerRadius: 11).fill(Tema.destaqueSuave))
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("Orthck")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.primary)
+                        Text("Documentos clínicos")
+                            .fonteApp(.legenda)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 15)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Tema.lateral)
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(Tema.borda.opacity(0.75)).frame(height: 1)
+                }
+            }
             .navigationSplitViewColumnWidth(min: 210, ideal: 230)
             .safeAreaInset(edge: .bottom) {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 13) {
                     CompactarPastaBotao()
                     SeletorDeImpressora()
                 }
-                .padding()
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Tema.lateral)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(Tema.borda.opacity(0.75)).frame(height: 1)
+                }
             }
         } detail: {
             switch secao ?? .gerar {
@@ -186,9 +216,13 @@ struct AvisoVazio: View {
     var body: some View {
         VStack(spacing: 10) {
             Image(systemName: icone)
-                .font(.system(size: 40))
-                .foregroundStyle(.secondary)
-            Text(titulo).fonteApp(.titulo)
+                .font(.system(size: 29, weight: .light))
+                .foregroundStyle(Tema.destaque)
+                .frame(width: 72, height: 72)
+                .background(RoundedRectangle(cornerRadius: 20).fill(Tema.destaqueSuave))
+            Text(titulo)
+                .fonteApp(.titulo)
+                .foregroundStyle(.primary)
             if !mensagem.isEmpty {
                 Text(mensagem)
                     .foregroundStyle(.secondary)
@@ -202,7 +236,7 @@ struct AvisoVazio: View {
                     .padding(.top, 6)
             }
         }
-        .padding()
+        .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Tema.fundo)
     }
