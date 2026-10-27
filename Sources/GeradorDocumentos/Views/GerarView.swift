@@ -260,7 +260,6 @@ struct GerarView: View {
             arquivo,
             impressora: impressora,
             manterAberto: manterAberto,
-            paginasPorFolha: modelo?.paginasPorFolha ?? 1,
             copias: modelo?.copias ?? 1
         ) { erro in
             imprimindo = false
@@ -329,7 +328,12 @@ struct GerarView: View {
         let destino: URL
         do {
             destino = try armazenamento.caminhoParaNovoDocumento(modelo: modelo, subpasta: subpasta, local: local, paciente: nome)
-            try DocxTemplate.fill(template: armazenamento.urlDoModelo(modelo), values: valoresFinais, output: destino)
+            try DocxTemplate.fill(
+                template: armazenamento.urlDoModelo(modelo),
+                values: valoresFinais,
+                output: destino,
+                twoPagesPerSheet: modelo.paginasPorFolha >= 2
+            )
         } catch {
             armazenamento.erro = error.localizedDescription
             return

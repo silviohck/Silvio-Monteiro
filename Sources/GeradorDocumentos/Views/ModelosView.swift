@@ -249,7 +249,7 @@ struct ModelosView: View {
             }
             Text(
                 "\(modelo.categoria) · \(modelo.campos.count) \(modelo.campos.count == 1 ? "campo" : "campos")"
-                    + (modelo.paginasPorFolha > 1 ? " · \(modelo.paginasPorFolha) por folha" : "")
+                    + (modelo.paginasPorFolha > 1 ? " · 2 por folha" : "")
             )
                 .fonteApp(.legenda)
                 .foregroundStyle(.secondary)
@@ -341,16 +341,18 @@ struct ModeloEditor: View {
             }
 
             Section {
-                Picker("Páginas por folha", selection: $modelo.paginasPorFolha) {
+                Picker("Páginas por folha", selection: Binding(
+                    get: { min(modelo.paginasPorFolha, 2) },
+                    set: { modelo.paginasPorFolha = $0 }
+                )) {
                     Text("1 (normal)").tag(1)
                     Text("2 por folha").tag(2)
-                    Text("4 por folha").tag(4)
                 }
                 Stepper("Cópias: \(modelo.copias)", value: $modelo.copias, in: 1...10)
             } header: {
                 Text("Impressão")
             } footer: {
-                Text("Usado sempre que este modelo é impresso pelo app (tela Gerar documento e Histórico). Ex.: receita de controle especial com 2 páginas por folha. Com 2 ou 4 por folha, o Word gera um PDF e o Mac imprime as páginas lado a lado; na primeira vez o Word pode pedir acesso a uma pasta — clique em “Selecionar” e conceda.")
+                Text("Com “2 por folha”, os documentos gerados com este modelo já saem com a opção do Word “2 páginas por folha” ligada (Layout › Margens › Margens personalizadas › Várias páginas): no Word cada página aparece pela metade e a impressão sai com duas páginas em cada folha. Ex.: receita de controle especial. As cópias valem para a impressão pelo app.")
                     .foregroundStyle(.secondary)
             }
 

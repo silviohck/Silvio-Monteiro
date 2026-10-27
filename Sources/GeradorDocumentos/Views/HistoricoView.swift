@@ -78,7 +78,6 @@ struct HistoricoView: View {
                     url,
                     impressora: impressora,
                     manterAberto: false,
-                    paginasPorFolha: modelo?.paginasPorFolha ?? 1,
                     copias: modelo?.copias ?? 1
                 ) { erro in
                     imprimindo = nil

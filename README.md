@@ -49,7 +49,7 @@ Se o local não tiver pasta escolhida, o app usa `Documentos/Orthck/<nome do loc
 
 Escolha a impressora na barra lateral. Na tela *Gerar documento*, marque **Imprimir ao gerar** ou use o botão **Imprimir** depois de salvar; no *Histórico* também há um botão **Imprimir**. A impressão é feita pelo **Microsoft Word** (precisa estar instalado), e a impressora escolhida passa a ser a padrão do Mac. Na primeira vez, o macOS pergunta se o app pode controlar o Word: clique em **OK**.
 
-No cadastro de cada modelo (aba *Modelos*), a seção **Impressão** define **páginas por folha** (1, 2 ou 4) e **cópias**, usadas sempre que esse modelo é impresso — por exemplo, receita de controle especial com 2 páginas por folha.
+No cadastro de cada modelo (aba *Modelos*), a seção **Impressão** define **páginas por folha** e **cópias**. Com **2 por folha** (ex.: receita de controle especial), o documento gerado já sai com a opção do próprio Word “2 páginas por folha” (Layout › Margens › Margens personalizadas › Várias páginas): no Word cada página aparece pela metade e a impressão — pelo app ou pelo próprio Word — sai com duas páginas em cada folha.
 
 ### Aparência
 
