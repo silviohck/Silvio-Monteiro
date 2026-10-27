@@ -417,7 +417,7 @@ final class Armazenamento: ObservableObject {
         }
     }
 
-    /// Caminho livre para o novo documento: "<Modelo> - <Paciente> - 27-10-2026.docx", com (2), (3)… se já existir.
+    /// Caminho livre para o novo documento: "<Modelo> - <Paciente> - <Local> - 27-10-2026.docx", com (2), (3)… se já existir.
     /// `pastaAvulsa`: pasta escolhida só para este documento (sem subpasta).
     func caminhoParaNovoDocumento(
         modelo: ModeloDocumento,
@@ -432,7 +432,10 @@ final class Armazenamento: ObservableObject {
 
         let formatador = DateFormatter()
         formatador.dateFormat = "dd-MM-yyyy"
-        let base = Self.nomeSeguro([modelo.nome, paciente, formatador.string(from: data)].filter { !$0.isEmpty }.joined(separator: " - "))
+        // O local entra no nome: o Word não abre dois documentos com o mesmo nome ao mesmo tempo,
+        // e mostraria o do outro local no lugar do novo.
+        let partes = [modelo.nome, paciente, local?.nome ?? "", formatador.string(from: data)]
+        let base = Self.nomeSeguro(partes.filter { !$0.isEmpty }.joined(separator: " - "))
 
         var destino = pasta.appendingPathComponent(base + ".docx")
         var numero = 2

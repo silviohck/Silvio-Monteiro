@@ -94,6 +94,34 @@ struct GerarView: View {
                 quadroDoLocal
             }
 
+            if let ultimoDocumento {
+                Section {
+                    HStack(spacing: 12) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.title)
+                            .foregroundStyle(Tema.sucesso)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Documento pronto").bold()
+                            Text(ultimoDocumento.lastPathComponent)
+                                .fonteApp(.apoio)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                        Spacer()
+                        Button(action: proximoPaciente) {
+                            Label("Próximo paciente", systemImage: "arrow.uturn.left.circle.fill")
+                                .padding(.horizontal, 6)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Tema.sucesso)
+                        .controlSize(.large)
+                        .help("Recomeça do início para o próximo paciente (⇧⌘N). Só o local de atendimento continua.")
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+
             Section {
                 if armazenamento.modelos(para: local).isEmpty {
                     Text("Nenhum modelo para este local. Importe na aba “Modelos”.")
@@ -101,11 +129,15 @@ struct GerarView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     Picker("Subpasta", selection: $subpasta) {
+                        Text("Escolha…").tag("")
                         ForEach(subpastasDisponiveis, id: \.self) { tipo in
                             Text(tipo).tag(tipo)
                         }
                     }
                     Picker("Modelo", selection: $modeloSelecionado) {
+                        if modeloSelecionado.isEmpty {
+                            Text("Escolha…").tag("")
+                        }
                         ForEach(modelosDaSubpasta) { modelo in
                             Text(modelo.nome).tag(modelo.id.uuidString)
                         }
@@ -120,11 +152,11 @@ struct GerarView: View {
                     TextField("Nome do paciente", text: $nomePaciente)
                         .focused($focoNoNome)
                     if !nomePaciente.isEmpty {
-                        Button(action: proximoPaciente) {
+                        Button(action: limparPaciente) {
                             Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
                         }
                         .buttonStyle(.borderless)
-                        .help("Limpar para o próximo paciente")
+                        .help("Limpar o nome e os campos do paciente")
                     }
                     Button {
                         // Cola o nome copiado de outro lugar (sistema da clínica, mensagem…), numa linha só.
@@ -318,12 +350,13 @@ struct GerarView: View {
                         }
                         Spacer()
                         Button(action: proximoPaciente) {
-                            Label("Próximo paciente", systemImage: "person.badge.plus")
+                            Label("Próximo paciente", systemImage: "arrow.uturn.left.circle.fill")
                         }
                         .controlSize(.large)
-                        .keyboardShortcut("n", modifiers: [.command, .shift])
-                        .disabled(nomePaciente.isEmpty && aviso == nil)
-                        .help("Limpa o nome e os campos do documento (⇧⌘N). O local, a subpasta e o modelo continuam os mesmos.")
+                        .tint(Tema.sucesso)
+                        .buttonStyle(.borderedProminent)
+                        .opacity(ultimoDocumento == nil ? 0.6 : 1)
+                        .help("Recomeça do início para o próximo paciente (⇧⌘N). Só o local de atendimento continua.")
                         Button("Gerar documento") { gerar(modelo) }
                             .buttonStyle(.borderedProminent)
                             .keyboardShortcut(.defaultAction)
@@ -373,8 +406,21 @@ struct GerarView: View {
         }
         .onChange(of: pacienteCadastrado?.id) { _ in preencher(.paciente) }
         .onChange(of: localSelecionado) { _ in
+            // Trocou de local: o documento anterior (e o "Imprimir" dele) era do outro local.
+            aviso = nil
+            ultimoDocumento = nil
             validarModelo()
             preencher(.local)
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: proximoPaciente) {
+                    Label("Próximo paciente", systemImage: "arrow.uturn.left.circle.fill")
+                        .labelStyle(.titleAndIcon)
+                }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
+                .help("Próximo paciente (⇧⌘N): recomeça do início, mantendo só o local de atendimento")
+            }
         }
     }
 
@@ -395,14 +441,21 @@ struct GerarView: View {
 
     /// Mantém subpasta e modelo coerentes com o local: a subpasta precisa ter modelos
     /// e o modelo precisa ser dessa subpasta.
+    /// Subpasta vazia = ainda não escolhida (depois de "Próximo paciente").
     private func validarModelo() {
         let tipos = subpastasDisponiveis
-        if !tipos.contains(subpasta) {
-            subpasta = modelo.map(\.categoria).flatMap { tipos.contains($0) ? $0 : nil } ?? tipos.first ?? ""
+        if !subpasta.isEmpty && !tipos.contains(subpasta) {
+            subpasta = modelo.map(\.categoria).flatMap { tipos.contains($0) ? $0 : nil } ?? ""
         }
         let modelos = modelosDaSubpasta
+        guard !subpasta.isEmpty else {
+            modeloSelecionado = ""
+            return
+        }
         if !modelos.contains(where: { $0.id.uuidString == modeloSelecionado }) {
-            modeloSelecionado = modelos.first?.id.uuidString ?? ""
+            // Ao trocar de local, fica com o modelo de mesmo nome deste local, se houver.
+            let mesmoNome = modelo.flatMap { anterior in modelos.first { $0.nome == anterior.nome } }
+            modeloSelecionado = (mesmoNome ?? modelos.first)?.id.uuidString ?? ""
         }
     }
 
@@ -553,9 +606,16 @@ struct GerarView: View {
     }
 
     /// Recalcula os campos; ao trocar o local, os dados do paciente já digitados não são apagados (e vice-versa).
-    /// Limpa nome, identificação e campos clínicos para o próximo atendimento;
-    /// mantém local, subpasta, modelo e as opções de abrir e imprimir.
+    /// Recomeça do início para o próximo atendimento: limpa paciente, subpasta e modelo;
+    /// só o local de atendimento (e as opções de abrir e imprimir) continuam.
     private func proximoPaciente() {
+        subpasta = ""
+        modeloSelecionado = ""
+        limparPaciente()
+    }
+
+    /// Limpa nome, identificação e campos clínicos.
+    private func limparPaciente() {
         nomePaciente = ""
         pacienteEscolhido = nil
         outroPaciente = false
