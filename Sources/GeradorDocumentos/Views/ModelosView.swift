@@ -4,11 +4,29 @@ import SwiftUI
 struct ModelosView: View {
     @EnvironmentObject private var armazenamento: Armazenamento
     @State private var modeloParaExcluir: ModeloDocumento?
+    @State private var arrastando = false
+    @State private var aviso: String?
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 ajuda
+
+                HStack {
+                    Button {
+                        importar(escolherArquivosDocx(multiplos: true))
+                    } label: {
+                        Label("Importar modelo…", systemImage: "square.and.arrow.down")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    Text("ou arraste o arquivo do Word para esta janela")
+                        .foregroundStyle(.secondary)
+                }
+                if let aviso {
+                    Label(aviso, systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                }
 
                 if armazenamento.dados.modelos.isEmpty {
                     AvisoVazio(titulo: "Nenhum modelo importado", icone: "doc.text")
@@ -48,11 +66,20 @@ struct ModelosView: View {
             .frame(maxWidth: 820, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
+        .overlay {
+            if arrastando {
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 3, dash: [8]))
+                    .padding(8)
+            }
+        }
+        .dropDestination(for: URL.self) { urls, _ in
+            importar(urls)
+            return true
+        } isTargeted: { arrastando = $0 }
         .toolbar {
             Button {
-                for url in escolherArquivosDocx(multiplos: true) {
-                    executar { try armazenamento.importarModelo(de: url) }
-                }
+                importar(escolherArquivosDocx(multiplos: true))
             } label: {
                 Label("Importar modelo", systemImage: "square.and.arrow.down")
             }
@@ -72,12 +99,35 @@ struct ModelosView: View {
         GroupBox {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Como preparar um modelo").font(.headline)
-                Text("No Word, escreva os campos entre chaves duplas onde o texto deve ser trocado, por exemplo: Declaro que {{NOME_PACIENTE}}, CPF {{CPF}}, compareceu em {{DATA}}. Depois clique em “Importar modelo”.")
+                Text("No Word, escreva os campos entre chaves duplas onde o texto deve ser trocado, por exemplo: Declaro que {{NOME_PACIENTE}}, CPF {{CPF}}, compareceu em {{DATA}}. Salve como .docx (arquivos .doc, .rtf e .odt são convertidos automaticamente) e clique em “Importar modelo…”.")
                 Text("Preenchidos automaticamente: NOME_PACIENTE (ou NOME), CPF, RG, DATA_NASCIMENTO, IDADE, TELEFONE, EMAIL, ENDERECO, CONVENIO, DATA (dd/mm/aaaa) e DATA_EXTENSO (27 de outubro de 2026). Qualquer outro nome vira um campo para digitar, e o valor fica salvo no cadastro do paciente.")
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(6)
+        }
+    }
+
+    private func importar(_ urls: [URL]) {
+        aviso = nil
+        var erros: [String] = []
+        var importados: [String] = []
+        for url in urls {
+            do {
+                try armazenamento.importarModelo(de: url)
+                if let modelo = armazenamento.dados.modelos.last {
+                    let campos = modelo.campos.count
+                    importados.append("“\(modelo.nome)” (\(campos) \(campos == 1 ? "campo" : "campos"))")
+                }
+            } catch {
+                erros.append(error.localizedDescription)
+            }
+        }
+        if !importados.isEmpty {
+            aviso = "Modelo importado: " + importados.joined(separator: ", ")
+        }
+        if !erros.isEmpty {
+            armazenamento.erro = erros.joined(separator: "\n\n")
         }
     }
 

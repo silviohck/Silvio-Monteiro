@@ -7,7 +7,7 @@ public enum DocxError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .arquivoInvalido(let nome):
-            return "O arquivo “\(nome)” não é um documento do Word (.docx) válido."
+            return "Não foi possível ler “\(nome)”. Verifique se é um documento do Word sem senha de proteção e se ele abre normalmente no Word."
         case .falhaAoCompactar(let detalhe):
             return "Não foi possível gerar o documento. \(detalhe)"
         }
@@ -49,6 +49,15 @@ public enum DocxTemplate {
                 try fileManager.removeItem(at: output)
             }
             try fileManager.copyItem(at: temporary, to: output)
+        }
+    }
+
+    /// Converte .doc, .rtf, .odt e similares para .docx com o `textutil` do macOS.
+    public static func convertToDocx(_ source: URL, output: URL) throws {
+        do {
+            try Zip.run("/usr/bin/textutil", ["-convert", "docx", "-output", output.path, source.path])
+        } catch {
+            throw DocxError.arquivoInvalido(source.lastPathComponent)
         }
     }
 

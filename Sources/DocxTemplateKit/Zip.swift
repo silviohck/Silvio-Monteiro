@@ -11,7 +11,7 @@ enum Zip {
         try run("/usr/bin/zip", ["-q", "-r", "-X", "-D", archive.path, "."], in: directory)
     }
 
-    private static func run(_ tool: String, _ arguments: [String], in directory: URL? = nil) throws {
+    static func run(_ tool: String, _ arguments: [String], in directory: URL? = nil) throws {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: tool)
         process.arguments = arguments

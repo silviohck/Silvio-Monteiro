@@ -33,11 +33,45 @@ final class Armazenamento: ObservableObject {
     }
 
     func importarModelo(de origem: URL) throws {
-        let campos = try DocxTemplate.placeholders(in: origem)
         let arquivo = "\(UUID().uuidString).docx"
-        try FileManager.default.copyItem(at: origem, to: pastaModelos.appendingPathComponent(arquivo))
+        let destino = pastaModelos.appendingPathComponent(arquivo)
+        let campos = try copiarModelo(origem, para: destino)
         let nome = origem.deletingPathExtension().lastPathComponent
         dados.modelos.append(ModeloDocumento(nome: nome, arquivo: arquivo, campos: campos))
+    }
+
+    /// Copia (ou converte, se não for .docx) o arquivo escolhido e devolve os campos encontrados.
+    private func copiarModelo(_ origem: URL, para destino: URL) throws -> [String] {
+        let fileManager = FileManager.default
+        try? fileManager.removeItem(at: destino)
+        try lerCoordenado(origem) { url in
+            if url.pathExtension.lowercased() == "docx" {
+                try fileManager.copyItem(at: url, to: destino)
+            } else {
+                try DocxTemplate.convertToDocx(url, output: destino)
+            }
+        }
+        do {
+            return try DocxTemplate.placeholders(in: destino)
+        } catch {
+            try? fileManager.removeItem(at: destino)
+            throw DocxError.arquivoInvalido(origem.lastPathComponent)
+        }
+    }
+
+    /// Leitura coordenada: faz o macOS baixar antes arquivos que estão só no iCloud/OneDrive.
+    private func lerCoordenado(_ url: URL, _ acao: (URL) throws -> Void) throws {
+        var erroCoordenacao: NSError?
+        var erroAcao: Error?
+        NSFileCoordinator().coordinate(readingItemAt: url, options: [.withoutChanges], error: &erroCoordenacao) { urlLocal in
+            do {
+                try acao(urlLocal)
+            } catch {
+                erroAcao = error
+            }
+        }
+        if let erroCoordenacao { throw erroCoordenacao }
+        if let erroAcao { throw erroAcao }
     }
 
     /// Relê os campos depois que o modelo foi editado no Word.
@@ -48,10 +82,12 @@ final class Armazenamento: ObservableObject {
     }
 
     func substituirArquivo(_ modelo: ModeloDocumento, por origem: URL) throws {
-        let campos = try DocxTemplate.placeholders(in: origem)
+        // Valida o arquivo novo antes de apagar o modelo atual.
+        let novo = pastaModelos.appendingPathComponent("\(UUID().uuidString).docx")
+        let campos = try copiarModelo(origem, para: novo)
         let destino = urlDoModelo(modelo)
         try? FileManager.default.removeItem(at: destino)
-        try FileManager.default.copyItem(at: origem, to: destino)
+        try FileManager.default.moveItem(at: novo, to: destino)
         guard let indice = dados.modelos.firstIndex(where: { $0.id == modelo.id }) else { return }
         dados.modelos[indice].campos = campos
     }

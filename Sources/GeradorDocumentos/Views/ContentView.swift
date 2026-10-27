@@ -60,13 +60,24 @@ struct ContentView: View {
 
 extension UTType {
     static let documentoWord = UTType(filenameExtension: "docx") ?? .data
+
+    /// .docx e formatos que o macOS converte para .docx (.doc antigo, .rtf, .odt).
+    static let modelosImportaveis: [UTType] = {
+        let tipos: [UTType?] = [
+            documentoWord,
+            UTType("com.microsoft.word.doc") ?? UTType(filenameExtension: "doc"),
+            UTType.rtf,
+            UTType(filenameExtension: "odt"),
+        ]
+        return tipos.compactMap { $0 }
+    }()
 }
 
-/// Mostra o painel de abertura de arquivos .docx.
+/// Mostra o painel de abertura de documentos para usar como modelo.
 @MainActor
 func escolherArquivosDocx(multiplos: Bool) -> [URL] {
     let painel = NSOpenPanel()
-    painel.allowedContentTypes = [.documentoWord]
+    painel.allowedContentTypes = UTType.modelosImportaveis
     painel.allowsMultipleSelection = multiplos
     painel.canChooseDirectories = false
     painel.prompt = "Escolher"

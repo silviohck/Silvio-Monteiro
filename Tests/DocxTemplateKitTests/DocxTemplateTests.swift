@@ -50,6 +50,14 @@ final class DocxTemplateTests: XCTestCase {
         }
     }
 
+    func testConverteRtfParaDocx() throws {
+        let rtf = pasta.appendingPathComponent("modelo.rtf")
+        try #"{\rtf1\ansi Paciente: \{\{NOME_PACIENTE\}\} - CPF \{\{CPF\}\}\par}"#.write(to: rtf, atomically: true, encoding: .utf8)
+        let docx = pasta.appendingPathComponent("convertido.docx")
+        try DocxTemplate.convertToDocx(rtf, output: docx)
+        XCTAssertEqual(try DocxTemplate.placeholders(in: docx), ["NOME_PACIENTE", "CPF"])
+    }
+
     private func criarDocx(corpo: String, cabecalho: String? = nil) throws -> URL {
         let raiz = pasta.appendingPathComponent("fonte-\(UUID().uuidString)")
         let ns = #"xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main""#
