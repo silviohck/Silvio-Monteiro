@@ -116,16 +116,22 @@ final class Armazenamento: ObservableObject {
 
     /// Modelos que aparecem para um local: os dele e os de todos os locais, em ordem de tipo e nome.
     func modelos(para local: LocalAtendimento?) -> [ModeloDocumento] {
-        dados.modelos
+        let ordem = tipos(doLocal: local?.id)
+        return dados.modelos
             .filter { modelo in
                 guard let dono = localDoModelo(modelo) else { return true }
                 return dono.id == local?.id
             }
             .sorted { a, b in
-                let ordem = tipos(doLocal: local?.id)
-                let tipoA = ordem.firstIndex(of: a.categoria) ?? Int.max
-                let tipoB = ordem.firstIndex(of: b.categoria) ?? Int.max
+                // "RX / Joelho" fica logo depois de "RX".
+                let principalA = a.categoria.components(separatedBy: Self.separadorDeSubpastas)[0]
+                let principalB = b.categoria.components(separatedBy: Self.separadorDeSubpastas)[0]
+                let tipoA = ordem.firstIndex(of: principalA) ?? ordem.firstIndex(of: a.categoria) ?? Int.max
+                let tipoB = ordem.firstIndex(of: principalB) ?? ordem.firstIndex(of: b.categoria) ?? Int.max
                 if tipoA != tipoB { return tipoA < tipoB }
+                if a.categoria != b.categoria {
+                    return a.categoria.localizedStandardCompare(b.categoria) == .orderedAscending
+                }
                 return a.nome.localizedStandardCompare(b.nome) == .orderedAscending
             }
     }
@@ -367,18 +373,28 @@ final class Armazenamento: ObservableObject {
         dados.locais[indice].pasta = url.path
     }
 
-    /// Pasta do local + subpasta escolhida (vazia = direto na pasta do local).
+    /// Separa as pastas de uma subpasta com mais de um nível: "RX / Joelho".
+    static let separadorDeSubpastas = " / "
+
+    /// "RX" + ["Joelho"] → "RX / Joelho"
+    static func subpasta(_ tipo: String, dentro pastas: [String]) -> String {
+        ([tipo] + pastas).joined(separator: separadorDeSubpastas)
+    }
+
+    /// Pasta do local + subpasta escolhida (vazia = direto na pasta do local);
+    /// "RX / Joelho" vira a pasta Joelho dentro de RX.
     func pastaDosDocumentos(subpasta: String, local: LocalAtendimento?) -> URL {
-        let nome = Self.nomeSeguro(subpasta)
-        guard !nome.isEmpty else { return pastaDoLocal(local) }
-        return Self.pasta(em: pastaDoLocal(local), chamada: nome)
+        subpasta.components(separatedBy: Self.separadorDeSubpastas)
+            .map(Self.nomeSeguro)
+            .filter { !$0.isEmpty }
+            .reduce(pastaDoLocal(local)) { pasta, nome in Self.pasta(em: pasta, chamada: nome) }
     }
 
     /// Cria as subpastas de todas as categorias dentro da pasta do local.
     func criarSubpastas(_ local: LocalAtendimento?) throws {
         for categoria in tipos(doLocal: local?.id) {
             try FileManager.default.createDirectory(
-                at: Self.pasta(em: pastaDoLocal(local), chamada: categoria),
+                at: pastaDosDocumentos(subpasta: categoria, local: local),
                 withIntermediateDirectories: true
             )
         }
