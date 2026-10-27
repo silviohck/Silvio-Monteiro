@@ -87,6 +87,19 @@ func escolherArquivosDocx(multiplos: Bool) -> [URL] {
     return painel.runModal() == .OK ? painel.urls : []
 }
 
+/// Mostra o painel para escolher uma pasta.
+@MainActor
+func escolherPasta(mensagem: String) -> URL? {
+    let painel = NSOpenPanel()
+    painel.canChooseDirectories = true
+    painel.canChooseFiles = false
+    painel.canCreateDirectories = true
+    painel.allowsMultipleSelection = false
+    painel.prompt = "Usar esta pasta"
+    painel.message = mensagem
+    return painel.runModal() == .OK ? painel.url : nil
+}
+
 /// Texto exibido quando uma área está vazia (equivalente simples ao ContentUnavailableView).
 struct AvisoVazio: View {
     let titulo: String

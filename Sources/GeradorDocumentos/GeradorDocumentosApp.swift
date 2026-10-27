@@ -10,7 +10,7 @@ struct GeradorDocumentosApp: App {
         WindowGroup("Gerador de Documentos") {
             ContentView()
                 .environmentObject(armazenamento)
-                .frame(minWidth: 860, minHeight: 560)
+                .frame(minWidth: 1100, minHeight: 600)
         }
     }
 }
