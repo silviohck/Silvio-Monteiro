@@ -110,15 +110,16 @@ struct TabelaCodigosView: View {
             Text(codigo.descricao)
                 .fontWeight(codigo.ehTitulo ? .semibold : .regular)
                 .textSelection(.enabled)
-            Spacer()
+            // Logo depois da descrição, para não precisar atravessar a tela.
             Button {
                 copiar(codigo.textoCompleto)
             } label: {
                 Image(systemName: "doc.on.doc")
             }
             .buttonStyle(.borderless)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Tema.destaque)
             .help("Copiar “\(codigo.textoCompleto)”")
+            Spacer(minLength: 0)
         }
         .padding(.leading, codigo.ehTitulo || !recuarItens ? 0 : 20)
         .padding(.vertical, 1)

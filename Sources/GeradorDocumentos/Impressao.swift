@@ -128,9 +128,19 @@ enum Impressao {
             open arquivo
             set alvo to missing value
             repeat 60 times
-                repeat with documento in documents
-                    if name of documento is nomeDoArquivo then set alvo to contents of documento
-                end repeat
+                try
+                    set alvo to document nomeDoArquivo
+                    exit repeat
+                end try
+                -- Plano B: percorre os documentos abertos pela posição.
+                try
+                    repeat with i from 1 to (count of documents)
+                        if (name of document i) is nomeDoArquivo then
+                            set alvo to document i
+                            exit repeat
+                        end if
+                    end repeat
+                end try
                 if alvo is not missing value then exit repeat
                 delay 0.25
             end repeat
