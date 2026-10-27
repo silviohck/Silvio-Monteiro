@@ -1,19 +1,22 @@
 import AppKit
 import SwiftUI
 
-/// Cores e tamanhos de texto do app, pensados para uso prolongado: fundos suaves
-/// (sem branco ou preto puros), destaque discreto e letras maiores que o padrão do Mac.
+/// Paleta "Sereno": cinzas minerais e azul-petróleo dessaturado.
+/// Menos contraste entre áreas grandes, sem sacrificar a leitura em ambos os modos.
 enum Tema {
-    /// Azul-petróleo suave usado em botões, seleção e destaques.
-    static let destaque = Color.adaptavel(claro: (0.23, 0.47, 0.52), escuro: (0.48, 0.72, 0.75))
-    /// Verde calmo para mensagens de sucesso.
-    static let sucesso = Color.adaptavel(claro: (0.24, 0.52, 0.36), escuro: (0.52, 0.76, 0.58))
-    /// Fundo das telas: creme claro / grafite.
-    static let fundo = Color.adaptavel(claro: (0.957, 0.949, 0.933), escuro: (0.125, 0.133, 0.141))
-    /// Fundo claro do destaque, para quadros como o do local de atendimento.
-    static let destaqueSuave = Color.adaptavel(claro: (0.86, 0.92, 0.93), escuro: (0.16, 0.25, 0.27))
-    /// Fundo da barra lateral e das listas, um tom diferente do fundo principal.
-    static let lateral = Color.adaptavel(claro: (0.925, 0.918, 0.902), escuro: (0.153, 0.161, 0.169))
+    /// Reservado para ações principais, links e ícones pequenos.
+    static let destaque = Color.adaptavel(claro: (0.19, 0.38, 0.43), escuro: (0.58, 0.78, 0.80))
+    /// Confirmações discretas, sem verde fluorescente.
+    static let sucesso = Color.adaptavel(claro: (0.23, 0.44, 0.35), escuro: (0.59, 0.78, 0.65))
+    /// Plano de fundo neutro, sem branco ou preto puro.
+    static let fundo = Color.adaptavel(claro: (0.965, 0.972, 0.976), escuro: (0.110, 0.125, 0.141))
+    /// Área de navegação um pouco mais marcada, mas sem faixa escura.
+    static let lateral = Color.adaptavel(claro: (0.932, 0.947, 0.955), escuro: (0.145, 0.162, 0.177))
+    /// Cartões para informações que merecem destaque sem recorrer a blocos saturados.
+    static let superficie = Color.adaptavel(claro: (0.993, 0.996, 0.997), escuro: (0.177, 0.193, 0.209))
+    static let borda = Color.adaptavel(claro: (0.848, 0.883, 0.898), escuro: (0.285, 0.310, 0.334))
+    /// Faixa levemente azulada, usada apenas para contextualizar o local.
+    static let destaqueSuave = Color.adaptavel(claro: (0.908, 0.946, 0.949), escuro: (0.184, 0.281, 0.301))
 }
 
 extension Color {
@@ -92,8 +95,8 @@ enum EstiloTexto {
         case .apoio: return .system(size: base - 1)
         case .titulo: return .system(size: base + 4, weight: .semibold)
         case .codigo: return .system(size: base - 1, design: .monospaced)
-        case .secao: return .system(size: base, weight: .bold)
-        case .destaque: return .system(size: base + 8, weight: .bold)
+        case .secao: return .system(size: base, weight: .semibold)
+        case .destaque: return .system(size: base + 6, weight: .semibold)
         }
     }
 }
@@ -138,6 +141,13 @@ extension View {
             .scrollContentBackground(.hidden)
             .background(cor)
     }
+
+    /// Superfície discreta, com contorno leve em vez de sombra forte.
+    func painelSuave(raio: CGFloat = 14) -> some View {
+        self
+            .background(RoundedRectangle(cornerRadius: raio).fill(Tema.superficie))
+            .overlay(RoundedRectangle(cornerRadius: raio).strokeBorder(Tema.borda.opacity(0.75), lineWidth: 1))
+    }
 }
 
 /// Título de seção com ícone, negrito e cor de destaque, para achar cada parte da tela rápido.
@@ -151,10 +161,17 @@ struct TituloSecao: View {
     }
 
     var body: some View {
-        Label(texto, systemImage: icone)
-            .fonteApp(.secao)
-            .foregroundStyle(Tema.destaque)
-            .textCase(nil)
+        HStack(spacing: 9) {
+            Image(systemName: icone)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Tema.destaque)
+                .frame(width: 18)
+            Text(texto)
+                .fonteApp(.secao)
+                .foregroundStyle(.primary)
+        }
+        .padding(.vertical, 2)
+        .textCase(nil)
     }
 }
 
@@ -177,8 +194,11 @@ struct AjustesAparenciaView: View {
                 }
             }
             .pickerStyle(.radioGroup)
-            Text("Atalhos: ⌘+ aumenta o texto, ⌘− diminui e ⌘0 volta ao normal.")
+            Text("Paleta suave com azul-petróleo, cinzas neutros e contraste confortável. O modo automático segue a aparência do Mac.")
                 .fonteApp(.apoio)
+                .foregroundStyle(.secondary)
+            Text("Atalhos: ⌘+ aumenta o texto, ⌘− diminui e ⌘0 volta ao normal.")
+                .fonteApp(.legenda)
                 .foregroundStyle(.secondary)
         }
         .formStyle(.grouped)
