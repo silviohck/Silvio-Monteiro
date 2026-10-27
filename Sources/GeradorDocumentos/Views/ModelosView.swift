@@ -141,7 +141,7 @@ struct ModelosView: View {
                     .padding(8)
                 List(selection: $selecao) {
                     ForEach(grupos) { grupo in
-                        Section("\(grupo.titulo) (\(grupo.modelos.count))") {
+                        Section(header: Text("\(grupo.titulo) (\(grupo.modelos.count))").bold().foregroundStyle(Tema.destaque)) {
                             ForEach(grupo.modelos) { modelo in
                                 linha(modelo)
                                     .tag(modelo.id)
@@ -289,7 +289,7 @@ struct ModeloEditor: View {
 
     var body: some View {
         Form {
-            Section("Modelo") {
+            Section(header: TituloSecao("Modelo", icone: "doc.text.fill")) {
                 TextField("Nome", text: $modelo.nome)
                 Picker("Local de atendimento", selection: $modelo.localID) {
                     Text("Todos os locais").tag(UUID?.none)
@@ -314,7 +314,7 @@ struct ModeloEditor: View {
                         Text(origem).foregroundStyle(.secondary).textSelection(.enabled)
                     }
                 } header: {
-                    Text("Vem da pasta sincronizada")
+                    TituloSecao("Vem da pasta sincronizada", icone: "arrow.triangle.2.circlepath")
                 } footer: {
                     Text("Edite o arquivo no Word: ao voltar para o app, as mudanças entram sozinhas. Para tirar este modelo do app, apague ou mova o arquivo na pasta.")
                         .foregroundStyle(.secondary)
@@ -336,13 +336,13 @@ struct ModeloEditor: View {
                     }
                 }
             } header: {
-                Text("Campos do modelo (\(modelo.campos.count))")
+                TituloSecao("Campos do modelo (\(modelo.campos.count))", icone: "list.bullet.rectangle.fill")
             }
 
             Section {
                 Stepper("Cópias: \(modelo.copias)", value: $modelo.copias, in: 1...10)
             } header: {
-                Text("Impressão")
+                TituloSecao("Impressão", icone: "printer.fill")
             } footer: {
                 Text("Quantas cópias sair quando este modelo é impresso pelo app (tela Gerar documento e Histórico).")
                     .foregroundStyle(.secondary)

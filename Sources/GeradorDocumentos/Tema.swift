@@ -10,6 +10,8 @@ enum Tema {
     static let sucesso = Color.adaptavel(claro: (0.24, 0.52, 0.36), escuro: (0.52, 0.76, 0.58))
     /// Fundo das telas: creme claro / grafite.
     static let fundo = Color.adaptavel(claro: (0.957, 0.949, 0.933), escuro: (0.125, 0.133, 0.141))
+    /// Fundo claro do destaque, para quadros como o do local de atendimento.
+    static let destaqueSuave = Color.adaptavel(claro: (0.86, 0.92, 0.93), escuro: (0.16, 0.25, 0.27))
     /// Fundo da barra lateral e das listas, um tom diferente do fundo principal.
     static let lateral = Color.adaptavel(claro: (0.925, 0.918, 0.902), escuro: (0.153, 0.161, 0.169))
 }
@@ -79,6 +81,10 @@ enum EstiloTexto {
     case apoio
     case titulo
     case codigo
+    /// Títulos de seção (Paciente, Documento…): negrito, um pouco maior.
+    case secao
+    /// Nome em grande destaque (ex.: local de atendimento).
+    case destaque
 
     func fonte(base: CGFloat) -> Font {
         switch self {
@@ -86,6 +92,8 @@ enum EstiloTexto {
         case .apoio: return .system(size: base - 1)
         case .titulo: return .system(size: base + 4, weight: .semibold)
         case .codigo: return .system(size: base - 1, design: .monospaced)
+        case .secao: return .system(size: base, weight: .bold)
+        case .destaque: return .system(size: base + 8, weight: .bold)
         }
     }
 }
@@ -132,6 +140,24 @@ extension View {
     }
 }
 
+/// Título de seção com ícone, negrito e cor de destaque, para achar cada parte da tela rápido.
+struct TituloSecao: View {
+    let texto: String
+    let icone: String
+
+    init(_ texto: String, icone: String) {
+        self.texto = texto
+        self.icone = icone
+    }
+
+    var body: some View {
+        Label(texto, systemImage: icone)
+            .fonteApp(.secao)
+            .foregroundStyle(Tema.destaque)
+            .textCase(nil)
+    }
+}
+
 /// Tela de Ajustes (⌘,): tamanho do texto e tema.
 struct AjustesAparenciaView: View {
     @AppStorage("tamanhoTexto") private var tamanho = TamanhoTexto.normal.rawValue
@@ -164,10 +190,4 @@ struct AjustesAparenciaView: View {
             aparencia: Aparencia(rawValue: aparencia) ?? .automatica
         )
     }
-}
-
-/// Abre a janela de Ajustes (⌘,).
-@MainActor
-func abrirAjustes() {
-    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
 }

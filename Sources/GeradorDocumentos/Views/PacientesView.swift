@@ -61,7 +61,7 @@ struct PacientesView: View {
                     .padding(8)
                 List(selection: $selecao) {
                     ForEach(grupos) { grupo in
-                        Section("\(grupo.titulo) (\(grupo.pacientes.count))") {
+                        Section(header: Text("\(grupo.titulo) (\(grupo.pacientes.count))").bold().foregroundStyle(Tema.destaque)) {
                             ForEach(grupo.pacientes) { paciente in
                                 linha(paciente)
                                     .tag(paciente.id)
@@ -214,7 +214,7 @@ struct PacienteEditor: View {
 
     var body: some View {
         Form {
-            Section("Identificação") {
+            Section(header: TituloSecao("Identificação", icone: "person.text.rectangle.fill")) {
                 TextField("Nome completo", text: $paciente.nome)
                 if armazenamento.pacientes(chamados: paciente.nome).count > 1 {
                     Label(
@@ -244,14 +244,14 @@ struct PacienteEditor: View {
                     }
                 }
             }
-            Section("Contato") {
+            Section(header: TituloSecao("Contato", icone: "phone.fill")) {
                 TextField("Telefone", text: $paciente.telefone)
                 TextField("E-mail", text: $paciente.email)
                 TextField("Endereço", text: $paciente.endereco, axis: .vertical)
                     .lineLimit(1...3)
                 TextField("Convênio", text: $paciente.convenio)
             }
-            Section("Observações") {
+            Section(header: TituloSecao("Observações", icone: "note.text")) {
                 TextField("Observações", text: $paciente.observacoes, axis: .vertical)
                     .lineLimit(3...8)
                     .labelsHidden()
@@ -274,7 +274,7 @@ struct PacienteEditor: View {
                         }
                     }
                 } header: {
-                    Text("Outros campos salvos")
+                    TituloSecao("Outros campos salvos", icone: "tray.full.fill")
                 } footer: {
                     Text("Valores digitados ao gerar documentos para este paciente; são reaproveitados na próxima vez.")
                         .foregroundStyle(.secondary)

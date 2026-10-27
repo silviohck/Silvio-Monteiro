@@ -79,7 +79,7 @@ struct LocalEditor: View {
 
     var body: some View {
         Form {
-            Section("Local de atendimento") {
+            Section(header: TituloSecao("Local de atendimento", icone: "building.2.fill")) {
                 TextField("Nome", text: $local.nome, prompt: Text("Ex.: Alagoa Grande"))
             }
             Section {
@@ -96,7 +96,7 @@ struct LocalEditor: View {
                     }
                 }
             } header: {
-                Text("Onde salvar os documentos deste local")
+                TituloSecao("Onde salvar os documentos deste local", icone: "folder.fill")
             } footer: {
                 Text("Os documentos gerados são salvos aqui, separados em subpastas por tipo (Receitas, Laudos…).")
                     .foregroundStyle(.secondary)

@@ -36,22 +36,8 @@ struct ContentView: View {
             .fundoSuave(Tema.lateral)
             .navigationSplitViewColumnWidth(min: 210, ideal: 230)
             .safeAreaInset(edge: .bottom) {
-                VStack(alignment: .leading, spacing: 10) {
-                    SeletorDeImpressora()
-                    Button {
-                        abrirAjustes()
-                    } label: {
-                        Label("Aparência e tamanho do texto", systemImage: "textformat.size")
-                    }
-                    .buttonStyle(.borderless)
-                    Button {
-                        armazenamento.abrirPastaDeDados()
-                    } label: {
-                        Label("Pasta de dados", systemImage: "folder")
-                    }
-                    .buttonStyle(.borderless)
-                }
-                .padding()
+                SeletorDeImpressora()
+                    .padding()
             }
         } detail: {
             switch secao ?? .gerar {
@@ -86,9 +72,7 @@ struct SeletorDeImpressora: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label("Impressora", systemImage: "printer")
-                .fonteApp(.legenda)
-                .foregroundStyle(.secondary)
+            TituloSecao("Impressora", icone: "printer.fill")
             HStack(spacing: 4) {
                 Picker("Impressora", selection: $impressora) {
                     Text("Padrão do sistema").tag("")

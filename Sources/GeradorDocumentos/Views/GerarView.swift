@@ -83,18 +83,11 @@ struct GerarView: View {
 
     private var formulario: some View {
         Form {
-            Section("Documento") {
-                Picker("Local de atendimento", selection: $localSelecionado) {
-                    Text("Nenhum").tag("")
-                    ForEach(armazenamento.locaisOrdenados) { local in
-                        Text(local.nome.isEmpty ? "Sem nome" : local.nome).tag(local.id.uuidString)
-                    }
-                }
-                if armazenamento.dados.locais.isEmpty {
-                    Text("Cadastre seus locais na aba “Locais de atendimento”.")
-                        .fonteApp(.apoio)
-                        .foregroundStyle(.secondary)
-                }
+            Section {
+                quadroDoLocal
+            }
+
+            Section {
                 if armazenamento.modelos(para: local).isEmpty {
                     Text("Nenhum modelo para este local. Importe na aba “Modelos”.")
                         .fonteApp(.apoio)
@@ -111,9 +104,11 @@ struct GerarView: View {
                         }
                     }
                 }
+            } header: {
+                TituloSecao("Documento", icone: "doc.text.fill")
             }
 
-            Section("Paciente") {
+            Section {
                 HStack {
                     TextField("Nome do paciente", text: $nomePaciente)
                         .focused($focoNoNome)
@@ -175,6 +170,8 @@ struct GerarView: View {
                         .fonteApp(.apoio)
                         .foregroundStyle(.secondary)
                 }
+            } header: {
+                TituloSecao("Paciente", icone: "person.fill")
             }
 
             if let modelo {
@@ -189,7 +186,7 @@ struct GerarView: View {
                             .lineLimit(1...5)
                     }
                 } header: {
-                    Text("Outros campos do documento")
+                    TituloSecao("Campos do documento", icone: "list.bullet.rectangle.fill")
                 } footer: {
                     Text("Preenchidos com o cadastro do paciente, o local e a data de hoje. Você pode alterar qualquer valor; o que digitar fica salvo no cadastro do paciente.")
                         .foregroundStyle(.secondary)
@@ -288,7 +285,10 @@ struct GerarView: View {
                                     || (nomeDigitado.isEmpty && modelo.campos.contains(where: CamposAutomaticos.ehNomeDoPaciente))
                             )
                             .help(precisaEscolherPaciente ? "Escolha qual dos pacientes com este nome é o certo" : "")
+                            .controlSize(.large)
                     }
+                } header: {
+                    TituloSecao("Salvar e imprimir", icone: "square.and.arrow.down.fill")
                 }
             }
         }
@@ -371,6 +371,42 @@ struct GerarView: View {
                 aviso = "Salvo e enviado para impressão: \(arquivo.lastPathComponent)"
             }
         }
+    }
+
+    /// Quadro em destaque no topo: em qual local você está atendendo.
+    private var quadroDoLocal: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "building.2.fill")
+                .font(.system(size: 30))
+                .foregroundStyle(local == nil ? Color.orange : Tema.destaque)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("LOCAL DE ATENDIMENTO")
+                    .fonteApp(.legenda)
+                    .bold()
+                    .foregroundStyle(.secondary)
+                Text(local.map { $0.nome.isEmpty ? "Local sem nome" : $0.nome } ?? "Escolha o local")
+                    .fonteApp(.destaque)
+                    .foregroundStyle(local == nil ? Color.orange : Tema.destaque)
+                    .lineLimit(1)
+                if armazenamento.dados.locais.isEmpty {
+                    Text("Cadastre seus locais na aba “Locais de atendimento”.")
+                        .fonteApp(.apoio)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            Picker("Trocar local", selection: $localSelecionado) {
+                Text("Nenhum").tag("")
+                ForEach(armazenamento.locaisOrdenados) { local in
+                    Text(local.nome.isEmpty ? "Sem nome" : local.nome).tag(local.id.uuidString)
+                }
+            }
+            .labelsHidden()
+            .frame(maxWidth: 220)
+            .help("Trocar o local de atendimento")
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Tema.destaqueSuave))
     }
 
     /// "Pastas já existentes" ou quais serão criadas (pasta do local e/ou do tipo).

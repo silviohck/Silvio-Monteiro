@@ -18,6 +18,10 @@ struct GeradorDocumentosApp: App {
                 .frame(minWidth: 960, minHeight: 600)
         }
         .commands {
+            // Aparência fica em Orthck › Ajustes… (⌘,); a pasta de dados, no menu Arquivo.
+            CommandGroup(after: .newItem) {
+                Button("Abrir pasta de dados (backup)") { armazenamento.abrirPastaDeDados() }
+            }
             CommandGroup(after: .toolbar) {
                 Button("Aumentar texto") {
                     tamanhoTexto = min(tamanhoTexto + 1, TamanhoTexto.muitoGrande.rawValue)
