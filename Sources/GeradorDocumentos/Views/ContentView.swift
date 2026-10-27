@@ -9,6 +9,8 @@ enum Secao: String, CaseIterable, Identifiable {
     case modelos = "Modelos"
     case historico = "Histórico"
     case cid = "CID-10"
+    case sigtap = "SIGTAP (SUS)"
+    case tuss = "TUSS"
 
     var id: Self { self }
 
@@ -20,6 +22,8 @@ enum Secao: String, CaseIterable, Identifiable {
         case .modelos: return "doc.text"
         case .historico: return "clock"
         case .cid: return "stethoscope"
+        case .sigtap: return "cross.case"
+        case .tuss: return "list.bullet.rectangle"
         }
     }
 }
@@ -46,7 +50,9 @@ struct ContentView: View {
             case .locais: LocaisView()
             case .modelos: ModelosView()
             case .historico: HistoricoView()
-            case .cid: CIDView()
+            case .cid: TabelaCodigosView(tabela: .cid10, chaveDoFiltro: "capituloCID").id(Secao.cid)
+            case .sigtap: TabelaCodigosView(tabela: .sigtap, chaveDoFiltro: "grupoSIGTAP").id(Secao.sigtap)
+            case .tuss: TabelaCodigosView(tabela: .tuss, chaveDoFiltro: "grupoTUSS").id(Secao.tuss)
             }
         }
         // Ao abrir o app e sempre que ele volta para a frente, acompanha a pasta de modelos.

@@ -60,6 +60,12 @@ O app usa cores suaves (fundo creme no modo claro, grafite no escuro) e texto ma
 
 A aba **CID-10** tem a tabela completa do DATASUS (capítulos, categorias e subcategorias — cerca de 14 mil códigos), funciona sem internet e busca por código (`M54.5`, `m545`) ou por palavras em qualquer ordem, sem precisar de acentos (`dor lombar`, `lombalgia`). Filtre por capítulo e copie com o botão ao lado, o clique direito ou ⌘C (“M54.5 - Dor lombar baixa”).
 
+### SIGTAP e TUSS
+
+As abas **SIGTAP (SUS)** e **TUSS** funcionam como a do CID-10: busca por código (`03.01.01.007-2`, `0301010072`, `10101012`) ou por palavras, sem acentos, e cópia com botão, clique direito ou ⌘C. O SIGTAP traz a Tabela de Procedimentos do SUS (DATASUS) com filtro por grupo; a TUSS traz a tabela 22 da ANS (procedimentos e eventos em saúde, só termos vigentes).
+
+Para atualizar as duas tabelas (o SIGTAP muda todo mês), abra no GitHub *Actions › Atualizar tabelas SIGTAP e TUSS › Run workflow*: a rotina baixa as versões oficiais, grava no projeto e compila um app novo.
+
 ### Onde os dados ficam salvos
 
 Tudo fica no próprio Mac, em `~/Library/Application Support/GeradorDocumentos/`: o arquivo `dados.json` (pacientes, locais e histórico) e a pasta `Modelos/` (cópias dos modelos). O menu *Arquivo › Abrir pasta de dados (backup)* abre essa pasta. Para fazer backup, copie a pasta inteira.
