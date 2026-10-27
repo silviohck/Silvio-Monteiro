@@ -292,7 +292,7 @@ struct GerarView: View {
                             } label: {
                                 Label("Escolher pasta principal…", systemImage: "folder.badge.gearshape")
                             }
-                            .buttonStyle(.borderedProminent)
+                            .buttonStyle(.bordered)
                             Menu("Mais opções") {
                                 if let local {
                                     Button("Usar outra pasta só para \(local.nome.isEmpty ? "este local" : local.nome)…") {
@@ -517,17 +517,19 @@ struct GerarView: View {
     /// Quadro em destaque no topo: em qual local você está atendendo.
     private var quadroDoLocal: some View {
         HStack(spacing: 14) {
-            Image(systemName: "building.2.fill")
-                .font(.system(size: 30))
+            Image(systemName: "building.2")
+                .font(.system(size: 22, weight: .medium))
                 .foregroundStyle(local == nil ? Color.orange : Tema.destaque)
-            VStack(alignment: .leading, spacing: 2) {
+                .frame(width: 44, height: 44)
+                .background(RoundedRectangle(cornerRadius: 12).fill(Tema.superficie.opacity(0.74)))
+            VStack(alignment: .leading, spacing: 3) {
                 Text("LOCAL DE ATENDIMENTO")
                     .fonteApp(.legenda)
-                    .bold()
+                    .fontWeight(.medium)
                     .foregroundStyle(.secondary)
                 Text(local.map { $0.nome.isEmpty ? "Local sem nome" : $0.nome } ?? "Escolha o local")
                     .fonteApp(.destaque)
-                    .foregroundStyle(local == nil ? Color.orange : Tema.destaque)
+                    .foregroundStyle(local == nil ? Color.orange : Color.primary)
                     .lineLimit(1)
                 if armazenamento.dados.locais.isEmpty {
                     Text("Cadastre seus locais na aba “Locais de atendimento”.")
@@ -546,8 +548,9 @@ struct GerarView: View {
             .frame(maxWidth: 220)
             .help("Trocar o local de atendimento")
         }
-        .padding(14)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Tema.destaqueSuave))
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 14).fill(Tema.destaqueSuave))
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Tema.borda.opacity(0.7), lineWidth: 1))
     }
 
     /// "Pastas já existentes" ou quais serão criadas (pasta do local e/ou do tipo).
