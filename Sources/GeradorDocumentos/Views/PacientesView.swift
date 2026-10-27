@@ -64,7 +64,7 @@ struct PacientesView: View {
                     .padding(8)
                 List(selection: $selecao) {
                     ForEach(grupos) { grupo in
-                        Section(header: Text("\(grupo.titulo) (\(grupo.pacientes.count))").bold().foregroundStyle(Tema.destaque)) {
+                        Section(header: Text("\(grupo.titulo) (\(grupo.pacientes.count))").fontWeight(.semibold).foregroundStyle(.secondary)) {
                             ForEach(grupo.pacientes) { paciente in
                                 linha(paciente)
                                     .tag(paciente.id)
