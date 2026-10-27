@@ -8,6 +8,8 @@ struct ModeloDocumento: Identifiable, Codable, Hashable {
     var campos: [String]
     /// Subpasta onde os documentos gerados com este modelo são guardados (Receitas, Laudos…).
     var categoria = "Outros"
+    /// Local de atendimento dono do modelo; nil = disponível em todos os locais.
+    var localID: UUID?
     var criadoEm = Date()
 }
 
@@ -20,6 +22,7 @@ extension ModeloDocumento {
         arquivo = try container.decode(String.self, forKey: .arquivo)
         campos = try container.decode([String].self, forKey: .campos)
         categoria = try container.decodeIfPresent(String.self, forKey: .categoria) ?? "Outros"
+        localID = try container.decodeIfPresent(UUID.self, forKey: .localID)
         criadoEm = try container.decodeIfPresent(Date.self, forKey: .criadoEm) ?? Date()
     }
 

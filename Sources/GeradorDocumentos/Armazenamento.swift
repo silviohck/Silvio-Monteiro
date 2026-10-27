@@ -32,14 +32,17 @@ final class Armazenamento: ObservableObject {
         pastaModelos.appendingPathComponent(modelo.arquivo)
     }
 
-    func importarModelo(de origem: URL) throws {
+    @discardableResult
+    func importarModelo(de origem: URL, localID: UUID? = nil) throws -> ModeloDocumento {
         let arquivo = "\(UUID().uuidString).docx"
         let destino = pastaModelos.appendingPathComponent(arquivo)
         let campos = try copiarModelo(origem, para: destino)
         let nome = origem.deletingPathExtension().lastPathComponent
         var categoria = ModeloDocumento.categoriaSugerida(para: nome)
         if !dados.categorias.contains(categoria) { categoria = dados.categorias.last ?? categoria }
-        dados.modelos.append(ModeloDocumento(nome: nome, arquivo: arquivo, campos: campos, categoria: categoria))
+        let modelo = ModeloDocumento(nome: nome, arquivo: arquivo, campos: campos, categoria: categoria, localID: localID)
+        dados.modelos.append(modelo)
+        return modelo
     }
 
     /// Copia (ou converte, se não for .docx) o arquivo escolhido e devolve os campos encontrados.
@@ -92,6 +95,35 @@ final class Armazenamento: ObservableObject {
         try FileManager.default.moveItem(at: novo, to: destino)
         guard let indice = dados.modelos.firstIndex(where: { $0.id == modelo.id }) else { return }
         dados.modelos[indice].campos = campos
+    }
+
+    func modelo(_ id: ModeloDocumento.ID?) -> ModeloDocumento? {
+        dados.modelos.first { $0.id == id }
+    }
+
+    func atualizarModelo(_ modelo: ModeloDocumento) {
+        guard let indice = dados.modelos.firstIndex(where: { $0.id == modelo.id }) else { return }
+        dados.modelos[indice] = modelo
+    }
+
+    /// Local dono do modelo; nil quando o modelo vale para todos (ou o local foi excluído).
+    func localDoModelo(_ modelo: ModeloDocumento) -> LocalAtendimento? {
+        local(modelo.localID)
+    }
+
+    /// Modelos que aparecem para um local: os dele e os de todos os locais, em ordem de tipo e nome.
+    func modelos(para local: LocalAtendimento?) -> [ModeloDocumento] {
+        dados.modelos
+            .filter { modelo in
+                guard let dono = localDoModelo(modelo) else { return true }
+                return dono.id == local?.id
+            }
+            .sorted { a, b in
+                let tipoA = dados.categorias.firstIndex(of: a.categoria) ?? Int.max
+                let tipoB = dados.categorias.firstIndex(of: b.categoria) ?? Int.max
+                if tipoA != tipoB { return tipoA < tipoB }
+                return a.nome.localizedStandardCompare(b.nome) == .orderedAscending
+            }
     }
 
     func removerModelo(_ modelo: ModeloDocumento) {

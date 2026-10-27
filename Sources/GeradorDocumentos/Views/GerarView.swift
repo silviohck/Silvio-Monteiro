@@ -54,12 +54,6 @@ struct GerarView: View {
     private var formulario: some View {
         Form {
             Section("Documento") {
-                Picker("Modelo", selection: $modeloSelecionado) {
-                    Text("Selecione…").tag("")
-                    ForEach(armazenamento.dados.modelos) { modelo in
-                        Text(modelo.nome).tag(modelo.id.uuidString)
-                    }
-                }
                 Picker("Local de atendimento", selection: $localSelecionado) {
                     Text("Nenhum").tag("")
                     ForEach(armazenamento.locaisOrdenados) { local in
@@ -68,6 +62,17 @@ struct GerarView: View {
                 }
                 if armazenamento.dados.locais.isEmpty {
                     Text("Cadastre seus locais na aba “Locais de atendimento”.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                Picker("Modelo", selection: $modeloSelecionado) {
+                    Text("Selecione…").tag("")
+                    ForEach(armazenamento.modelos(para: local)) { modelo in
+                        Text("\(modelo.categoria) — \(modelo.nome)").tag(modelo.id.uuidString)
+                    }
+                }
+                if armazenamento.modelos(para: local).isEmpty {
+                    Text("Nenhum modelo para este local. Importe na aba “Modelos”.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -167,8 +172,8 @@ struct GerarView: View {
         }
         .formStyle(.grouped)
         .onAppear {
-            if modelo == nil { modeloSelecionado = armazenamento.dados.modelos.first?.id.uuidString ?? "" }
             if local == nil { localSelecionado = "" }
+            validarModelo()
             preencher(.tudo)
             focoNoNome = true
         }
@@ -178,7 +183,18 @@ struct GerarView: View {
         }
         .onChange(of: modeloSelecionado) { _ in preencher(.tudo) }
         .onChange(of: pacienteCadastrado?.id) { _ in preencher(.paciente) }
-        .onChange(of: localSelecionado) { _ in preencher(.local) }
+        .onChange(of: localSelecionado) { _ in
+            validarModelo()
+            preencher(.local)
+        }
+    }
+
+    /// Ao trocar de local, mantém o modelo só se ele também vale para o novo local.
+    private func validarModelo() {
+        let disponiveis = armazenamento.modelos(para: local)
+        if !disponiveis.contains(where: { $0.id.uuidString == modeloSelecionado }) {
+            modeloSelecionado = disponiveis.first?.id.uuidString ?? ""
+        }
     }
 
     private func valor(_ campo: String) -> Binding<String> {

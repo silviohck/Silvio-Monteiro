@@ -3,84 +3,117 @@ import SwiftUI
 
 struct ModelosView: View {
     @EnvironmentObject private var armazenamento: Armazenamento
+    @State private var selecao: ModeloDocumento.ID?
+    @State private var busca = ""
     @State private var modeloParaExcluir: ModeloDocumento?
     @State private var arrastando = false
-    @State private var aviso: String?
-    @State private var pedindoCategoria = false
-    @State private var novaCategoria = ""
+    /// "" = todos, "geral" = modelos de todos os locais, ou o id do local.
+    @AppStorage("filtroLocalModelos") private var filtroLocal = ""
+
+    private static let geral = "geral"
+
+    private struct Grupo: Identifiable {
+        let id: String
+        let titulo: String
+        let modelos: [ModeloDocumento]
+    }
+
+    private var localFiltrado: LocalAtendimento? {
+        armazenamento.dados.locais.first { $0.id.uuidString == filtroLocal }
+    }
+
+    private var grupos: [Grupo] {
+        let termo = busca.trimmingCharacters(in: .whitespaces)
+        let modelos = armazenamento.dados.modelos
+            .filter { termo.isEmpty || $0.nome.localizedCaseInsensitiveContains(termo) }
+            .sorted { $0.nome.localizedStandardCompare($1.nome) == .orderedAscending }
+        var grupos: [Grupo] = []
+        for local in armazenamento.locaisOrdenados where filtroLocal.isEmpty || filtroLocal == local.id.uuidString {
+            let doLocal = modelos.filter { $0.localID == local.id }
+            if !doLocal.isEmpty {
+                grupos.append(Grupo(id: local.id.uuidString, titulo: local.nome.isEmpty ? "Local sem nome" : local.nome, modelos: doLocal))
+            }
+        }
+        if filtroLocal.isEmpty || filtroLocal == Self.geral {
+            let gerais = modelos.filter { armazenamento.localDoModelo($0) == nil }
+            if !gerais.isEmpty {
+                grupos.append(Grupo(id: Self.geral, titulo: "Todos os locais", modelos: gerais))
+            }
+        }
+        return grupos
+    }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                ajuda
-
-                HStack {
-                    Button {
-                        importar(escolherArquivosDocx(multiplos: true))
-                    } label: {
-                        Label("Importar modelo…", systemImage: "square.and.arrow.down")
+        HSplitView {
+            VStack(spacing: 0) {
+                Button(action: importarArquivos) {
+                    Label(
+                        localFiltrado.map { "Importar modelo para \($0.nome)" } ?? "Importar modelo",
+                        systemImage: "square.and.arrow.down"
+                    )
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .padding([.horizontal, .top], 8)
+                Picker("Local", selection: $filtroLocal) {
+                    Text("Todos os modelos").tag("")
+                    ForEach(armazenamento.locaisOrdenados) { local in
+                        Text(local.nome.isEmpty ? "Local sem nome" : local.nome).tag(local.id.uuidString)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    Text("ou arraste o arquivo do Word para esta janela")
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Novo tipo de documento…") {
-                        novaCategoria = ""
-                        pedindoCategoria = true
-                    }
+                    Text("Modelos de todos os locais").tag(Self.geral)
                 }
-                if let aviso {
-                    Label(aviso, systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                }
-
-                if armazenamento.dados.modelos.isEmpty {
-                    AvisoVazio(titulo: "Nenhum modelo importado", icone: "doc.text")
-                        .frame(height: 200)
-                }
-
-                ForEach($armazenamento.dados.modelos) { $modelo in
-                    GroupBox {
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack {
-                                TextField("Nome do modelo", text: $modelo.nome)
-                                    .textFieldStyle(.roundedBorder)
-                                    .font(.headline)
-                                Picker("Tipo", selection: $modelo.categoria) {
-                                    ForEach(categorias(incluindo: modelo.categoria), id: \.self) { categoria in
-                                        Text(categoria).tag(categoria)
+                .labelsHidden()
+                .padding([.horizontal, .top], 8)
+                TextField("Buscar modelo", text: $busca)
+                    .textFieldStyle(.roundedBorder)
+                    .padding(8)
+                List(selection: $selecao) {
+                    ForEach(grupos) { grupo in
+                        Section("\(grupo.titulo) (\(grupo.modelos.count))") {
+                            ForEach(grupo.modelos) { modelo in
+                                linha(modelo)
+                                    .tag(modelo.id)
+                                    .contextMenu {
+                                        Button("Abrir no Word") {
+                                            NSWorkspace.shared.open(armazenamento.urlDoModelo(modelo))
+                                        }
+                                        Button("Excluir modelo…", role: .destructive) {
+                                            modeloParaExcluir = modelo
+                                        }
                                     }
-                                }
-                                .frame(maxWidth: 240)
-                                .help("Subpasta onde os documentos deste modelo são salvos, dentro da pasta do local de atendimento.")
-                            }
-                            Text(modelo.campos.isEmpty ? "Nenhum campo encontrado." : "Campos: " + modelo.campos.joined(separator: ", "))
-                                .font(.callout)
-                                .foregroundStyle(.secondary)
-                                .textSelection(.enabled)
-                            HStack {
-                                Button("Editar no Word") {
-                                    NSWorkspace.shared.open(armazenamento.urlDoModelo(modelo))
-                                }
-                                .help("Abre o modelo salvo. Depois de editar e salvar no Word, clique em “Atualizar campos”.")
-                                Button("Atualizar campos") { executar { try armazenamento.atualizarCampos(modelo) } }
-                                Button("Substituir arquivo…") {
-                                    if let url = escolherArquivosDocx(multiplos: false).first {
-                                        executar { try armazenamento.substituirArquivo(modelo, por: url) }
-                                    }
-                                }
-                                Spacer()
-                                Button("Excluir", role: .destructive) { modeloParaExcluir = modelo }
                             }
                         }
-                        .padding(6)
                     }
                 }
+                .onDeleteCommand {
+                    modeloParaExcluir = armazenamento.modelo(selecao)
+                }
             }
-            .padding(20)
-            .frame(maxWidth: 820, alignment: .leading)
-            .frame(maxWidth: .infinity)
+            .frame(minWidth: 240, idealWidth: 280, maxWidth: 360)
+
+            Group {
+                if let modelo = armazenamento.modelo(selecao) {
+                    ModeloEditor(
+                        modelo: Binding(
+                            get: { armazenamento.modelo(modelo.id) ?? modelo },
+                            set: { armazenamento.atualizarModelo($0) }
+                        ),
+                        aoExcluir: { modeloParaExcluir = modelo }
+                    )
+                    .id(modelo.id)
+                } else {
+                    AvisoVazio(
+                        titulo: armazenamento.dados.modelos.isEmpty ? "Nenhum modelo importado" : "Nenhum modelo selecionado",
+                        icone: "doc.text",
+                        mensagem: "Escolha o local no filtro à esquerda e importe os modelos dele. No Word, escreva os campos entre chaves duplas onde o texto deve mudar, por exemplo: Atesto que {{NOME_PACIENTE}}, CPF {{CPF}}, esteve aqui em {{DATA}}. Você também pode arrastar arquivos .docx para esta janela.",
+                        botao: localFiltrado.map { "Importar modelo para \($0.nome)" } ?? "Importar modelo",
+                        acao: importarArquivos
+                    )
+                }
+            }
+            .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
         }
         .overlay {
             if arrastando {
@@ -94,68 +127,152 @@ struct ModelosView: View {
             return true
         } isTargeted: { arrastando = $0 }
         .toolbar {
-            Button {
-                importar(escolherArquivosDocx(multiplos: true))
-            } label: {
+            Button(action: importarArquivos) {
                 Label("Importar modelo", systemImage: "square.and.arrow.down")
             }
-        }
-        .alert("Novo tipo de documento", isPresented: $pedindoCategoria) {
-            TextField("Ex.: Atestados", text: $novaCategoria)
-            Button("Adicionar") { armazenamento.adicionarCategoria(novaCategoria) }
-            Button("Cancelar", role: .cancel) {}
-        } message: {
-            Text("Cada tipo vira uma subpasta dentro da pasta de cada local de atendimento.")
+            Button(role: .destructive) {
+                modeloParaExcluir = armazenamento.modelo(selecao)
+            } label: {
+                Label("Excluir modelo", systemImage: "trash")
+            }
+            .disabled(selecao == nil)
         }
         .confirmationDialog(
             "Excluir o modelo “\(modeloParaExcluir?.nome ?? "")”?",
             isPresented: Binding(get: { modeloParaExcluir != nil }, set: { if !$0 { modeloParaExcluir = nil } }),
             presenting: modeloParaExcluir
         ) { modelo in
-            Button("Excluir", role: .destructive) { armazenamento.removerModelo(modelo) }
+            Button("Excluir", role: .destructive) {
+                if selecao == modelo.id { selecao = nil }
+                armazenamento.removerModelo(modelo)
+            }
         } message: { _ in
             Text("A cópia do modelo guardada pelo app será apagada. Seu arquivo original não é afetado.")
         }
     }
 
-    private var ajuda: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Como preparar um modelo").font(.headline)
-                Text("No Word, escreva os campos entre chaves duplas onde o texto deve ser trocado, por exemplo: Declaro que {{NOME_PACIENTE}}, CPF {{CPF}}, compareceu em {{DATA}}. Salve como .docx (arquivos .doc, .rtf e .odt são convertidos automaticamente) e clique em “Importar modelo…”.")
-                Text("Preenchidos automaticamente — paciente: NOME_PACIENTE (ou NOME), CPF, RG, DATA_NASCIMENTO, IDADE, TELEFONE, EMAIL, ENDERECO, CONVENIO; local de atendimento: LOCAL, LOCAL_ENDERECO, CIDADE, LOCAL_TELEFONE, LOCAL_EMAIL, CNPJ; data: DATA (dd/mm/aaaa) e DATA_EXTENSO (27 de outubro de 2026). Qualquer outro nome vira um campo para digitar, e o valor fica salvo no cadastro do paciente.")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(6)
+    private func linha(_ modelo: ModeloDocumento) -> some View {
+        VStack(alignment: .leading) {
+            Text(modelo.nome)
+            Text("\(modelo.categoria) · \(modelo.campos.count) \(modelo.campos.count == 1 ? "campo" : "campos")")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 
-    private func categorias(incluindo atual: String) -> [String] {
-        let lista = armazenamento.dados.categorias
-        return lista.contains(atual) ? lista : lista + [atual]
+    private func importarArquivos() {
+        importar(escolherArquivosDocx(multiplos: true))
     }
 
+    /// Importa para o local escolhido no filtro (ou para todos os locais).
     private func importar(_ urls: [URL]) {
-        aviso = nil
         var erros: [String] = []
-        var importados: [String] = []
         for url in urls {
             do {
-                try armazenamento.importarModelo(de: url)
-                if let modelo = armazenamento.dados.modelos.last {
-                    let campos = modelo.campos.count
-                    importados.append("“\(modelo.nome)” (\(campos) \(campos == 1 ? "campo" : "campos"))")
-                }
+                let modelo = try armazenamento.importarModelo(de: url, localID: localFiltrado?.id)
+                selecao = modelo.id
             } catch {
                 erros.append(error.localizedDescription)
             }
         }
-        if !importados.isEmpty {
-            aviso = "Modelo importado: " + importados.joined(separator: ", ")
-        }
         if !erros.isEmpty {
             armazenamento.erro = erros.joined(separator: "\n\n")
+        }
+    }
+}
+
+struct ModeloEditor: View {
+    @EnvironmentObject private var armazenamento: Armazenamento
+    @Binding var modelo: ModeloDocumento
+    let aoExcluir: () -> Void
+    @State private var pedindoTipo = false
+    @State private var novoTipo = ""
+
+    var body: some View {
+        Form {
+            Section("Modelo") {
+                TextField("Nome", text: $modelo.nome)
+                Picker("Local de atendimento", selection: $modelo.localID) {
+                    Text("Todos os locais").tag(UUID?.none)
+                    ForEach(armazenamento.locaisOrdenados) { local in
+                        Text(local.nome.isEmpty ? "Local sem nome" : local.nome).tag(Optional(local.id))
+                    }
+                }
+                HStack {
+                    Picker("Tipo", selection: $modelo.categoria) {
+                        ForEach(tipos, id: \.self) { Text($0).tag($0) }
+                    }
+                    Button("Novo tipo…") {
+                        novoTipo = ""
+                        pedindoTipo = true
+                    }
+                }
+            }
+
+            Section {
+                if modelo.campos.isEmpty {
+                    Text("Nenhum campo {{...}} encontrado. Abra no Word, troque o nome do paciente por {{NOME_PACIENTE}} (e a data por {{DATA}}, etc.), salve e clique em “Atualizar campos”.")
+                        .foregroundStyle(.secondary)
+                }
+                ForEach(modelo.campos, id: \.self) { campo in
+                    LabeledContent {
+                        Text(descricao(campo)).foregroundStyle(.secondary)
+                    } label: {
+                        Text("{{\(campo)}}").font(.system(.body, design: .monospaced))
+                    }
+                }
+            } header: {
+                Text("Campos do modelo (\(modelo.campos.count))")
+            }
+
+            Section {
+                HStack {
+                    Button("Editar no Word") {
+                        NSWorkspace.shared.open(armazenamento.urlDoModelo(modelo))
+                    }
+                    .help("Abre o modelo salvo. Depois de editar e salvar no Word, clique em “Atualizar campos”.")
+                    Button("Atualizar campos") {
+                        executar { try armazenamento.atualizarCampos(modelo) }
+                    }
+                    Button("Substituir arquivo…") {
+                        if let url = escolherArquivosDocx(multiplos: false).first {
+                            executar { try armazenamento.substituirArquivo(modelo, por: url) }
+                        }
+                    }
+                    Spacer()
+                    Button(role: .destructive, action: aoExcluir) {
+                        Label("Excluir modelo…", systemImage: "trash")
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .alert("Novo tipo de documento", isPresented: $pedindoTipo) {
+            TextField("Ex.: Atestados", text: $novoTipo)
+            Button("Adicionar") {
+                armazenamento.adicionarCategoria(novoTipo)
+                let nome = novoTipo.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !nome.isEmpty { modelo.categoria = nome }
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("O tipo é a subpasta onde os documentos gerados com este modelo são salvos, dentro da pasta do local.")
+        }
+    }
+
+    private var tipos: [String] {
+        let lista = armazenamento.dados.categorias
+        return lista.contains(modelo.categoria) ? lista : lista + [modelo.categoria]
+    }
+
+    private func descricao(_ campo: String) -> String {
+        if CamposAutomaticos.ehNomeDoPaciente(campo) { return "nome digitado na hora" }
+        switch CamposAutomaticos.mapa[CamposAutomaticos.chave(campo)] {
+        case .paciente: return "cadastro do paciente"
+        case .local: return "cadastro do local"
+        case .idade: return "calculada pelo nascimento"
+        case .dataHoje, .dataExtenso: return "data de hoje"
+        case nil: return "digitado na hora (fica salvo no paciente)"
         }
     }
 
