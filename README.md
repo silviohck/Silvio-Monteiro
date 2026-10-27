@@ -12,7 +12,7 @@ App para Mac com Apple Silicon (M1, M2, M3, M4…) que gera documentos do Word a
 
 2. **Importe os modelos** na aba *Modelos*: escolha o local no filtro e clique em *Importar modelo para …*. Cada local tem seus próprios modelos (ou marque “Todos os locais” para um modelo comum). O app encontra os campos sozinho.
    Escolha também o **tipo** (Receitas, Atestados, Relatórios médicos, Radiografias…) no segundo filtro. Em *Gerenciar…* você cria, renomeia, exclui e reordena os tipos.
-3. **Cadastre seus locais de atendimento** na aba *Locais de atendimento* (clínica, hospital, consultório) e escolha a **pasta** de cada um.
+3. **Cadastre seus locais de atendimento** na aba *Locais de atendimento*: só o nome e, se quiser, a **pasta** onde os documentos dele são salvos.
 4. Na aba **Gerar documento**, escolha o modelo e o local, **digite o nome do paciente**, confira os valores e clique em *Gerar documento*. O `.docx` é salvo automaticamente na pasta do local, na subpasta do tipo, e aberto no Word.
    - Se o paciente já tem cadastro, o app sugere o nome e preenche CPF, nascimento etc.
    - Se é um paciente novo, o cadastro é criado sozinho com o que você digitou.
@@ -25,8 +25,7 @@ App para Mac com Apple Silicon (M1, M2, M3, M4…) que gera documentos do Word a
 | `{{CPF}}`, `{{RG}}` | Documentos |
 | `{{DATA_NASCIMENTO}}`, `{{IDADE}}` | Nascimento e idade calculada |
 | `{{TELEFONE}}`, `{{EMAIL}}`, `{{ENDERECO}}`, `{{CONVENIO}}` | Contato |
-| `{{LOCAL}}`, `{{LOCAL_ENDERECO}}`, `{{CIDADE}}` | Nome, endereço e cidade do local de atendimento |
-| `{{LOCAL_TELEFONE}}`, `{{LOCAL_EMAIL}}`, `{{CNPJ}}` | Contato e CNPJ do local |
+| `{{LOCAL}}` | Nome do local de atendimento |
 | `{{DATA}}` | Data de hoje (27/10/2026) |
 | `{{DATA_EXTENSO}}` | Data por extenso (27 de outubro de 2026) |
 
