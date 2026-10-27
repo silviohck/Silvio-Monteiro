@@ -12,7 +12,6 @@ App para Mac com Apple Silicon (M1, M2, M3, M4…) que gera documentos do Word a
 
 2. **Importe os modelos** na aba *Modelos*: escolha o local no filtro e clique em *Importar modelo para …*. Cada local tem seus próprios modelos (ou marque “Todos os locais” para um modelo comum). O app encontra os campos sozinho.
    Escolha também o **tipo** (Receitas, Atestados, Relatórios médicos, Radiografias…) no segundo filtro. Em *Gerenciar…* você cria, renomeia, exclui e reordena os tipos.
-   **Já tem muitos modelos prontos?** Use *Importar pasta inteira…*: escolha a pasta principal (uma subpasta para cada local, e dentro dela uma subpasta para cada tipo) e o app cria os locais, os tipos e importa tudo de uma vez, mostrando uma prévia antes. Rodar de novo só importa o que ainda não foi importado.
 3. **Cadastre seus locais de atendimento** na aba *Locais de atendimento*: só o nome e, se quiser, a **pasta** onde os documentos dele são salvos.
 4. Na aba **Gerar documento**, escolha o modelo e o local, **digite o nome do paciente**, confira os valores e clique em *Gerar documento*. O `.docx` é salvo automaticamente na pasta do local, na subpasta do tipo, e aberto no Word.
    - Se o paciente já tem cadastro, o app sugere o nome e preenche CPF, nascimento etc.

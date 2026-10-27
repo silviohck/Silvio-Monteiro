@@ -37,7 +37,7 @@ final class Armazenamento: ObservableObject {
     func importarModelo(de origem: URL, localID: UUID? = nil, tipo: String? = nil) throws -> ModeloDocumento {
         let arquivo = "\(UUID().uuidString).docx"
         let destino = pastaModelos.appendingPathComponent(arquivo)
-        let campos = try Self.copiarModelo(origem, para: destino)
+        let campos = try copiarModelo(origem, para: destino)
         let nome = origem.deletingPathExtension().lastPathComponent
         let categoria = tipo ?? ModeloDocumento.categoriaSugerida(para: nome, entre: dados.categorias)
         let modelo = ModeloDocumento(nome: nome, arquivo: arquivo, campos: campos, categoria: categoria, localID: localID)
@@ -46,7 +46,7 @@ final class Armazenamento: ObservableObject {
     }
 
     /// Copia (ou converte, se não for .docx) o arquivo escolhido e devolve os campos encontrados.
-    nonisolated static func copiarModelo(_ origem: URL, para destino: URL) throws -> [String] {
+    private func copiarModelo(_ origem: URL, para destino: URL) throws -> [String] {
         let fileManager = FileManager.default
         try? fileManager.removeItem(at: destino)
         try lerCoordenado(origem) { url in
@@ -65,7 +65,7 @@ final class Armazenamento: ObservableObject {
     }
 
     /// Leitura coordenada: faz o macOS baixar antes arquivos que estão só no iCloud/OneDrive.
-    nonisolated private static func lerCoordenado(_ url: URL, _ acao: (URL) throws -> Void) throws {
+    private func lerCoordenado(_ url: URL, _ acao: (URL) throws -> Void) throws {
         var erroCoordenacao: NSError?
         var erroAcao: Error?
         NSFileCoordinator().coordinate(readingItemAt: url, options: [.withoutChanges], error: &erroCoordenacao) { urlLocal in
@@ -89,7 +89,7 @@ final class Armazenamento: ObservableObject {
     func substituirArquivo(_ modelo: ModeloDocumento, por origem: URL) throws {
         // Valida o arquivo novo antes de apagar o modelo atual.
         let novo = pastaModelos.appendingPathComponent("\(UUID().uuidString).docx")
-        let campos = try Self.copiarModelo(origem, para: novo)
+        let campos = try copiarModelo(origem, para: novo)
         let destino = urlDoModelo(modelo)
         try? FileManager.default.removeItem(at: destino)
         try FileManager.default.moveItem(at: novo, to: destino)
