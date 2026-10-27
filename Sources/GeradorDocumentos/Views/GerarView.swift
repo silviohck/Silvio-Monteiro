@@ -17,6 +17,8 @@ struct GerarView: View {
     @State private var imprimindo = false
     @State private var aviso: String?
     @State private var ultimoDocumento: URL?
+    /// Impede uma segunda geração idêntica por engano após concluir o documento.
+    @State private var geracaoConcluida = false
     /// Pasta escolhida em "Só este documento…"; volta para nil depois de gerar.
     @State private var pastaAvulsa: URL?
     /// Subpasta = tipo do modelo (Receitas, Atestados…); filtra os modelos e é onde o documento é salvo.
@@ -361,10 +363,13 @@ struct GerarView: View {
                             .buttonStyle(.borderedProminent)
                             .keyboardShortcut(.defaultAction)
                             .disabled(
-                                precisaEscolherPaciente
+                                geracaoConcluida
+                                    || precisaEscolherPaciente
                                     || (nomeDigitado.isEmpty && modelo.campos.contains(where: CamposAutomaticos.ehNomeDoPaciente))
                             )
-                            .help(precisaEscolherPaciente ? "Escolha qual dos pacientes com este nome é o certo" : "")
+                            .help(geracaoConcluida
+                                ? "Este documento já foi gerado. Altere os dados, escolha outro modelo ou clique em Próximo paciente."
+                                : (precisaEscolherPaciente ? "Escolha qual dos pacientes com este nome é o certo" : ""))
                             .controlSize(.large)
                     }
                 } header: {
@@ -384,6 +389,11 @@ struct GerarView: View {
         .onChange(of: nomePaciente) { _ in
             aviso = nil
             ultimoDocumento = nil
+            geracaoConcluida = false
+            // O cadastro pode continuar nil ao trocar entre dois pacientes novos.
+            // Não depender só do onChange de pacienteCadastrado?.id para limpar os campos.
+            valores = [:]
+            preencher(.tudo)
             // Nome mudou: a escolha entre homônimos só vale se ainda for o mesmo nome.
             if let id = pacienteEscolhido, !homonimos.contains(where: { $0.id == id }) {
                 pacienteEscolhido = nil
@@ -394,10 +404,21 @@ struct GerarView: View {
             }
         }
         .onChange(of: modeloSelecionado) { id in
+            geracaoConcluida = false
+            aviso = nil
+            ultimoDocumento = nil
+            valores = [:]
             preencher(.tudo)
             copias = armazenamento.dados.modelos.first { $0.id.uuidString == id }?.copias ?? 1
         }
-        .onChange(of: subpasta) { _ in validarModelo() }
+        .onChange(of: subpasta) { _ in
+            geracaoConcluida = false
+            aviso = nil
+            ultimoDocumento = nil
+            valores = [:]
+            validarModelo()
+            preencher(.tudo)
+        }
         .sheet(isPresented: $mostrandoCadastro, onDismiss: voltarDoCadastro) {
             if let id = pacienteEmEdicao {
                 CadastroPacienteSheet(id: id)
@@ -406,11 +427,13 @@ struct GerarView: View {
         }
         .onChange(of: pacienteCadastrado?.id) { _ in preencher(.paciente) }
         .onChange(of: localSelecionado) { _ in
-            // Trocou de local: o documento anterior (e o "Imprimir" dele) era do outro local.
+            // Um local diferente inicia novo contexto; evita carregar campos do documento anterior.
             aviso = nil
             ultimoDocumento = nil
+            geracaoConcluida = false
+            valores = [:]
             validarModelo()
-            preencher(.local)
+            preencher(.tudo)
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -602,13 +625,22 @@ struct GerarView: View {
     }
 
     private func valor(_ campo: String) -> Binding<String> {
-        Binding(get: { valores[campo, default: ""] }, set: { valores[campo] = $0 })
+        Binding(
+            get: { valores[campo, default: ""] },
+            set: { novoValor in
+                valores[campo] = novoValor
+                geracaoConcluida = false
+                aviso = nil
+                ultimoDocumento = nil
+            }
+        )
     }
 
     /// Recalcula os campos; ao trocar o local, os dados do paciente já digitados não são apagados (e vice-versa).
     /// Recomeça do início para o próximo atendimento: limpa paciente, subpasta e modelo;
     /// só o local de atendimento (e as opções de abrir e imprimir) continuam.
     private func proximoPaciente() {
+        geracaoConcluida = false
         subpasta = ""
         modeloSelecionado = ""
         limparPaciente()
@@ -616,6 +648,7 @@ struct GerarView: View {
 
     /// Limpa nome, identificação e campos clínicos.
     private func limparPaciente() {
+        geracaoConcluida = false
         nomePaciente = ""
         pacienteEscolhido = nil
         outroPaciente = false
@@ -644,7 +677,13 @@ struct GerarView: View {
     }
 
     private func gerar(_ modelo: ModeloDocumento) {
-        guard !precisaEscolherPaciente else { return }
+        guard !geracaoConcluida, !precisaEscolherPaciente else { return }
+        guard !subpasta.isEmpty,
+              modelo.categoria == subpasta,
+              armazenamento.modelos(para: local).contains(where: { $0.id == modelo.id }) else {
+            armazenamento.erro = "Escolha a subpasta e o modelo corretos antes de gerar o documento."
+            return
+        }
         let nome = nomeDigitado
         var valoresFinais = valores
         for campo in modelo.campos where CamposAutomaticos.ehNomeDoPaciente(campo) {
@@ -678,6 +717,7 @@ struct GerarView: View {
         ))
         aviso = "Salvo: \(destino.lastPathComponent)"
         ultimoDocumento = destino
+        geracaoConcluida = true
         pastaAvulsa = nil
         if imprimirAoGerar {
             imprimir(destino, manterAberto: abrirAoGerar)
