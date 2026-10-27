@@ -9,7 +9,7 @@ struct GerenciarTiposView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Tipos de documento").font(.title2).bold()
+            Text("Tipos de documento").fonteApp(.titulo)
             Text("Cada tipo vira uma subpasta dentro da pasta do local, onde ficam os documentos gerados. Clique no nome para renomear e arraste para mudar a ordem.")
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -27,6 +27,7 @@ struct GerenciarTiposView: View {
                 .onMove { armazenamento.moverCategorias(de: $0, para: $1) }
             }
             .frame(minHeight: 260)
+            .fundoSuave(Tema.lateral)
 
             HStack {
                 TextField("Novo tipo (ex.: Radiografias)", text: $novoTipo)
@@ -43,7 +44,8 @@ struct GerenciarTiposView: View {
             }
         }
         .padding(20)
-        .frame(width: 480, height: 520)
+        .frame(width: 540, height: 580)
+        .background(Tema.fundo)
         .confirmationDialog(
             "Excluir o tipo “\(tipoParaExcluir ?? "")”?",
             isPresented: Binding(get: { tipoParaExcluir != nil }, set: { if !$0 { tipoParaExcluir = nil } }),
@@ -93,7 +95,7 @@ private struct LinhaDeTipo: View {
                 .onSubmit(confirmar)
             Spacer()
             Text("\(quantidade) \(quantidade == 1 ? "modelo" : "modelos")")
-                .font(.caption)
+                .fonteApp(.legenda)
                 .foregroundStyle(.secondary)
             Button(action: aoExcluir) {
                 Image(systemName: "trash")

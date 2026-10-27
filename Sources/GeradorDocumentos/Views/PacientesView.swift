@@ -77,7 +77,9 @@ struct PacientesView: View {
                 .onDeleteCommand {
                     pacienteParaExcluir = armazenamento.paciente(selecao)
                 }
+                .fundoSuave(Tema.lateral)
             }
+            .background(Tema.lateral)
             .frame(minWidth: 240, idealWidth: 280, maxWidth: 360)
 
             Group {
@@ -131,7 +133,7 @@ struct PacientesView: View {
         VStack(alignment: .leading) {
             Text(paciente.nome.isEmpty ? "Sem nome" : paciente.nome)
             if !paciente.cpf.isEmpty {
-                Text(paciente.cpf).font(.caption).foregroundStyle(.secondary)
+                Text(paciente.cpf).fonteApp(.legenda).foregroundStyle(.secondary)
             }
         }
     }
@@ -173,7 +175,7 @@ struct CadastroPacienteSheet: View {
             Divider()
             HStack {
                 Text("As alterações são salvas automaticamente.")
-                    .font(.callout)
+                    .fonteApp(.apoio)
                     .foregroundStyle(.secondary)
                 Spacer()
                 Button("Concluído") { dismiss() }
@@ -181,7 +183,8 @@ struct CadastroPacienteSheet: View {
             }
             .padding()
         }
-        .frame(width: 560, height: 640)
+        .frame(width: 620, height: 700)
+        .background(Tema.fundo)
         .confirmationDialog("Excluir este paciente?", isPresented: $confirmarExclusao) {
             Button("Excluir", role: .destructive) {
                 armazenamento.removerPaciente(id)
@@ -266,5 +269,6 @@ struct PacienteEditor: View {
             }
         }
         .formStyle(.grouped)
+        .fundoSuave()
     }
 }

@@ -49,6 +49,10 @@ Escolha a impressora na barra lateral. Na tela *Gerar documento*, marque **Impri
 
 No cadastro de cada modelo (aba *Modelos*), a seção **Impressão** define **páginas por folha** (1, 2 ou 4) e **cópias**, usadas sempre que esse modelo é impresso — por exemplo, receita de controle especial com 2 páginas por folha.
 
+### Aparência
+
+O app usa cores suaves (fundo creme no modo claro, grafite no escuro) e texto maior que o padrão do Mac. Em **Aparência e tamanho do texto** (barra lateral, ou ⌘,) você escolhe o tamanho do texto — Normal, Grande ou Muito grande — e o tema claro, escuro ou automático. Atalhos: ⌘+ aumenta, ⌘− diminui, ⌘0 volta ao normal.
+
 ### Onde os dados ficam salvos
 
 Tudo fica no próprio Mac, em `~/Library/Application Support/GeradorDocumentos/`: o arquivo `dados.json` (pacientes, locais e histórico) e a pasta `Modelos/` (cópias dos modelos). O botão *Pasta de dados* no app abre essa pasta. Para fazer backup, copie a pasta inteira.

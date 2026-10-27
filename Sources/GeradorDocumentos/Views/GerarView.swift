@@ -72,7 +72,7 @@ struct GerarView: View {
                 }
                 if armazenamento.dados.locais.isEmpty {
                     Text("Cadastre seus locais na aba “Locais de atendimento”.")
-                        .font(.callout)
+                        .fonteApp(.apoio)
                         .foregroundStyle(.secondary)
                 }
                 Picker("Modelo", selection: $modeloSelecionado) {
@@ -83,7 +83,7 @@ struct GerarView: View {
                 }
                 if armazenamento.modelos(para: local).isEmpty {
                     Text("Nenhum modelo para este local. Importe na aba “Modelos”.")
-                        .font(.callout)
+                        .fonteApp(.apoio)
                         .foregroundStyle(.secondary)
                 }
                 if modelo != nil {
@@ -129,7 +129,7 @@ struct GerarView: View {
                         "Paciente cadastrado" + (paciente.cpf.isEmpty ? "" : " · CPF \(paciente.cpf)") + " — dados preenchidos abaixo",
                         systemImage: "person.crop.circle.badge.checkmark"
                     )
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Tema.sucesso)
                 } else if !nomeDigitado.isEmpty {
                     ForEach(sugestoes) { paciente in
                         Button {
@@ -140,7 +140,7 @@ struct GerarView: View {
                         .buttonStyle(.link)
                     }
                     Text("Paciente novo: o cadastro será criado ao gerar o documento.")
-                        .font(.callout)
+                        .fonteApp(.apoio)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -188,7 +188,7 @@ struct GerarView: View {
                     HStack {
                         if let aviso {
                             Label(aviso, systemImage: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
+                                .foregroundStyle(Tema.sucesso)
                             if let ultimoDocumento {
                                 Button("Mostrar no Finder") {
                                     NSWorkspace.shared.activateFileViewerSelecting([ultimoDocumento])
@@ -211,6 +211,7 @@ struct GerarView: View {
             }
         }
         .formStyle(.grouped)
+        .fundoSuave()
         .onAppear {
             if local == nil { localSelecionado = "" }
             validarModelo()

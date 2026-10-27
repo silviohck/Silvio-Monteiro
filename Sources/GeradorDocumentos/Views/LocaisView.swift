@@ -19,7 +19,9 @@ struct LocaisView: View {
                 List(armazenamento.locaisOrdenados, selection: $selecao) { local in
                     Text(local.nome.isEmpty ? "Novo local (sem nome)" : local.nome)
                 }
+                .fundoSuave(Tema.lateral)
             }
+            .background(Tema.lateral)
             .frame(minWidth: 220, idealWidth: 260, maxWidth: 340)
 
             Group {
@@ -99,6 +101,7 @@ struct LocalEditor: View {
             }
         }
         .formStyle(.grouped)
+        .fundoSuave()
     }
 
     private func escolherPasta() {

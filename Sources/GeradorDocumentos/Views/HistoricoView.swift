@@ -15,6 +15,7 @@ struct HistoricoView: View {
                 List(armazenamento.dados.historico) { documento in
                     linha(documento)
                 }
+                .fundoSuave()
             }
         }
         .toolbar {
@@ -39,7 +40,7 @@ struct HistoricoView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text([documento.modelo, documento.paciente, documento.local ?? ""].filter { !$0.isEmpty }.joined(separator: " — "))
                 Text("\(documento.data.formatted(date: .abbreviated, time: .shortened)) · \(existe ? url.lastPathComponent : "arquivo não encontrado")")
-                    .font(.caption)
+                    .fonteApp(.legenda)
                     .foregroundStyle(.secondary)
             }
             Spacer()

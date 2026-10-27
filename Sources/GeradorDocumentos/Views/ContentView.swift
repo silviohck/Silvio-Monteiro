@@ -31,10 +31,17 @@ struct ContentView: View {
             List(Secao.allCases, selection: $secao) { item in
                 Label(item.rawValue, systemImage: item.icone)
             }
-            .navigationSplitViewColumnWidth(min: 200, ideal: 220)
+            .fundoSuave(Tema.lateral)
+            .navigationSplitViewColumnWidth(min: 210, ideal: 230)
             .safeAreaInset(edge: .bottom) {
                 VStack(alignment: .leading, spacing: 10) {
                     SeletorDeImpressora()
+                    Button {
+                        abrirAjustes()
+                    } label: {
+                        Label("Aparência e tamanho do texto", systemImage: "textformat.size")
+                    }
+                    .buttonStyle(.borderless)
                     Button {
                         armazenamento.abrirPastaDeDados()
                     } label: {
@@ -72,7 +79,7 @@ struct SeletorDeImpressora: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Label("Impressora", systemImage: "printer")
-                .font(.caption)
+                .fonteApp(.legenda)
                 .foregroundStyle(.secondary)
             HStack(spacing: 4) {
                 Picker("Impressora", selection: $impressora) {
@@ -139,7 +146,7 @@ struct AvisoVazio: View {
             Image(systemName: icone)
                 .font(.system(size: 40))
                 .foregroundStyle(.secondary)
-            Text(titulo).font(.title3).bold()
+            Text(titulo).fonteApp(.titulo)
             if !mensagem.isEmpty {
                 Text(mensagem)
                     .foregroundStyle(.secondary)
@@ -155,5 +162,6 @@ struct AvisoVazio: View {
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Tema.fundo)
     }
 }

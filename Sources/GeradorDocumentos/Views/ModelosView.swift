@@ -129,7 +129,9 @@ struct ModelosView: View {
                 .onDeleteCommand {
                     modeloParaExcluir = armazenamento.modelo(selecao)
                 }
+                .fundoSuave(Tema.lateral)
             }
+            .background(Tema.lateral)
             .frame(minWidth: 240, idealWidth: 280, maxWidth: 360)
 
             Group {
@@ -157,7 +159,7 @@ struct ModelosView: View {
         .overlay {
             if arrastando {
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 3, dash: [8]))
+                    .stroke(Tema.destaque, style: StrokeStyle(lineWidth: 3, dash: [8]))
                     .padding(8)
             }
         }
@@ -204,7 +206,7 @@ struct ModelosView: View {
                 "\(modelo.categoria) · \(modelo.campos.count) \(modelo.campos.count == 1 ? "campo" : "campos")"
                     + (modelo.paginasPorFolha > 1 ? " · \(modelo.paginasPorFolha) por folha" : "")
             )
-                .font(.caption)
+                .fonteApp(.legenda)
                 .foregroundStyle(.secondary)
         }
     }
@@ -271,7 +273,7 @@ struct ModeloEditor: View {
                     LabeledContent {
                         Text(descricao(campo)).foregroundStyle(.secondary)
                     } label: {
-                        Text("{{\(campo)}}").font(.system(.body, design: .monospaced))
+                        Text("{{\(campo)}}").fonteApp(.codigo)
                     }
                 }
             } header: {
@@ -314,6 +316,7 @@ struct ModeloEditor: View {
             }
         }
         .formStyle(.grouped)
+        .fundoSuave()
         .alert("Novo tipo de documento", isPresented: $pedindoTipo) {
             TextField("Ex.: Atestados", text: $novoTipo)
             Button("Adicionar") {
