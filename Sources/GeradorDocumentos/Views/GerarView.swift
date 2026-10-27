@@ -138,17 +138,17 @@ struct GerarView: View {
                             focoNoNome = true
                         }
                     } label: {
-                        Label("Colar", systemImage: "doc.on.clipboard")
+                        Image(systemName: "doc.on.clipboard")
                     }
-                    .controlSize(.small)
+                    .buttonStyle(.borderless)
                     .help("Colar o nome copiado")
                     Button {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(nomeDigitado, forType: .string)
                     } label: {
-                        Label("Copiar", systemImage: "doc.on.doc")
+                        Image(systemName: "doc.on.doc")
                     }
-                    .controlSize(.small)
+                    .buttonStyle(.borderless)
                     .disabled(nomeDigitado.isEmpty)
                     .help("Copiar o nome do paciente")
                     Button(action: abrirCadastro) {

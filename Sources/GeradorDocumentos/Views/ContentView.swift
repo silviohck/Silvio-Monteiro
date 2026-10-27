@@ -40,8 +40,11 @@ struct ContentView: View {
             .fundoSuave(Tema.lateral)
             .navigationSplitViewColumnWidth(min: 210, ideal: 230)
             .safeAreaInset(edge: .bottom) {
-                SeletorDeImpressora()
-                    .padding()
+                VStack(alignment: .leading, spacing: 14) {
+                    CompactarPastaBotao()
+                    SeletorDeImpressora()
+                }
+                .padding()
             }
         } detail: {
             switch secao ?? .gerar {
@@ -67,6 +70,27 @@ struct ContentView: View {
             Button("OK") { armazenamento.erro = nil }
         } message: {
             Text(armazenamento.erro ?? "")
+        }
+    }
+}
+
+/// Cria um .zip com todos os arquivos da pasta sincronizada (para levar a outro computador ou guardar).
+struct CompactarPastaBotao: View {
+    @EnvironmentObject private var armazenamento: Armazenamento
+
+    var body: some View {
+        if armazenamento.urlPastaSincronizada != nil {
+            VStack(alignment: .leading, spacing: 4) {
+                TituloSecao("Pasta de modelos", icone: "archivebox.fill")
+                Button {
+                    Task { await armazenamento.compactarPastaSincronizada() }
+                } label: {
+                    Label(armazenamento.compactando ? "Compactando…" : "Compactar (.zip)…", systemImage: "doc.zipper")
+                        .frame(maxWidth: .infinity)
+                }
+                .disabled(armazenamento.compactando)
+                .help("Cria um .zip com todos os arquivos da pasta sincronizada")
+            }
         }
     }
 }

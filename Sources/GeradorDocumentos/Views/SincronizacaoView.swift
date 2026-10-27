@@ -39,14 +39,6 @@ struct PainelSincronizacao: View {
                         .disabled(armazenamento.sincronizacao.emAndamento)
                         .help("Sincronizar agora")
                         Button {
-                            Task { await armazenamento.compactarPastaSincronizada() }
-                        } label: {
-                            Image(systemName: armazenamento.compactando ? "hourglass" : "archivebox")
-                        }
-                        .buttonStyle(.borderless)
-                        .disabled(armazenamento.compactando)
-                        .help("Compactar todos os arquivos da pasta num .zip")
-                        Button {
                             configurando = true
                         } label: {
                             Image(systemName: "gearshape")
