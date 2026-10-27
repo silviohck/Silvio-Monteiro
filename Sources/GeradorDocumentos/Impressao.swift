@@ -15,6 +15,71 @@ enum Impressao {
         fila.replacingOccurrences(of: "_", with: " ")
     }
 
+    /// Impressora padrão do Mac (vazia se não houver).
+    static func padraoDoSistema() -> String {
+        // "destino padrão do sistema: HP_LaserJet" / "system default destination: HP_LaserJet"
+        let saida = executar("/usr/bin/lpstat", ["-d"]).saida
+        guard let doisPontos = saida.lastIndex(of: ":") else { return "" }
+        return saida[saida.index(after: doisPontos)...].trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Torna a fila a impressora padrão do Mac; devolve a mensagem de erro, se houver.
+    static func definirPadrao(_ fila: String) -> String? {
+        let resultado = executar("/usr/bin/lpoptions", ["-d", fila])
+        return resultado.status == 0 ? nil : "Não foi possível tornar “\(nomeAmigavel(fila))” a impressora padrão. \(resultado.erro)"
+    }
+
+    /// Impressora encontrada na rede (Wi-Fi/cabo) ou no USB, ainda não instalada no Mac.
+    struct ImpressoraEncontrada: Identifiable, Hashable {
+        let nome: String
+        let endereco: String
+        var id: String { endereco }
+    }
+
+    /// Procura impressoras na rede e no USB (leva alguns segundos).
+    static func procurarNaRede() -> [ImpressoraEncontrada] {
+        let saida = executar("/usr/sbin/lpinfo", ["--timeout", "8", "--include-schemes", "dnssd,usb,ipp,ipps", "-v"]).saida
+        var vistas = Set<String>()
+        return saida.split(whereSeparator: \.isNewline).compactMap { linha in
+            // "network dnssd://HP%20LaserJet%20M15._ipp._tcp.local./?uuid=…"
+            guard let endereco = linha.split(separator: " ").last.map(String.init), endereco.contains("://") else { return nil }
+            var nome = String(endereco.split(separator: "/").dropFirst().first ?? "")
+            nome = nome.removingPercentEncoding ?? nome
+            if let fim = nome.range(of: "._ipp") ?? nome.range(of: "._pdl") ?? nome.range(of: "._printer") {
+                nome = String(nome[..<fim.lowerBound])
+            }
+            if endereco.hasPrefix("usb://") {
+                nome = (endereco.dropFirst("usb://".count).split(separator: "?").first.map(String.init) ?? nome)
+                    .replacingOccurrences(of: "/", with: " ")
+                nome = nome.removingPercentEncoding ?? nome
+            }
+            guard !nome.isEmpty, vistas.insert(nome.lowercased()).inserted else { return nil }
+            return ImpressoraEncontrada(nome: nome, endereco: endereco)
+        }
+        .sorted { $0.nome.localizedStandardCompare($1.nome) == .orderedAscending }
+    }
+
+    /// Instala a impressora encontrada (driver genérico AirPrint/IPP Everywhere) e devolve o nome da fila,
+    /// ou a mensagem de erro.
+    static func instalar(_ impressora: ImpressoraEncontrada) -> Result<String, Error> {
+        let fila = String(impressora.nome.map { $0.isLetter || $0.isNumber ? $0 : "_" })
+            .folding(options: .diacriticInsensitive, locale: nil)
+        let resultado = executar("/usr/sbin/lpadmin", ["-p", fila, "-E", "-v", impressora.endereco, "-m", "everywhere", "-D", impressora.nome])
+        guard resultado.status == 0 else {
+            return .failure(NSError(domain: "Orthck", code: Int(resultado.status), userInfo: [
+                NSLocalizedDescriptionKey: "O Mac não deixou instalar “\(impressora.nome)” por aqui. \(resultado.erro)",
+            ]))
+        }
+        return .success(fila)
+    }
+
+    /// Abre Ajustes do Sistema › Impressoras e Scanners.
+    static func abrirAjustesDeImpressoras() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.Print-Scan-Settings.extension") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
     static var wordInstalado: Bool {
         NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.microsoft.Word") != nil
     }

@@ -99,6 +99,7 @@ struct CompactarPastaBotao: View {
 struct SeletorDeImpressora: View {
     @AppStorage("impressora") private var impressora = ""
     @State private var filas: [String] = []
+    @State private var procurando = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -119,8 +120,23 @@ struct SeletorDeImpressora: View {
                 .buttonStyle(.borderless)
                 .help("Atualizar a lista de impressoras")
             }
+            Button {
+                procurando = true
+            } label: {
+                Label("Procurar impressoras…", systemImage: "magnifyingglass")
+                    .frame(maxWidth: .infinity)
+            }
+            .help("Procura impressoras instaladas e na rede, e define a padrão")
         }
         .onAppear { filas = Impressao.impressoras() }
+        .onChange(of: impressora) { fila in
+            // A escolhida passa a ser a padrão do Mac na hora (não só ao imprimir).
+            guard !fila.isEmpty else { return }
+            DispatchQueue.global(qos: .userInitiated).async { _ = Impressao.definirPadrao(fila) }
+        }
+        .sheet(isPresented: $procurando, onDismiss: { filas = Impressao.impressoras() }) {
+            ProcurarImpressorasView()
+        }
     }
 
     /// Mantém na lista a impressora escolhida mesmo se ela estiver desligada ou removida.

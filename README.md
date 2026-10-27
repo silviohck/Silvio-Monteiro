@@ -49,7 +49,7 @@ Na tela *Gerar documento*, **Escolher pasta principal…** define a pasta onde t
 
 ### Impressão
 
-Escolha a impressora na barra lateral. Na tela *Gerar documento*, marque **Imprimir ao gerar** (ao lado, escolha quantas **cópias**) ou use o botão **Imprimir** depois de salvar; no *Histórico* também há um botão **Imprimir**. A impressão é feita pelo **Microsoft Word** (precisa estar instalado), e a impressora escolhida passa a ser a padrão do Mac. Na primeira vez, o macOS pergunta se o app pode controlar o Word: clique em **OK**.
+Escolha a impressora na barra lateral. Na tela *Gerar documento*, marque **Imprimir ao gerar** (ao lado, escolha quantas **cópias**) ou use o botão **Imprimir** depois de salvar; no *Histórico* também há um botão **Imprimir**. A impressão é feita pelo **Microsoft Word** (precisa estar instalado), e a impressora escolhida passa a ser a padrão do Mac. Em **Procurar impressoras…** (barra lateral) você busca pelo nome entre as instaladas e as encontradas na rede ou no USB, adiciona uma nova e define a padrão com um clique. Na primeira vez, o macOS pergunta se o app pode controlar o Word: clique em **OK**.
 
 No cadastro de cada modelo (aba *Modelos*), a seção **Impressão** define o número de **cópias** que já vem marcado ao escolher o modelo em *Gerar documento*.
 
