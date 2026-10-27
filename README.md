@@ -64,6 +64,8 @@ O app usa a paleta “Sereno”: cinzas neutros e azul-petróleo suave, sem bran
 
 A aba **CID-10** tem a tabela completa do DATASUS (capítulos, categorias e subcategorias — cerca de 14 mil códigos), funciona sem internet e busca por código (`M54.5`, `m545`) ou por palavras em qualquer ordem, sem precisar de acentos (`dor lombar`, `lombalgia`). Filtre por capítulo e copie com o botão ao lado, o clique direito ou ⌘C (“M54.5 - Dor lombar baixa”).
 
+No campo `{{CID}}` da tela *Gerar documento* (e em `{{CID_PRINCIPAL}}`, `{{CID2}}`…), basta digitar o código ou palavras: o app sugere da tabela CID-10 e um clique preenche o código.
+
 ### SIGTAP e TUSS
 
 As abas **SIGTAP (SUS)** e **TUSS** funcionam como a do CID-10: busca por código (`03.01.01.007-2`, `0301010072`, `10101012`) ou por palavras, sem acentos, e cópia com botão, clique direito ou ⌘C. O SIGTAP traz a Tabela de Procedimentos do SUS (DATASUS) com filtro por grupo; a TUSS traz a tabela 22 da ANS (procedimentos e eventos em saúde, só termos vigentes).
@@ -72,7 +74,9 @@ Para atualizar as duas tabelas (o SIGTAP muda todo mês), abra no GitHub *Action
 
 ### Onde os dados ficam salvos
 
-Tudo fica no próprio Mac, em `~/Library/Application Support/GeradorDocumentos/`: o arquivo `dados.json` (pacientes, locais e histórico) e a pasta `Modelos/` (cópias dos modelos). O menu *Arquivo › Abrir pasta de dados (backup)* abre essa pasta. Para fazer backup, copie a pasta inteira.
+Tudo fica no próprio Mac, em `~/Library/Application Support/GeradorDocumentos/`: o arquivo `dados.json` (pacientes, locais, histórico e fila) e a pasta `Modelos/` (cópias dos modelos). O menu *Arquivo › Abrir pasta de dados (backup)* abre essa pasta.
+
+**Backup automático:** uma vez por dia o app guarda uma cópia do `dados.json` em `Backups/` (as últimas 30). Para restaurar, feche o app e copie o backup desejado por cima de `dados.json`. Além disso, **Compactar (.zip)…** na barra lateral leva junto o arquivo `Orthck - dados (backup).json` — guarde esse .zip no iCloud, OneDrive ou pendrive para ter uma cópia fora do Mac.
 
 ## Instalar
 

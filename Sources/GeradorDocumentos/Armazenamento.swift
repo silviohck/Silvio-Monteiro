@@ -19,7 +19,11 @@ final class Armazenamento: ObservableObject {
 
     let pasta: URL
     let pastaModelos: URL
-    private var arquivoDados: URL { pasta.appendingPathComponent("dados.json") }
+    var arquivoDados: URL { pasta.appendingPathComponent("dados.json") }
+    /// Cópias diárias do dados.json (as últimas 30), em Backups/ dentro da pasta de dados.
+    var pastaBackups: URL { pasta.appendingPathComponent("Backups", isDirectory: true) }
+    private var diaDoUltimoBackup = ""
+    private static let backupsGuardados = 30
 
     init() {
         let suporte = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -590,10 +594,38 @@ final class Armazenamento: ObservableObject {
     }
 
     private func salvar() {
+        fazerBackupDoDia()
         do {
             try Self.codificador.encode(dados).write(to: arquivoDados, options: .atomic)
         } catch {
             erro = "Não foi possível salvar os dados: \(error.localizedDescription)"
+        }
+    }
+
+    /// Uma vez por dia, antes de gravar, guarda uma cópia do dados.json como estava (a versão boa
+    /// do dia anterior) e apaga as mais antigas que as últimas 30.
+    private func fazerBackupDoDia() {
+        let formatador = DateFormatter()
+        formatador.dateFormat = "yyyy-MM-dd"
+        let hoje = formatador.string(from: Date())
+        guard hoje != diaDoUltimoBackup else { return }
+        diaDoUltimoBackup = hoje
+        let arquivos = FileManager.default
+        guard arquivos.fileExists(atPath: arquivoDados.path) else { return }
+        let destino = pastaBackups.appendingPathComponent("dados-\(hoje).json")
+        guard !arquivos.fileExists(atPath: destino.path) else { return }
+        do {
+            try arquivos.createDirectory(at: pastaBackups, withIntermediateDirectories: true)
+            try arquivos.copyItem(at: arquivoDados, to: destino)
+        } catch {
+            return
+        }
+        let antigos = ((try? arquivos.contentsOfDirectory(at: pastaBackups, includingPropertiesForKeys: nil)) ?? [])
+            .filter { $0.lastPathComponent.hasPrefix("dados-") && $0.pathExtension == "json" }
+            .sorted { $0.lastPathComponent > $1.lastPathComponent }
+            .dropFirst(Self.backupsGuardados)
+        for antigo in antigos {
+            try? arquivos.removeItem(at: antigo)
         }
     }
 

@@ -291,6 +291,7 @@ extension Armazenamento {
 
         compactando = true
         defer { compactando = false }
+        let dadosDoApp = arquivoDados
         do {
             try await Task.detached(priority: .userInitiated) {
                 let arquivos = FileManager.default
@@ -302,6 +303,9 @@ extension Armazenamento {
                 defer { try? arquivos.removeItem(at: temporaria) }
                 let copia = temporaria.appendingPathComponent(pasta.lastPathComponent, isDirectory: true)
                 try arquivos.copyItem(at: pasta, to: copia)
+                // Junto vai o backup dos pacientes, locais, histórico e fila (a pasta só tem .docx; um .json solto
+                // na pasta principal é ignorado pela sincronização).
+                try? arquivos.copyItem(at: dadosDoApp, to: copia.appendingPathComponent("Orthck - dados (backup).json"))
                 if let itens = arquivos.enumerator(at: copia, includingPropertiesForKeys: nil) {
                     for case let item as URL in itens
                     where item.lastPathComponent.hasPrefix("~$") || item.lastPathComponent == ".DS_Store" {
