@@ -262,30 +262,6 @@ struct PacienteEditor: View {
                     .lineLimit(3...8)
                     .labelsHidden()
             }
-            if !paciente.outrosCampos.isEmpty {
-                Section {
-                    ForEach(paciente.outrosCampos.keys.sorted(), id: \.self) { campo in
-                        HStack {
-                            TextField(campo, text: Binding(
-                                get: { paciente.outrosCampos[campo] ?? "" },
-                                set: { paciente.outrosCampos[campo] = $0 }
-                            ), axis: .vertical)
-                            Button {
-                                paciente.outrosCampos[campo] = nil
-                            } label: {
-                                Image(systemName: "minus.circle")
-                            }
-                            .buttonStyle(.borderless)
-                            .help("Remover este valor salvo")
-                        }
-                    }
-                } header: {
-                    TituloSecao("Outros campos salvos", icone: "tray.full.fill")
-                } footer: {
-                    Text("Valores digitados ao gerar documentos para este paciente; são reaproveitados na próxima vez.")
-                        .foregroundStyle(.secondary)
-                }
-            }
             Section {
                 HStack {
                     Spacer()

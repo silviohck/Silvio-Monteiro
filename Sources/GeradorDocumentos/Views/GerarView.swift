@@ -251,7 +251,7 @@ struct GerarView: View {
                 } header: {
                     TituloSecao("Campos do documento", icone: "list.bullet.rectangle.fill")
                 } footer: {
-                    Text("Preenchidos com o cadastro do paciente, o local e a data de hoje. Você pode alterar qualquer valor; o que digitar fica salvo no cadastro do paciente.")
+                    Text("Preenchidos com o cadastro do paciente, o local e a data de hoje. Você pode alterar qualquer valor. Só os dados gerais (CPF, nascimento, contato) ficam no cadastro; campos como CID valem só para este documento.")
                         .foregroundStyle(.secondary)
                 }
 

@@ -398,7 +398,7 @@ struct ModeloEditor: View {
         case .local: return "cadastro do local"
         case .idade: return "calculada pelo nascimento"
         case .dataHoje, .dataExtenso: return "data de hoje"
-        case nil: return "digitado na hora (fica salvo no paciente)"
+        case nil: return "digitado na hora (só neste documento)"
         }
     }
 

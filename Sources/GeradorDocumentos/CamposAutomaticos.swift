@@ -77,20 +77,18 @@ enum CamposAutomaticos {
         case .dataExtenso:
             return formatador("d 'de' MMMM 'de' yyyy").string(from: data)
         case nil:
-            return paciente?.outrosCampos[campo]
+            return nil
         }
     }
 
-    /// Guarda no cadastro do paciente o que foi digitado no formulário
-    /// (CPF, telefone etc. e também campos próprios do modelo, como CID).
+    /// Guarda no cadastro do paciente o que foi digitado nos campos gerais (CPF, telefone etc.).
+    /// Campos próprios do modelo, como CID, não são guardados.
     static func guardar(_ valores: [String: String], campos: [String], em paciente: inout Paciente) {
         for campo in campos {
             let texto = valores[campo, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
             switch mapa[chave(campo)] {
             case .paciente(let caminho) where caminho != \Paciente.nome:
                 if !texto.isEmpty { paciente[keyPath: caminho] = texto }
-            case nil:
-                paciente.outrosCampos[campo] = texto.isEmpty ? nil : texto
             default:
                 break
             }

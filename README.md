@@ -33,7 +33,7 @@ App para Mac com Apple Silicon (M1, M2, M3, M4…) que gera documentos do Word a
 | `{{DATA}}` | Data de hoje (27/10/2026) |
 | `{{DATA_EXTENSO}}` | Data por extenso (27 de outubro de 2026) |
 
-Maiúsculas, acentos e espaços não importam (`{{Data de Nascimento}}` também funciona). Qualquer outro campo, como `{{CID}}` ou `{{DIAS_AFASTAMENTO}}`, aparece para ser digitado, e o valor fica salvo no cadastro do paciente para a próxima vez.
+Maiúsculas, acentos e espaços não importam (`{{Data de Nascimento}}` também funciona). Qualquer outro campo, como `{{CID}}` ou `{{DIAS_AFASTAMENTO}}`, aparece para ser digitado e vale só para aquele documento (não fica no cadastro do paciente).
 
 ### Organização dos documentos gerados
 
