@@ -9,6 +9,9 @@ struct ModelosView: View {
     @State private var arrastando = false
     /// "" = todos, "geral" = modelos de todos os locais, ou o id do local.
     @AppStorage("filtroLocalModelos") private var filtroLocal = ""
+    /// "" = todos os tipos, ou o nome do tipo.
+    @AppStorage("filtroTipoModelos") private var filtroTipo = ""
+    @State private var gerenciandoTipos = false
 
     private static let geral = "geral"
 
@@ -22,23 +25,50 @@ struct ModelosView: View {
         armazenamento.dados.locais.first { $0.id.uuidString == filtroLocal }
     }
 
+    private var textoImportar: String {
+        let tipo = filtroTipo.isEmpty ? "modelo" : filtroTipo
+        guard let local = localFiltrado else { return "Importar \(tipo)" }
+        return "Importar \(tipo) para \(local.nome.isEmpty ? "este local" : local.nome)"
+    }
+
+    private func doFiltroDeLocal(_ modelo: ModeloDocumento) -> Bool {
+        switch filtroLocal {
+        case "": return true
+        case Self.geral: return armazenamento.localDoModelo(modelo) == nil
+        default: return modelo.localID?.uuidString == filtroLocal
+        }
+    }
+
+    /// Sem local escolhido: agrupa por local. Com local escolhido: agrupa por tipo.
     private var grupos: [Grupo] {
         let termo = busca.trimmingCharacters(in: .whitespaces)
         let modelos = armazenamento.dados.modelos
             .filter { termo.isEmpty || $0.nome.localizedCaseInsensitiveContains(termo) }
+            .filter { filtroTipo.isEmpty || $0.categoria == filtroTipo }
+            .filter(doFiltroDeLocal)
             .sorted { $0.nome.localizedStandardCompare($1.nome) == .orderedAscending }
+
+        if !filtroLocal.isEmpty {
+            var tipos = armazenamento.dados.categorias
+            for modelo in modelos where !tipos.contains(modelo.categoria) {
+                tipos.append(modelo.categoria)
+            }
+            return tipos.compactMap { tipo in
+                let doTipo = modelos.filter { $0.categoria == tipo }
+                return doTipo.isEmpty ? nil : Grupo(id: tipo, titulo: tipo, modelos: doTipo)
+            }
+        }
+
         var grupos: [Grupo] = []
-        for local in armazenamento.locaisOrdenados where filtroLocal.isEmpty || filtroLocal == local.id.uuidString {
+        for local in armazenamento.locaisOrdenados {
             let doLocal = modelos.filter { $0.localID == local.id }
             if !doLocal.isEmpty {
                 grupos.append(Grupo(id: local.id.uuidString, titulo: local.nome.isEmpty ? "Local sem nome" : local.nome, modelos: doLocal))
             }
         }
-        if filtroLocal.isEmpty || filtroLocal == Self.geral {
-            let gerais = modelos.filter { armazenamento.localDoModelo($0) == nil }
-            if !gerais.isEmpty {
-                grupos.append(Grupo(id: Self.geral, titulo: "Todos os locais", modelos: gerais))
-            }
+        let gerais = modelos.filter { armazenamento.localDoModelo($0) == nil }
+        if !gerais.isEmpty {
+            grupos.append(Grupo(id: Self.geral, titulo: "Todos os locais", modelos: gerais))
         }
         return grupos
     }
@@ -47,10 +77,7 @@ struct ModelosView: View {
         HSplitView {
             VStack(spacing: 0) {
                 Button(action: importarArquivos) {
-                    Label(
-                        localFiltrado.map { "Importar modelo para \($0.nome)" } ?? "Importar modelo",
-                        systemImage: "square.and.arrow.down"
-                    )
+                    Label(textoImportar, systemImage: "square.and.arrow.down")
                     .lineLimit(1)
                     .frame(maxWidth: .infinity)
                 }
@@ -65,6 +92,18 @@ struct ModelosView: View {
                     Text("Modelos de todos os locais").tag(Self.geral)
                 }
                 .labelsHidden()
+                .padding([.horizontal, .top], 8)
+                HStack {
+                    Picker("Tipo", selection: $filtroTipo) {
+                        Text("Todos os tipos").tag("")
+                        ForEach(armazenamento.dados.categorias, id: \.self) { tipo in
+                            Text(tipo).tag(tipo)
+                        }
+                    }
+                    .labelsHidden()
+                    Button("Gerenciar…") { gerenciandoTipos = true }
+                        .help("Criar, renomear, excluir e ordenar os tipos de documento")
+                }
                 .padding([.horizontal, .top], 8)
                 TextField("Buscar modelo", text: $busca)
                     .textFieldStyle(.roundedBorder)
@@ -108,7 +147,7 @@ struct ModelosView: View {
                         titulo: armazenamento.dados.modelos.isEmpty ? "Nenhum modelo importado" : "Nenhum modelo selecionado",
                         icone: "doc.text",
                         mensagem: "Escolha o local no filtro à esquerda e importe os modelos dele. No Word, escreva os campos entre chaves duplas onde o texto deve mudar, por exemplo: Atesto que {{NOME_PACIENTE}}, CPF {{CPF}}, esteve aqui em {{DATA}}. Você também pode arrastar arquivos .docx para esta janela.",
-                        botao: localFiltrado.map { "Importar modelo para \($0.nome)" } ?? "Importar modelo",
+                        botao: textoImportar,
                         acao: importarArquivos
                     )
                 }
@@ -137,6 +176,13 @@ struct ModelosView: View {
             }
             .disabled(selecao == nil)
         }
+        .sheet(isPresented: $gerenciandoTipos) {
+            GerenciarTiposView()
+                .environmentObject(armazenamento)
+        }
+        .onChange(of: armazenamento.dados.categorias) { categorias in
+            if !filtroTipo.isEmpty && !categorias.contains(filtroTipo) { filtroTipo = "" }
+        }
         .confirmationDialog(
             "Excluir o modelo “\(modeloParaExcluir?.nome ?? "")”?",
             isPresented: Binding(get: { modeloParaExcluir != nil }, set: { if !$0 { modeloParaExcluir = nil } }),
@@ -164,12 +210,16 @@ struct ModelosView: View {
         importar(escolherArquivosDocx(multiplos: true))
     }
 
-    /// Importa para o local escolhido no filtro (ou para todos os locais).
+    /// Importa para o local e o tipo escolhidos nos filtros.
     private func importar(_ urls: [URL]) {
         var erros: [String] = []
         for url in urls {
             do {
-                let modelo = try armazenamento.importarModelo(de: url, localID: localFiltrado?.id)
+                let modelo = try armazenamento.importarModelo(
+                    de: url,
+                    localID: localFiltrado?.id,
+                    tipo: filtroTipo.isEmpty ? nil : filtroTipo
+                )
                 selecao = modelo.id
             } catch {
                 erros.append(error.localizedDescription)

@@ -1,6 +1,7 @@
 import AppKit
 import DocxTemplateKit
 import Foundation
+import SwiftUI
 
 /// Guarda modelos, pacientes e histórico em ~/Library/Application Support/GeradorDocumentos.
 @MainActor
@@ -33,13 +34,12 @@ final class Armazenamento: ObservableObject {
     }
 
     @discardableResult
-    func importarModelo(de origem: URL, localID: UUID? = nil) throws -> ModeloDocumento {
+    func importarModelo(de origem: URL, localID: UUID? = nil, tipo: String? = nil) throws -> ModeloDocumento {
         let arquivo = "\(UUID().uuidString).docx"
         let destino = pastaModelos.appendingPathComponent(arquivo)
         let campos = try copiarModelo(origem, para: destino)
         let nome = origem.deletingPathExtension().lastPathComponent
-        var categoria = ModeloDocumento.categoriaSugerida(para: nome)
-        if !dados.categorias.contains(categoria) { categoria = dados.categorias.last ?? categoria }
+        let categoria = tipo ?? ModeloDocumento.categoriaSugerida(para: nome, entre: dados.categorias)
         let modelo = ModeloDocumento(nome: nome, arquivo: arquivo, campos: campos, categoria: categoria, localID: localID)
         dados.modelos.append(modelo)
         return modelo
@@ -193,6 +193,43 @@ final class Armazenamento: ObservableObject {
         let nome = nome.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !nome.isEmpty, !dados.categorias.contains(nome) else { return }
         dados.categorias.append(nome)
+    }
+
+    /// Renomeia o tipo e os modelos dele; se o novo nome já existir, junta os dois tipos.
+    func renomearCategoria(_ antigo: String, para novo: String) {
+        let novo = novo.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !novo.isEmpty, novo != antigo, let indice = dados.categorias.firstIndex(of: antigo) else { return }
+        var categorias = dados.categorias
+        if categorias.contains(novo) {
+            categorias.remove(at: indice)
+        } else {
+            categorias[indice] = novo
+        }
+        var modelos = dados.modelos
+        for i in modelos.indices where modelos[i].categoria == antigo {
+            modelos[i].categoria = novo
+        }
+        dados.categorias = categorias
+        dados.modelos = modelos
+    }
+
+    /// Exclui o tipo; os modelos dele passam para `destino`.
+    func removerCategoria(_ nome: String, moverPara destino: String) {
+        guard nome != destino, dados.categorias.count > 1 else { return }
+        var modelos = dados.modelos
+        for i in modelos.indices where modelos[i].categoria == nome {
+            modelos[i].categoria = destino
+        }
+        dados.modelos = modelos
+        dados.categorias.removeAll { $0 == nome }
+    }
+
+    func moverCategorias(de origem: IndexSet, para destino: Int) {
+        dados.categorias.move(fromOffsets: origem, toOffset: destino)
+    }
+
+    func quantidadeDeModelos(doTipo tipo: String) -> Int {
+        dados.modelos.filter { $0.categoria == tipo }.count
     }
 
     /// Pasta escolhida para o local ou, se nenhuma, Documentos/Gerador de Documentos/<local>.

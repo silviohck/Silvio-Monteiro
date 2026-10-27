@@ -26,13 +26,21 @@ extension ModeloDocumento {
         criadoEm = try container.decodeIfPresent(Date.self, forKey: .criadoEm) ?? Date()
     }
 
-    /// Sugere o tipo pelo nome do arquivo ("Receita simples" → Receitas).
-    static func categoriaSugerida(para nome: String) -> String {
-        let nome = nome.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
-        if nome.contains("receit") { return "Receitas" }
-        if nome.contains("laudo") { return "Laudos" }
-        if nome.contains("relat") { return "Relatórios médicos" }
-        return "Outros"
+    /// Sugere o tipo pelo nome do arquivo ("Receita simples" → o tipo cujo nome começa com "Receit").
+    static func categoriaSugerida(para nome: String, entre tipos: [String]) -> String {
+        func simples(_ texto: String) -> String {
+            texto.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+        }
+        let nome = simples(nome)
+        let apelidos = ["rx": "radiograf", "raio x": "radiograf", "raio-x": "radiograf", "usg": "ultrassom"]
+        for tipo in tipos {
+            let raiz = String(simples(tipo).prefix(5))
+            if raiz.count >= 4, nome.contains(raiz) { return tipo }
+            for (apelido, alvo) in apelidos where nome.contains(apelido) && simples(tipo).hasPrefix(alvo) {
+                return tipo
+            }
+        }
+        return tipos.first { simples($0) == "outros" } ?? tipos.last ?? "Outros"
     }
 }
 
@@ -95,7 +103,7 @@ struct DadosApp: Codable {
     var categorias = DadosApp.categoriasPadrao
     var historico: [DocumentoGerado] = []
 
-    static let categoriasPadrao = ["Receitas", "Laudos", "Relatórios médicos", "Outros"]
+    static let categoriasPadrao = ["Receitas", "Atestados", "Laudos", "Relatórios médicos", "Radiografias", "Outros"]
 
     init() {}
 

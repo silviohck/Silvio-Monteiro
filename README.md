@@ -11,7 +11,7 @@ App para Mac com Apple Silicon (M1, M2, M3, M4…) que gera documentos do Word a
    A formatação do Word (negrito, fonte, tabelas, cabeçalho e rodapé) é mantida. Há um exemplo pronto em [`Exemplos/Atestado-Exemplo.docx`](Exemplos/Atestado-Exemplo.docx).
 
 2. **Importe os modelos** na aba *Modelos*: escolha o local no filtro e clique em *Importar modelo para …*. Cada local tem seus próprios modelos (ou marque “Todos os locais” para um modelo comum). O app encontra os campos sozinho.
-   Escolha o **tipo** de cada modelo (Receitas, Laudos, Relatórios médicos ou outro que você criar).
+   Escolha também o **tipo** (Receitas, Atestados, Relatórios médicos, Radiografias…) no segundo filtro. Em *Gerenciar…* você cria, renomeia, exclui e reordena os tipos.
 3. **Cadastre seus locais de atendimento** na aba *Locais de atendimento* (clínica, hospital, consultório) e escolha a **pasta** de cada um.
 4. Na aba **Gerar documento**, escolha o modelo e o local, **digite o nome do paciente**, confira os valores e clique em *Gerar documento*. O `.docx` é salvo automaticamente na pasta do local, na subpasta do tipo, e aberto no Word.
    - Se o paciente já tem cadastro, o app sugere o nome e preenche CPF, nascimento etc.
