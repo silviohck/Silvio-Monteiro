@@ -55,6 +55,10 @@ No cadastro de cada modelo (aba *Modelos*), a seção **Impressão** define **p�
 
 O app usa cores suaves (fundo creme no modo claro, grafite no escuro) e texto maior que o padrão do Mac. Em **Aparência e tamanho do texto** (barra lateral, ou ⌘,) você escolhe o tamanho do texto — Normal, Grande ou Muito grande — e o tema claro, escuro ou automático. Atalhos: ⌘+ aumenta, ⌘− diminui, ⌘0 volta ao normal.
 
+### CID-10
+
+A aba **CID-10** tem a tabela completa do DATASUS (capítulos, categorias e subcategorias — cerca de 14 mil códigos), funciona sem internet e busca por código (`M54.5`, `m545`) ou por palavras em qualquer ordem, sem precisar de acentos (`dor lombar`, `lombalgia`). Filtre por capítulo e copie com o botão ao lado, o clique direito ou ⌘C (“M54.5 - Dor lombar baixa”).
+
 ### Onde os dados ficam salvos
 
 Tudo fica no próprio Mac, em `~/Library/Application Support/GeradorDocumentos/`: o arquivo `dados.json` (pacientes, locais e histórico) e a pasta `Modelos/` (cópias dos modelos). O botão *Pasta de dados* no app abre essa pasta. Para fazer backup, copie a pasta inteira.
