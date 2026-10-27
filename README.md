@@ -44,7 +44,7 @@ OPERA PB/                      ← pasta escolhida para o local
 └── Relatórios médicos/
 ```
 
-Para mudar onde os documentos são salvos, use os botões abaixo de “Será salvo em” (tela *Gerar documento*): **Escolher a pasta de <local>…** e, em **Mais opções**, uma pasta padrão para todos os locais ou outra pasta só para aquele documento. Se o local não tiver pasta escolhida, o app usa a pasta padrão (de início, `Documentos/Orthck`) com uma subpasta com o nome do local. Se já existir um arquivo com o mesmo nome, o novo recebe "(2)", "(3)"… no final; nada é sobrescrito.
+Na tela *Gerar documento*, **Escolher pasta principal…** define a pasta onde tudo é guardado. Ao salvar, o app procura dentro dela a **pasta do local** (sem diferenciar maiúsculas e acentos — “CAMPINA GRANDE” serve para “Campina Grande”) e, dentro desta, a **pasta do tipo** do modelo; o que não existir é criado. Em **Mais opções** dá para usar outra pasta só para um local ou só para aquele documento. Sem pasta escolhida, a pasta principal é `Documentos/Orthck`. Se já existir um arquivo com o mesmo nome, o novo recebe "(2)", "(3)"… no final; nada é sobrescrito.
 
 ### Impressão
 

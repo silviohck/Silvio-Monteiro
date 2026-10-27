@@ -209,33 +209,41 @@ struct GerarView: View {
                             .truncationMode(.middle)
                             .textSelection(.enabled)
                             .help(pastaDeDestino.path)
+                        if pastaAvulsa == nil {
+                            Text(situacaoDasPastas)
+                                .fonteApp(.legenda)
+                                .foregroundStyle(.secondary)
+                        }
                         HStack {
-                            if let local {
-                                Button {
-                                    if let url = escolherPasta(mensagem: "Escolha onde salvar os documentos de \(local.nome.isEmpty ? "este local" : local.nome). As subpastas por tipo são criadas dentro dela.") {
-                                        armazenamento.definirPasta(url, doLocal: local.id)
-                                        pastaAvulsa = nil
+                            Button {
+                                if let url = escolherPasta(mensagem: "Escolha a pasta principal. Dentro dela, o app usa (ou cria) uma pasta para cada local e, dentro desta, uma pasta para cada tipo de documento.") {
+                                    armazenamento.dados.pastaDocumentos = url.path
+                                    if let local, !local.pasta.isEmpty {
+                                        // A pasta principal passa a valer também para este local.
+                                        var semPastaPropria = local
+                                        semPastaPropria.pasta = ""
+                                        armazenamento.atualizarLocal(semPastaPropria)
                                     }
-                                } label: {
-                                    Label("Escolher a pasta de \(local.nome.isEmpty ? "este local" : local.nome)…", systemImage: "folder.badge.gearshape")
+                                    pastaAvulsa = nil
                                 }
-                                .buttonStyle(.borderedProminent)
-                            } else {
-                                Button {
-                                    if let url = escolherPasta(mensagem: "Escolha a pasta padrão. Os documentos são salvos em uma subpasta com o nome do local, dentro dela.") {
-                                        armazenamento.dados.pastaDocumentos = url.path
-                                        pastaAvulsa = nil
-                                    }
-                                } label: {
-                                    Label("Escolher onde salvar…", systemImage: "folder.badge.gearshape")
-                                }
-                                .buttonStyle(.borderedProminent)
+                            } label: {
+                                Label("Escolher pasta principal…", systemImage: "folder.badge.gearshape")
                             }
+                            .buttonStyle(.borderedProminent)
                             Menu("Mais opções") {
-                                Button("Pasta padrão para todos os locais…") {
-                                    if let url = escolherPasta(mensagem: "Escolha a pasta padrão. Locais sem pasta própria salvam em uma subpasta com o nome do local, dentro dela.") {
-                                        armazenamento.dados.pastaDocumentos = url.path
-                                        pastaAvulsa = nil
+                                if let local {
+                                    Button("Usar outra pasta só para \(local.nome.isEmpty ? "este local" : local.nome)…") {
+                                        if let url = escolherPasta(mensagem: "Escolha a pasta de \(local.nome.isEmpty ? "este local" : local.nome). Se ela não tiver o nome do local, o app cria a pasta do local dentro dela.") {
+                                            armazenamento.definirPasta(url, doLocal: local.id)
+                                            pastaAvulsa = nil
+                                        }
+                                    }
+                                    if !local.pasta.isEmpty {
+                                        Button("Voltar a usar a pasta principal") {
+                                            var semPastaPropria = local
+                                            semPastaPropria.pasta = ""
+                                            armazenamento.atualizarLocal(semPastaPropria)
+                                        }
                                     }
                                 }
                                 Button("Só este documento…") {
@@ -363,6 +371,19 @@ struct GerarView: View {
                 aviso = "Salvo e enviado para impressão: \(arquivo.lastPathComponent)"
             }
         }
+    }
+
+    /// "Pastas já existentes" ou quais serão criadas (pasta do local e/ou do tipo).
+    private var situacaoDasPastas: String {
+        let fm = FileManager.default
+        let pastaDoLocal = armazenamento.pastaDoLocal(local)
+        var novas: [String] = []
+        if !fm.fileExists(atPath: pastaDoLocal.path) { novas.append("“\(pastaDoLocal.lastPathComponent)”") }
+        if pastaDeDestino != pastaDoLocal, !fm.fileExists(atPath: pastaDeDestino.path) {
+            novas.append("“\(pastaDeDestino.lastPathComponent)”")
+        }
+        if novas.isEmpty { return "Pasta do local e do tipo já existem; o arquivo vai direto para lá." }
+        return "Será criada ao gerar: " + novas.joined(separator: " e ") + "."
     }
 
     private var pastaDeDestino: URL {

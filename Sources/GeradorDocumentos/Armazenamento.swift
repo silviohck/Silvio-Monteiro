@@ -317,14 +317,40 @@ final class Armazenamento: ObservableObject {
         return FileManager.default.fileExists(atPath: antiga) ? "Gerador de Documentos" : "Orthck"
     }()
 
-    /// Pasta escolhida para o local ou, se nenhuma, Documentos/Orthck/<local>.
+    /// Pasta do local dentro da pasta principal: usa a que já existir com o nome do local
+    /// (sem diferenciar maiúsculas e acentos: "CAMPINA GRANDE" = "Campina Grande") ou a que será criada.
+    /// Se o local tiver uma pasta própria escolhida e ela já for a pasta do local (mesmo nome), usa direto;
+    /// se for uma pasta geral, procura/cria a pasta do local dentro dela.
     func pastaDoLocal(_ local: LocalAtendimento?) -> URL {
-        if let pasta = local?.pasta, !pasta.isEmpty {
-            return URL(fileURLWithPath: pasta, isDirectory: true)
-        }
         let nome = Self.nomeSeguro(local?.nome ?? "")
-        return pastaPadraoDosDocumentos
-            .appendingPathComponent(nome.isEmpty ? "Sem local" : nome, isDirectory: true)
+        let nomeDaPasta = nome.isEmpty ? "Sem local" : nome
+        if let pasta = local?.pasta, !pasta.isEmpty {
+            let escolhida = URL(fileURLWithPath: pasta, isDirectory: true)
+            if Self.mesmoNome(escolhida.lastPathComponent, nomeDaPasta) { return escolhida }
+            return Self.pasta(em: escolhida, chamada: nomeDaPasta)
+        }
+        return Self.pasta(em: pastaPadraoDosDocumentos, chamada: nomeDaPasta)
+    }
+
+    /// Subpasta de `base` com este nome, se já existir (sem diferenciar maiúsculas e acentos);
+    /// senão, o caminho da que será criada ao salvar.
+    static func pasta(em base: URL, chamada nome: String) -> URL {
+        let existentes = (try? FileManager.default.contentsOfDirectory(
+            at: base,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        )) ?? []
+        if let existente = existentes.first(where: {
+            (try? $0.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true
+                && mesmoNome($0.lastPathComponent, nome)
+        }) {
+            return existente
+        }
+        return base.appendingPathComponent(nomeSeguro(nome), isDirectory: true)
+    }
+
+    static func mesmoNome(_ a: String, _ b: String) -> Bool {
+        nomeSeguro(a).compare(nomeSeguro(b), options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
     }
 
     /// Pasta escolhida em "Pasta padrão para todos os locais" ou Documentos/Orthck.
@@ -345,14 +371,14 @@ final class Armazenamento: ObservableObject {
     func pastaDosDocumentos(subpasta: String, local: LocalAtendimento?) -> URL {
         let nome = Self.nomeSeguro(subpasta)
         guard !nome.isEmpty else { return pastaDoLocal(local) }
-        return pastaDoLocal(local).appendingPathComponent(nome, isDirectory: true)
+        return Self.pasta(em: pastaDoLocal(local), chamada: nome)
     }
 
     /// Cria as subpastas de todas as categorias dentro da pasta do local.
     func criarSubpastas(_ local: LocalAtendimento?) throws {
         for categoria in tipos(doLocal: local?.id) {
             try FileManager.default.createDirectory(
-                at: pastaDoLocal(local).appendingPathComponent(Self.nomeSeguro(categoria), isDirectory: true),
+                at: Self.pasta(em: pastaDoLocal(local), chamada: categoria),
                 withIntermediateDirectories: true
             )
         }
