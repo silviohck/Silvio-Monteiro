@@ -58,8 +58,6 @@ struct LocalAtendimento: Identifiable, Codable, Hashable {
     var cnpj = ""
     /// Pasta onde os documentos deste local são salvos; vazia = pasta padrão em Documentos.
     var pasta = ""
-    /// Pasta da biblioteca de modelos ligada a este local (ex.: "OPERA PB"); vazia = mesmo nome do local.
-    var grupoModelos = ""
 }
 
 extension LocalAtendimento {
@@ -73,7 +71,6 @@ extension LocalAtendimento {
         email = try container.decodeIfPresent(String.self, forKey: .email) ?? ""
         cnpj = try container.decodeIfPresent(String.self, forKey: .cnpj) ?? ""
         pasta = try container.decodeIfPresent(String.self, forKey: .pasta) ?? ""
-        grupoModelos = try container.decodeIfPresent(String.self, forKey: .grupoModelos) ?? ""
     }
 }
 
@@ -92,8 +89,6 @@ struct DadosApp: Codable {
     var locais: [LocalAtendimento] = []
     var categorias = DadosApp.categoriasPadrao
     var historico: [DocumentoGerado] = []
-    /// Pasta principal com os modelos organizados em subpastas (locais → tipos).
-    var pastaModelos = ""
 
     static let categoriasPadrao = ["Receitas", "Laudos", "Relatórios médicos", "Outros"]
 
@@ -107,6 +102,5 @@ struct DadosApp: Codable {
         locais = try container.decodeIfPresent([LocalAtendimento].self, forKey: .locais) ?? []
         categorias = try container.decodeIfPresent([String].self, forKey: .categorias) ?? Self.categoriasPadrao
         historico = try container.decodeIfPresent([DocumentoGerado].self, forKey: .historico) ?? []
-        pastaModelos = try container.decodeIfPresent(String.self, forKey: .pastaModelos) ?? ""
     }
 }

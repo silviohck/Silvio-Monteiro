@@ -1,5 +1,4 @@
 import AppKit
-import DocxTemplateKit
 import SwiftUI
 
 struct LocaisView: View {
@@ -39,7 +38,7 @@ struct LocaisView: View {
                     AvisoVazio(
                         titulo: armazenamento.dados.locais.isEmpty ? "Nenhum local cadastrado" : "Nenhum local selecionado",
                         icone: "building.2",
-                        mensagem: "Cadastre os lugares onde você atende (clínica, hospital, consultório) com endereço e cidade, e escolha a pasta onde os documentos gerados de cada um devem ficar.",
+                        mensagem: "Cadastre os lugares onde você atende (clínica, hospital, consultório) e escolha a pasta de cada um. Os documentos gerados são salvos lá automaticamente, separados em Receitas, Laudos e Relatórios médicos.",
                         botao: "Cadastrar local de atendimento",
                         acao: novoLocal
                     )
@@ -106,21 +105,8 @@ struct LocalEditor: View {
             } header: {
                 Text("Onde salvar os documentos deste local")
             } footer: {
-                Text("Os documentos gerados são salvos automaticamente nesta pasta, em subpastas com o mesmo nome da pasta do modelo (LAUDO MÉDICO, RX…).")
+                Text("Os documentos são salvos automaticamente nesta pasta, separados em subpastas por tipo: \(armazenamento.dados.categorias.joined(separator: ", ")).")
                     .foregroundStyle(.secondary)
-            }
-            if !armazenamento.biblioteca.isEmpty {
-                Section {
-                    Picker("Pasta de modelos", selection: $local.grupoModelos) {
-                        Text("Mesmo nome do local").tag("")
-                        ForEach(armazenamento.biblioteca) { grupo in
-                            Text(grupo.nome).tag(grupo.nome)
-                        }
-                    }
-                } footer: {
-                    Text("Ao escolher esta pasta na tela Gerar documento, este local é selecionado sozinho.")
-                        .foregroundStyle(.secondary)
-                }
             }
             Section("Campos para usar nos modelos") {
                 campo("{{LOCAL}}", local.nome)
@@ -144,15 +130,19 @@ struct LocalEditor: View {
         painel.message = "Escolha a pasta onde ficam os documentos de \(local.nome.isEmpty ? "este local" : local.nome)."
         guard painel.runModal() == .OK, let url = painel.url else { return }
         local.pasta = url.path
+        criarSubpastas(local)
     }
 
     private func abrirPasta() {
-        let pasta = armazenamento.pastaDoLocal(local)
+        criarSubpastas(local)
+        NSWorkspace.shared.open(armazenamento.pastaDoLocal(local))
+    }
+
+    private func criarSubpastas(_ local: LocalAtendimento) {
         do {
-            try FileManager.default.createDirectory(at: pasta, withIntermediateDirectories: true)
-            NSWorkspace.shared.open(pasta)
+            try armazenamento.criarSubpastas(local)
         } catch {
-            armazenamento.erro = "Não foi possível criar a pasta: \(error.localizedDescription)"
+            armazenamento.erro = "Não foi possível criar as pastas: \(error.localizedDescription)"
         }
     }
 

@@ -9,9 +9,6 @@ final class Armazenamento: ObservableObject {
         didSet { salvar() }
     }
     @Published var erro: String?
-    /// Modelos lidos da pasta principal (ver `Biblioteca`).
-    @Published private(set) var biblioteca: [GrupoDeModelos] = []
-    private var cacheCampos: [String: (data: Date, campos: [String])] = [:]
 
     let pasta: URL
     let pastaModelos: URL
@@ -23,61 +20,6 @@ final class Armazenamento: ObservableObject {
         pastaModelos = pasta.appendingPathComponent("Modelos", isDirectory: true)
         try? FileManager.default.createDirectory(at: pastaModelos, withIntermediateDirectories: true)
         carregar()
-        recarregarBiblioteca()
-    }
-
-    // MARK: Pasta de modelos
-
-    static let grupoImportados = "Importados no app"
-
-    var urlPastaModelos: URL? {
-        dados.pastaModelos.isEmpty ? nil : URL(fileURLWithPath: dados.pastaModelos, isDirectory: true)
-    }
-
-    func definirPastaModelos(_ url: URL?) {
-        dados.pastaModelos = url?.path ?? ""
-        recarregarBiblioteca()
-    }
-
-    func recarregarBiblioteca() {
-        biblioteca = urlPastaModelos.map(Biblioteca.ler) ?? []
-        cacheCampos = [:]
-    }
-
-    /// Pastas da biblioteca mais os modelos importados um a um.
-    var grupos: [GrupoDeModelos] {
-        guard !dados.modelos.isEmpty else { return biblioteca }
-        let importados = dados.modelos.map {
-            ModeloDaPasta(url: urlDoModelo($0), nome: $0.nome, tipo: $0.categoria)
-        }
-        return biblioteca + [GrupoDeModelos(nome: Self.grupoImportados, modelos: importados)]
-    }
-
-    func grupo(_ nome: String) -> GrupoDeModelos? {
-        grupos.first { $0.nome == nome }
-    }
-
-    /// Cadastro do local ligado a uma pasta da biblioteca (escolhido no cadastro ou pelo mesmo nome).
-    func local(doGrupo nome: String) -> LocalAtendimento? {
-        dados.locais.first { $0.grupoModelos == nome }
-            ?? dados.locais.first {
-                $0.grupoModelos.isEmpty
-                    && $0.nome.trimmingCharacters(in: .whitespaces).compare(nome, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
-            }
-    }
-
-    func campos(de modelo: ModeloDaPasta) throws -> [String] {
-        let data = (try? modelo.url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
-        if let cache = cacheCampos[modelo.id], cache.data == data {
-            return cache.campos
-        }
-        let campos = try lerCoordenado(modelo.url) { try DocxTemplate.placeholders(in: $0) }
-        cacheCampos[modelo.id] = (data, campos)
-        return campos
-    }
-
-    func gerarDocumento(_ modelo: ModeloDaPasta, valores: [String: String], destino: URL) throws {
-        try lerCoordenado(modelo.url) { try DocxTemplate.fill(template: $0, values: valores, output: destino) }
     }
 
     var pacientesOrdenados: [Paciente] {
@@ -104,7 +46,7 @@ final class Armazenamento: ObservableObject {
     private func copiarModelo(_ origem: URL, para destino: URL) throws -> [String] {
         let fileManager = FileManager.default
         try? fileManager.removeItem(at: destino)
-        try lerCoordenado(origem) { (url: URL) -> Void in
+        try lerCoordenado(origem) { url in
             if url.pathExtension.lowercased() == "docx" {
                 try fileManager.copyItem(at: url, to: destino)
             } else {
@@ -120,15 +62,36 @@ final class Armazenamento: ObservableObject {
     }
 
     /// Leitura coordenada: faz o macOS baixar antes arquivos que estão só no iCloud/OneDrive.
-    private func lerCoordenado<T>(_ url: URL, _ acao: (URL) throws -> T) throws -> T {
+    private func lerCoordenado(_ url: URL, _ acao: (URL) throws -> Void) throws {
         var erroCoordenacao: NSError?
-        var resultado: Result<T, Error>?
+        var erroAcao: Error?
         NSFileCoordinator().coordinate(readingItemAt: url, options: [.withoutChanges], error: &erroCoordenacao) { urlLocal in
-            resultado = Result { try acao(urlLocal) }
+            do {
+                try acao(urlLocal)
+            } catch {
+                erroAcao = error
+            }
         }
         if let erroCoordenacao { throw erroCoordenacao }
-        guard let resultado else { throw DocxError.arquivoInvalido(url.lastPathComponent) }
-        return try resultado.get()
+        if let erroAcao { throw erroAcao }
+    }
+
+    /// Relê os campos depois que o modelo foi editado no Word.
+    func atualizarCampos(_ modelo: ModeloDocumento) throws {
+        let campos = try DocxTemplate.placeholders(in: urlDoModelo(modelo))
+        guard let indice = dados.modelos.firstIndex(where: { $0.id == modelo.id }) else { return }
+        dados.modelos[indice].campos = campos
+    }
+
+    func substituirArquivo(_ modelo: ModeloDocumento, por origem: URL) throws {
+        // Valida o arquivo novo antes de apagar o modelo atual.
+        let novo = pastaModelos.appendingPathComponent("\(UUID().uuidString).docx")
+        let campos = try copiarModelo(origem, para: novo)
+        let destino = urlDoModelo(modelo)
+        try? FileManager.default.removeItem(at: destino)
+        try FileManager.default.moveItem(at: novo, to: destino)
+        guard let indice = dados.modelos.firstIndex(where: { $0.id == modelo.id }) else { return }
+        dados.modelos[indice].campos = campos
     }
 
     func removerModelo(_ modelo: ModeloDocumento) {
@@ -212,23 +175,23 @@ final class Armazenamento: ObservableObject {
             .appendingPathComponent(nome.isEmpty ? "Sem local" : nome, isDirectory: true)
     }
 
-    /// Pasta do local (ou, sem cadastro, Documentos/Gerador de Documentos/<pasta do grupo>) + subpasta do tipo.
-    func pastaDosDocumentos(modelo: ModeloDaPasta, grupo: String, local: LocalAtendimento?) -> URL {
-        let base: URL
-        if let local {
-            base = pastaDoLocal(local)
-        } else {
-            base = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-                .appendingPathComponent("Gerador de Documentos", isDirectory: true)
-                .appendingPathComponent(Self.nomeSeguro(grupo), isDirectory: true)
+    func pastaDosDocumentos(modelo: ModeloDocumento, local: LocalAtendimento?) -> URL {
+        pastaDoLocal(local).appendingPathComponent(Self.nomeSeguro(modelo.categoria), isDirectory: true)
+    }
+
+    /// Cria as subpastas de todas as categorias dentro da pasta do local.
+    func criarSubpastas(_ local: LocalAtendimento?) throws {
+        for categoria in dados.categorias {
+            try FileManager.default.createDirectory(
+                at: pastaDoLocal(local).appendingPathComponent(Self.nomeSeguro(categoria), isDirectory: true),
+                withIntermediateDirectories: true
+            )
         }
-        guard modelo.tipo != Biblioteca.tipoGeral else { return base }
-        return base.appendingPathComponent(Self.nomeSeguro(modelo.tipo), isDirectory: true)
     }
 
     /// Caminho livre para o novo documento: "<Modelo> - <Paciente> - 27-10-2026.docx", com (2), (3)… se já existir.
-    func caminhoParaNovoDocumento(modelo: ModeloDaPasta, grupo: String, local: LocalAtendimento?, paciente: String, data: Date = Date()) throws -> URL {
-        let pasta = pastaDosDocumentos(modelo: modelo, grupo: grupo, local: local)
+    func caminhoParaNovoDocumento(modelo: ModeloDocumento, local: LocalAtendimento?, paciente: String, data: Date = Date()) throws -> URL {
+        let pasta = pastaDosDocumentos(modelo: modelo, local: local)
         try FileManager.default.createDirectory(at: pasta, withIntermediateDirectories: true)
 
         let formatador = DateFormatter()
