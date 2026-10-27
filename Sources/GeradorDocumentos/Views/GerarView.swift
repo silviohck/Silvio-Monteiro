@@ -15,6 +15,8 @@ struct GerarView: View {
     @State private var imprimindo = false
     @State private var aviso: String?
     @State private var ultimoDocumento: URL?
+    /// Pasta escolhida em "Só este documento…"; volta para nil depois de gerar.
+    @State private var pastaAvulsa: URL?
     @State private var ultimoModeloID: ModeloDocumento.ID?
     /// Subpasta = tipo do modelo (Receitas, Atestados…); filtra os modelos e é onde o documento é salvo.
     @AppStorage("subpastaSelecionada") private var subpasta = ""
@@ -159,13 +161,39 @@ struct GerarView: View {
                                 .truncationMode(.head)
                                 .lineLimit(1)
                                 .help(pastaDeDestino.path)
-                            Button {
-                                abrirPasta(pastaDeDestino)
-                            } label: {
-                                Image(systemName: "folder")
+                            if pastaAvulsa != nil {
+                                Text("(só este documento)").fonteApp(.legenda).foregroundStyle(.secondary)
+                                Button {
+                                    pastaAvulsa = nil
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                }
+                                .buttonStyle(.borderless)
+                                .foregroundStyle(.secondary)
+                                .help("Voltar para a pasta do local")
                             }
-                            .buttonStyle(.borderless)
-                            .help("Abrir esta pasta no Finder")
+                            Menu("Alterar…") {
+                                if let local {
+                                    Button("Pasta de \(local.nome.isEmpty ? "este local" : local.nome)…") {
+                                        if let url = escolherPasta(mensagem: "Escolha onde salvar os documentos de \(local.nome.isEmpty ? "este local" : local.nome). As subpastas por tipo são criadas dentro dela.") {
+                                            armazenamento.definirPasta(url, doLocal: local.id)
+                                            pastaAvulsa = nil
+                                        }
+                                    }
+                                }
+                                Button("Pasta padrão para todos os locais…") {
+                                    if let url = escolherPasta(mensagem: "Escolha a pasta padrão. Locais sem pasta própria salvam em uma subpasta com o nome do local, dentro dela.") {
+                                        armazenamento.dados.pastaDocumentos = url.path
+                                        pastaAvulsa = nil
+                                    }
+                                }
+                                Button("Só este documento…") {
+                                    pastaAvulsa = escolherPasta(mensagem: "Escolha onde salvar só este documento.")
+                                }
+                                Divider()
+                                Button("Abrir no Finder") { abrirPasta(pastaDeDestino) }
+                            }
+                            .fixedSize()
                         }
                     }
                     Toggle("Abrir o documento depois de gerar", isOn: $abrirAoGerar)
@@ -272,9 +300,8 @@ struct GerarView: View {
     }
 
     private var pastaDeDestino: URL {
-        armazenamento.pastaDosDocumentos(subpasta: subpasta, local: local)
+        pastaAvulsa ?? armazenamento.pastaDosDocumentos(subpasta: subpasta, local: local)
     }
-
 
     /// Abre o cadastro do paciente digitado, criando-o se ainda não existir.
     private func abrirCadastro() {
@@ -327,7 +354,9 @@ struct GerarView: View {
 
         let destino: URL
         do {
-            destino = try armazenamento.caminhoParaNovoDocumento(modelo: modelo, subpasta: subpasta, local: local, paciente: nome)
+            destino = try armazenamento.caminhoParaNovoDocumento(
+                modelo: modelo, subpasta: subpasta, local: local, paciente: nome, pastaAvulsa: pastaAvulsa
+            )
             try DocxTemplate.fill(
                 template: armazenamento.urlDoModelo(modelo),
                 values: valoresFinais,
@@ -350,6 +379,7 @@ struct GerarView: View {
         armazenamento.registrar(DocumentoGerado(modelo: modelo.nome, modeloID: modelo.id, paciente: nome, local: local?.nome, caminho: destino.path))
         aviso = "Salvo: \(destino.lastPathComponent)"
         ultimoDocumento = destino
+        pastaAvulsa = nil
         ultimoModeloID = modelo.id
         if imprimirAoGerar {
             imprimir(destino, modelo: modelo, manterAberto: abrirAoGerar)

@@ -127,6 +127,8 @@ struct DadosApp: Codable {
     var pastaSincronizada = ""
     /// Subpastas da pasta sincronizada que não são locais de atendimento.
     var pastasIgnoradas: [String] = []
+    /// Pasta padrão dos documentos gerados para locais sem pasta própria (vazia = Documentos/Orthck).
+    var pastaDocumentos = ""
 
     static let categoriasPadrao = ["Receitas", "Atestados", "Laudos", "Relatórios médicos", "Radiografias", "Outros"]
 
@@ -142,5 +144,6 @@ struct DadosApp: Codable {
         historico = try container.decodeIfPresent([DocumentoGerado].self, forKey: .historico) ?? []
         pastaSincronizada = try container.decodeIfPresent(String.self, forKey: .pastaSincronizada) ?? ""
         pastasIgnoradas = try container.decodeIfPresent([String].self, forKey: .pastasIgnoradas) ?? []
+        pastaDocumentos = try container.decodeIfPresent(String.self, forKey: .pastaDocumentos) ?? ""
     }
 }

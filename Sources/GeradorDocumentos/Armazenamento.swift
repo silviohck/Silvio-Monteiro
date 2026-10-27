@@ -273,7 +273,7 @@ final class Armazenamento: ObservableObject {
     }
 
     /// Documentos/Orthck, ou Documentos/Gerador de Documentos se já existir da época do nome antigo.
-    private static let pastaPadraoDosDocumentos: String = {
+    private static let nomeDaPastaPadrao: String = {
         let documentos = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let antiga = documentos.appendingPathComponent("Gerador de Documentos").path
         return FileManager.default.fileExists(atPath: antiga) ? "Gerador de Documentos" : "Orthck"
@@ -284,11 +284,23 @@ final class Armazenamento: ObservableObject {
         if let pasta = local?.pasta, !pasta.isEmpty {
             return URL(fileURLWithPath: pasta, isDirectory: true)
         }
-        let documentos = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let nome = Self.nomeSeguro(local?.nome ?? "")
-        return documentos
-            .appendingPathComponent(Self.pastaPadraoDosDocumentos, isDirectory: true)
+        return pastaPadraoDosDocumentos
             .appendingPathComponent(nome.isEmpty ? "Sem local" : nome, isDirectory: true)
+    }
+
+    /// Pasta escolhida em "Pasta padrão para todos os locais" ou Documentos/Orthck.
+    var pastaPadraoDosDocumentos: URL {
+        if !dados.pastaDocumentos.isEmpty {
+            return URL(fileURLWithPath: dados.pastaDocumentos, isDirectory: true)
+        }
+        return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent(Self.nomeDaPastaPadrao, isDirectory: true)
+    }
+
+    func definirPasta(_ url: URL, doLocal id: LocalAtendimento.ID) {
+        guard let indice = dados.locais.firstIndex(where: { $0.id == id }) else { return }
+        dados.locais[indice].pasta = url.path
     }
 
     /// Pasta do local + subpasta escolhida (vazia = direto na pasta do local).
@@ -309,14 +321,16 @@ final class Armazenamento: ObservableObject {
     }
 
     /// Caminho livre para o novo documento: "<Modelo> - <Paciente> - 27-10-2026.docx", com (2), (3)… se já existir.
+    /// `pastaAvulsa`: pasta escolhida só para este documento (sem subpasta).
     func caminhoParaNovoDocumento(
         modelo: ModeloDocumento,
         subpasta: String,
         local: LocalAtendimento?,
         paciente: String,
+        pastaAvulsa: URL? = nil,
         data: Date = Date()
     ) throws -> URL {
-        let pasta = pastaDosDocumentos(subpasta: subpasta, local: local)
+        let pasta = pastaAvulsa ?? pastaDosDocumentos(subpasta: subpasta, local: local)
         try FileManager.default.createDirectory(at: pasta, withIntermediateDirectories: true)
 
         let formatador = DateFormatter()
