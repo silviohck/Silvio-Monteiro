@@ -115,6 +115,38 @@ struct DocumentoGerado: Identifiable, Codable, Hashable {
     var data = Date()
 }
 
+/// Situação da fila: "enviado" indica que o Word aceitou o comando, não que o papel saiu.
+enum SituacaoImpressao: String, Codable {
+    case pendente
+    case enviando
+    case enviado
+    case erro
+    case incerto
+}
+
+/// Metadados da impressão; o arquivo .docx continua na pasta onde foi salvo.
+struct ItemFilaImpressao: Identifiable, Codable, Hashable {
+    var id = UUID()
+    var documentoID: UUID
+    var caminho: String
+    var modelo: String
+    var paciente: String
+    var local: String?
+    var copias: Int
+    var criadoEm = Date()
+    var situacao: SituacaoImpressao = .pendente
+    var observacao: String?
+
+    init(documento: DocumentoGerado, copias: Int) {
+        documentoID = documento.id
+        caminho = documento.caminho
+        modelo = documento.modelo
+        paciente = documento.paciente
+        local = documento.local
+        self.copias = max(1, min(20, copias))
+    }
+}
+
 struct DadosApp: Codable {
     var modelos: [ModeloDocumento] = []
     var pacientes: [Paciente] = []
@@ -122,6 +154,8 @@ struct DadosApp: Codable {
     /// Tipos dos modelos de "Todos os locais" e lista inicial de cada local novo.
     var categorias = DadosApp.categoriasPadrao
     var historico: [DocumentoGerado] = []
+    /// Fila persistente para imprimir posteriormente, inclusive após reiniciar o aplicativo.
+    var filaImpressao: [ItemFilaImpressao] = []
     /// Pasta com os modelos (uma subpasta por local, uma subpasta por tipo) acompanhada pelo app.
     var pastaSincronizada = ""
     /// Subpastas da pasta sincronizada que não são locais de atendimento.
@@ -141,6 +175,7 @@ struct DadosApp: Codable {
         locais = try container.decodeIfPresent([LocalAtendimento].self, forKey: .locais) ?? []
         categorias = try container.decodeIfPresent([String].self, forKey: .categorias) ?? Self.categoriasPadrao
         historico = try container.decodeIfPresent([DocumentoGerado].self, forKey: .historico) ?? []
+        filaImpressao = try container.decodeIfPresent([ItemFilaImpressao].self, forKey: .filaImpressao) ?? []
         pastaSincronizada = try container.decodeIfPresent(String.self, forKey: .pastaSincronizada) ?? ""
         pastasIgnoradas = try container.decodeIfPresent([String].self, forKey: .pastasIgnoradas) ?? []
         pastaDocumentos = try container.decodeIfPresent(String.self, forKey: .pastaDocumentos) ?? ""
