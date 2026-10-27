@@ -9,8 +9,9 @@ struct GerarView: View {
     @AppStorage("localSelecionado") private var localSelecionado = ""
     @State private var nomePaciente = ""
     @State private var valores: [String: String] = [:]
-    @State private var abrirAoGerar = true
-    @AppStorage("imprimirAoGerar") private var imprimirAoGerar = false
+    @State private var abrirAoGerar = false
+    /// Padrão: guardar para impressão ao final dos atendimentos.
+    @AppStorage("acaoDepoisDeGerar") private var acaoDepoisDeGerar = "fila"
     /// Cópias a imprimir; começa com o número definido no modelo e pode ser mudado aqui.
     @State private var copias = 1
     @AppStorage("impressora") private var impressora = ""
@@ -322,17 +323,24 @@ struct GerarView: View {
                     .padding(.vertical, 4)
                     Toggle("Abrir o documento depois de gerar", isOn: $abrirAoGerar)
                     HStack {
-                        Toggle(isOn: $imprimirAoGerar) {
-                            Text("Imprimir ao gerar")
-                            Text("Impressora: \(impressora.isEmpty ? "padrão do sistema" : Impressao.nomeAmigavel(impressora)) (escolha na barra lateral)")
+                        Picker("Depois de gerar", selection: $acaoDepoisDeGerar) {
+                            Text("Adicionar à fila de impressão").tag("fila")
+                            Text("Imprimir agora").tag("imprimir")
+                            Text("Só salvar").tag("salvar")
                         }
+                        .pickerStyle(.menu)
                         Spacer()
                         Stepper(value: $copias, in: 1...20) {
                             Text("\(copias) \(copias == 1 ? "cópia" : "cópias")")
                                 .monospacedDigit()
                         }
                         .fixedSize()
-                        .help("Quantas cópias imprimir deste documento")
+                        .help("Quantas cópias guardar na fila ou enviar à impressora")
+                    }
+                    if acaoDepoisDeGerar == "fila" {
+                        Text("O Word será salvo normalmente e ficará aguardando na aba Fila de impressão.")
+                            .fonteApp(.apoio)
+                            .foregroundStyle(.secondary)
                     }
                     HStack {
                         if let aviso {
@@ -343,11 +351,14 @@ struct GerarView: View {
                                     NSWorkspace.shared.activateFileViewerSelecting([ultimoDocumento])
                                 }
                                 .buttonStyle(.link)
-                                Button(imprimindo ? "Imprimindo…" : "Imprimir") {
-                                    imprimir(ultimoDocumento, manterAberto: true)
+                                Button(imprimindo ? "Enviando…" : "Imprimir agora") {
+                                    imprimir(ultimoDocumento)
                                 }
                                 .buttonStyle(.link)
-                                .disabled(imprimindo)
+                                .disabled(imprimindo || armazenamento.processandoFila
+                                    || armazenamento.dados.filaImpressao.contains(where: {
+                                        $0.caminho == ultimoDocumento.path && $0.situacao != .pendente
+                                    }))
                             }
                         }
                         Spacer()
@@ -487,24 +498,22 @@ struct GerarView: View {
     }
 
     /// Imprime com o número de cópias escolhido ao lado de "Imprimir ao gerar".
-    private func imprimir(_ arquivo: URL, manterAberto: Bool) {
+    /// Impressão manual usa a mesma fila, evitando concorrência com "Imprimir todos".
+    private func imprimir(_ arquivo: URL) {
+        guard !imprimindo, !armazenamento.processandoFila else { return }
+        guard let documento = armazenamento.dados.historico.first(where: { $0.caminho == arquivo.path }) else { return }
+        let id = armazenamento.adicionarAFila(documento, copias: copias)
+        guard armazenamento.dados.filaImpressao.contains(where: { $0.id == id && $0.situacao == .pendente }) else {
+            armazenamento.erro = "Este documento já foi enviado ou precisa de confirmação de reenvio. Veja a aba Fila de impressão."
+            return
+        }
         imprimindo = true
-        Impressao.imprimir(
-            arquivo,
-            impressora: impressora,
-            manterAberto: manterAberto,
-            copias: copias
-        ) { erro in
+        Task {
+            await armazenamento.imprimirFila(ids: Set([id]), impressora: impressora)
             imprimindo = false
-            if let erro {
-                armazenamento.erro = erro
-            } else if ultimoDocumento == arquivo {
-                aviso = "Salvo e enviado para impressão: \(arquivo.lastPathComponent)"
-            }
         }
     }
 
-    /// Quadro em destaque no topo: em qual local você está atendendo.
     private var quadroDoLocal: some View {
         HStack(spacing: 14) {
             Image(systemName: "building.2.fill")
@@ -715,10 +724,11 @@ struct GerarView: View {
             CamposAutomaticos.guardar(valoresFinais, campos: modelo.campos, em: &paciente)
             armazenamento.atualizarPaciente(paciente)
         }
-        armazenamento.registrar(DocumentoGerado(
+        let documento = DocumentoGerado(
             modelo: modelo.nome, modeloID: modelo.id, paciente: nome, pacienteID: pacienteID,
             local: local?.nome, caminho: destino.path
-        ))
+        )
+        armazenamento.registrar(documento)
         // O nome do paciente fica copiado, pronto para colar (⌘V) em outro sistema.
         if !nome.isEmpty {
             NSPasteboard.general.clearContents()
@@ -728,9 +738,17 @@ struct GerarView: View {
         ultimoDocumento = destino
         geracaoConcluida = true
         pastaAvulsa = nil
-        if imprimirAoGerar {
-            imprimir(destino, manterAberto: abrirAoGerar)
-        } else if abrirAoGerar {
+        if acaoDepoisDeGerar == "fila" || acaoDepoisDeGerar == "imprimir" {
+            let jaImprimindo = armazenamento.processandoFila
+            let id = armazenamento.adicionarAFila(documento, copias: copias)
+            aviso = "Salvo e adicionado à fila: \(destino.lastPathComponent)"
+            if acaoDepoisDeGerar == "imprimir" && !jaImprimindo {
+                Task {
+                    await armazenamento.imprimirFila(ids: Set([id]), impressora: impressora)
+                }
+            }
+        }
+        if abrirAoGerar {
             NSWorkspace.shared.open(destino)
         }
     }
