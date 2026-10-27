@@ -36,12 +36,23 @@ enum LeituraDaPasta {
     static let extensoes: Set<String> = ["docx", "doc", "rtf", "odt"]
     private static let profundidadeMaxima = 4
 
-    static func ler(raiz: URL, ignorar: Set<String>) -> [ArquivoDaPasta] {
+    /// `compartilhada`: diz se uma subpasta principal vale para todos os locais (ex.: "1 - APAC").
+    /// Os arquivos dela ficam sem local (aparecem em todos), com o nome da pasta como subpasta.
+    static func ler(raiz: URL, ignorar: Set<String>, compartilhada: (String) -> Bool = { _ in false }) -> [ArquivoDaPasta] {
         var resultado = documentos(em: raiz).map { arquivo($0, raiz: raiz, local: nil, tipo: nil, subpastas: []) }
-        for pastaDoLocal in subpastas(de: raiz) where !ignorar.contains(pastaDoLocal.lastPathComponent) {
+        let principais = subpastas(de: raiz).filter { !ignorar.contains($0.lastPathComponent) }
+        let compartilhadas = principais.filter { compartilhada($0.lastPathComponent) }
+        // Atalhos dentro dos locais que apontam para uma pasta compartilhada seriam repetidos: ficam de fora.
+        let caminhosCompartilhados = Set(compartilhadas.map(caminhoReal))
+        for pasta in compartilhadas {
+            resultado += arquivos(
+                em: pasta, real: pasta, raiz: raiz, local: nil, tipo: pasta.lastPathComponent, caminho: [], nivel: 1
+            )
+        }
+        for pastaDoLocal in principais where !compartilhada(pastaDoLocal.lastPathComponent) {
             let local = pastaDoLocal.lastPathComponent
             resultado += documentos(em: pastaDoLocal).map { arquivo($0, raiz: raiz, local: local, tipo: nil, subpastas: []) }
-            for pastaDoTipo in pastasEAtalhos(de: pastaDoLocal) {
+            for pastaDoTipo in pastasEAtalhos(de: pastaDoLocal) where !caminhosCompartilhados.contains(caminhoReal(pastaDoTipo.real)) {
                 resultado += arquivos(
                     em: pastaDoLocal.appendingPathComponent(pastaDoTipo.nome), real: pastaDoTipo.real,
                     raiz: raiz, local: local, tipo: pastaDoTipo.nome, caminho: [], nivel: 1
@@ -49,6 +60,10 @@ enum LeituraDaPasta {
             }
         }
         return resultado
+    }
+
+    private static func caminhoReal(_ url: URL) -> String {
+        url.standardizedFileURL.resolvingSymlinksInPath().path
     }
 
     /// Nomes das subpastas principais (candidatas a local de atendimento).
@@ -59,7 +74,7 @@ enum LeituraDaPasta {
     /// `pasta`: caminho como aparece dentro da pasta sincronizada (passando pelos atalhos);
     /// `real`: a pasta de verdade, para ler os arquivos. `caminho`: pastas entre a pasta do tipo e `pasta`.
     private static func arquivos(
-        em pasta: URL, real: URL, raiz: URL, local: String, tipo: String, caminho: [String], nivel: Int
+        em pasta: URL, real: URL, raiz: URL, local: String?, tipo: String, caminho: [String], nivel: Int
     ) -> [ArquivoDaPasta] {
         var resultado = documentos(em: real).map {
             arquivo($0, caminhoNaPasta: pasta.appendingPathComponent($0.lastPathComponent), raiz: raiz, local: local, tipo: tipo, subpastas: caminho)
@@ -163,7 +178,10 @@ extension Armazenamento {
         }
 
         var estado = EstadoSincronizacao(emAndamento: true, ultima: sincronizacao.ultima)
-        let arquivos = LeituraDaPasta.ler(raiz: raiz, ignorar: Set(dados.pastasIgnoradas))
+        let configuracao = dados
+        let arquivos = LeituraDaPasta.ler(
+            raiz: raiz, ignorar: Set(configuracao.pastasIgnoradas), compartilhada: configuracao.ehCompartilhada
+        )
         let caminhos = Set(arquivos.map(\.caminho))
         if arquivos.isEmpty && dados.modelos.contains(where: { $0.origem != nil }) {
             // Pasta vazia de repente (iCloud carregando, disco desconectado): não apaga nada.
@@ -172,6 +190,7 @@ extension Armazenamento {
         }
 
         ajustarSubpastas(arquivos)
+        removerLocaisDePastasCompartilhadas()
 
         let pendentes = arquivos.filter { arquivo in
             guard let existente = dados.modelos.first(where: { $0.origem == arquivo.caminho }),
@@ -307,6 +326,19 @@ extension Armazenamento {
             NSWorkspace.shared.activateFileViewerSelecting([destino])
         } catch {
             erro = error.localizedDescription
+        }
+    }
+
+    /// Uma pasta que virou "para todos os locais" pode ter criado antes um local com o nome dela:
+    /// ele sai do app se ficou sem modelos e sem pacientes.
+    private func removerLocaisDePastasCompartilhadas() {
+        let usados = Set(dados.modelos.compactMap(\.localID) + dados.pacientes.compactMap(\.localID))
+        let vazios = Set(dados.locais.filter { local in
+            guard let pasta = local.pastaSincronizada else { return false }
+            return dados.ehCompartilhada(pasta) && !usados.contains(local.id)
+        }.map(\.id))
+        if !vazios.isEmpty {
+            dados.locais.removeAll { vazios.contains($0.id) }
         }
     }
 

@@ -160,10 +160,23 @@ struct DadosApp: Codable {
     var pastaSincronizada = ""
     /// Subpastas da pasta sincronizada que não são locais de atendimento.
     var pastasIgnoradas: [String] = []
+    /// Subpastas da pasta sincronizada que valem para todos os locais (ex.: "1 - APAC"): aparecem como
+    /// subpasta de cada local, sem precisar copiar nem criar atalhos.
+    var pastasCompartilhadas: [String] = DadosApp.pastasCompartilhadasPadrao
     /// Pasta padrão dos documentos gerados para locais sem pasta própria (vazia = Documentos/Orthck).
     var pastaDocumentos = ""
 
     static let categoriasPadrao = ["Receitas", "Atestados", "Laudos", "Relatórios médicos", "Radiografias", "Outros"]
+
+    /// A pasta APAC já começa compartilhada; dá para mudar na ⚙️ da pasta sincronizada.
+    static let pastasCompartilhadasPadrao = ["1 - APAC"]
+
+    /// Sem diferenciar maiúsculas e acentos ("1 - Apac" = "1 - APAC").
+    func ehCompartilhada(_ pasta: String) -> Bool {
+        pastasCompartilhadas.contains {
+            $0.compare(pasta, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+        }
+    }
 
     init() {}
 
@@ -178,6 +191,8 @@ struct DadosApp: Codable {
         filaImpressao = try container.decodeIfPresent([ItemFilaImpressao].self, forKey: .filaImpressao) ?? []
         pastaSincronizada = try container.decodeIfPresent(String.self, forKey: .pastaSincronizada) ?? ""
         pastasIgnoradas = try container.decodeIfPresent([String].self, forKey: .pastasIgnoradas) ?? []
+        pastasCompartilhadas = try container.decodeIfPresent([String].self, forKey: .pastasCompartilhadas)
+            ?? Self.pastasCompartilhadasPadrao
         pastaDocumentos = try container.decodeIfPresent(String.self, forKey: .pastaDocumentos) ?? ""
     }
 }
