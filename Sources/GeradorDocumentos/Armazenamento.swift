@@ -115,14 +115,15 @@ final class Armazenamento: ObservableObject {
     }
 
     /// Modelos que aparecem para um local: os dele e os de todos os locais, em ordem de tipo e nome.
+    /// As pastas compartilhadas (ex.: "1 - APAC") vêm primeiro.
     func modelos(para local: LocalAtendimento?) -> [ModeloDocumento] {
-        dados.modelos
+        let ordem = dados.pastasCompartilhadas + tipos(doLocal: local?.id)
+        return dados.modelos
             .filter { modelo in
                 guard let dono = localDoModelo(modelo) else { return true }
                 return dono.id == local?.id
             }
             .sorted { a, b in
-                let ordem = tipos(doLocal: local?.id)
                 let tipoA = ordem.firstIndex(of: a.categoria) ?? Int.max
                 let tipoB = ordem.firstIndex(of: b.categoria) ?? Int.max
                 if tipoA != tipoB { return tipoA < tipoB }
@@ -333,20 +334,32 @@ final class Armazenamento: ObservableObject {
     }
 
     /// Subpasta de `base` com este nome, se já existir (sem diferenciar maiúsculas e acentos);
-    /// senão, o caminho da que será criada ao salvar.
+    /// senão, o caminho da que será criada ao salvar. Um atalho (alias) do Finder com esse nome
+    /// é seguido até a pasta original — ex.: o atalho "1 - APAC" dentro da pasta do local.
     static func pasta(em base: URL, chamada nome: String) -> URL {
         let existentes = (try? FileManager.default.contentsOfDirectory(
             at: base,
-            includingPropertiesForKeys: [.isDirectoryKey],
+            includingPropertiesForKeys: [.isDirectoryKey, .isAliasFileKey, .isSymbolicLinkKey],
             options: [.skipsHiddenFiles]
         )) ?? []
-        if let existente = existentes.first(where: {
-            (try? $0.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true
-                && mesmoNome($0.lastPathComponent, nome)
-        }) {
-            return existente
+        for item in existentes where mesmoNome(item.lastPathComponent, nome) {
+            if let destino = pastaReal(item) { return destino }
         }
         return base.appendingPathComponent(nomeSeguro(nome), isDirectory: true)
+    }
+
+    /// A própria pasta, ou a pasta para onde aponta um atalho; nil se não for pasta.
+    private static func pastaReal(_ url: URL) -> URL? {
+        let valores = try? url.resourceValues(forKeys: [.isDirectoryKey, .isAliasFileKey, .isSymbolicLinkKey])
+        var destino = url
+        if valores?.isAliasFile == true || valores?.isSymbolicLink == true {
+            guard let resolvido = try? URL(resolvingAliasFileAt: url, options: [.withoutUI, .withoutMounting]) else { return nil }
+            destino = resolvido
+        } else if valores?.isDirectory != true {
+            return nil
+        }
+        var ehPasta: ObjCBool = false
+        return FileManager.default.fileExists(atPath: destino.path, isDirectory: &ehPasta) && ehPasta.boolValue ? destino : nil
     }
 
     static func mesmoNome(_ a: String, _ b: String) -> Bool {
