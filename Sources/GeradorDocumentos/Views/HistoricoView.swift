@@ -85,6 +85,13 @@ struct HistoricoView: View {
                 }
             }
             .disabled(!existe || imprimindo != nil)
+            Button("Pôr na fila") {
+                armazenamento.adicionarAFila(documento, copias: armazenamento.modelo(documento.modeloID)?.copias ?? 1)
+            }
+            .disabled(!existe || armazenamento.dados.filaImpressao.contains {
+                $0.documentoID == documento.id && $0.situacao == .pendente
+            })
+            .help("Guardar na Fila de impressão para imprimir junto com os outros")
             Button {
                 remover(documento)
             } label: {

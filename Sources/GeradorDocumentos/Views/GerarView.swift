@@ -497,7 +497,7 @@ struct GerarView: View {
         }
     }
 
-    /// Imprime com o número de cópias escolhido ao lado de "Imprimir ao gerar".
+    /// Imprime já, com o número de cópias escolhido, passando pela fila (sem concorrer com "Imprimir todos").
     /// Impressão manual usa a mesma fila, evitando concorrência com "Imprimir todos".
     private func imprimir(_ arquivo: URL) {
         guard !imprimindo, !armazenamento.processandoFila else { return }
@@ -514,6 +514,7 @@ struct GerarView: View {
         }
     }
 
+    /// Quadro em destaque no topo: em qual local você está atendendo.
     private var quadroDoLocal: some View {
         HStack(spacing: 14) {
             Image(systemName: "building.2.fill")
@@ -738,14 +739,20 @@ struct GerarView: View {
         ultimoDocumento = destino
         geracaoConcluida = true
         pastaAvulsa = nil
+        let copiado = nome.isEmpty ? "" : " · nome copiado"
         if acaoDepoisDeGerar == "fila" || acaoDepoisDeGerar == "imprimir" {
             let jaImprimindo = armazenamento.processandoFila
             let id = armazenamento.adicionarAFila(documento, copias: copias)
-            aviso = "Salvo e adicionado à fila: \(destino.lastPathComponent)"
             if acaoDepoisDeGerar == "imprimir" && !jaImprimindo {
+                aviso = "Salvo e enviado para impressão\(copiado)"
+                let manterAberto = abrirAoGerar
                 Task {
-                    await armazenamento.imprimirFila(ids: Set([id]), impressora: impressora)
+                    await armazenamento.imprimirFila(ids: Set([id]), impressora: impressora, manterAberto: manterAberto)
                 }
+            } else if acaoDepoisDeGerar == "imprimir" {
+                aviso = "Salvo; a fila está imprimindo, este entra na fila (\(armazenamento.pendentesNaFila) aguardando)\(copiado)"
+            } else {
+                aviso = "Salvo e na fila de impressão (\(armazenamento.pendentesNaFila) aguardando)\(copiado)"
             }
         }
         if abrirAoGerar {

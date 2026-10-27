@@ -1,15 +1,18 @@
 import AppKit
 import SwiftUI
 
-/// Lista local e persistente. Remover um item nunca apaga o .docx nem o histórico.
+/// Documentos gerados aguardando impressão, na ordem em que serão impressos (o mais antigo primeiro).
+/// A fila fica salva ao fechar o app. Remover um item nunca apaga o .docx nem o histórico.
 struct FilaImpressaoView: View {
     @EnvironmentObject private var armazenamento: Armazenamento
     @AppStorage("impressora") private var impressora = ""
     @State private var selecionados = Set<UUID>()
     @State private var confirmarReenvio: ItemFilaImpressao?
 
+    private var fila: [ItemFilaImpressao] { armazenamento.dados.filaImpressao }
+
     private var pendentes: [ItemFilaImpressao] {
-        armazenamento.dados.filaImpressao.filter { $0.situacao == .pendente }
+        fila.filter { $0.situacao == .pendente }
     }
 
     private var selecionadosPendentes: Set<UUID> {
@@ -17,87 +20,39 @@ struct FilaImpressaoView: View {
     }
 
     private var enviados: Int {
-        armazenamento.dados.filaImpressao.filter { $0.situacao == .enviado }.count
+        fila.filter { $0.situacao == .enviado }.count
+    }
+
+    private var folhas: Int {
+        pendentes.reduce(0) { $0 + $1.copias }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("Fila de impressão")
-                        .font(.title2.bold())
-                    Text("\(pendentes.count) pendente(s) · \(enviados) enviado(s) ao Word")
-                        .foregroundStyle(.secondary)
-                    Text("Os documentos permanecem salvos nas pastas originais. A fila também permanece ao fechar o Orthck.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                if armazenamento.processandoFila {
-                    ProgressView("Enviando um por vez…")
-                }
-            }
-            .padding(.horizontal)
-
-            HStack(spacing: 10) {
-                Button("Selecionar pendentes") {
-                    selecionados = Set(pendentes.map(\.id))
-                }
-                .disabled(pendentes.isEmpty || armazenamento.processandoFila)
-
-                Button("Imprimir selecionados (\(selecionadosPendentes.count))") {
-                    iniciarImpressao(selecionadosPendentes)
-                }
-                .disabled(selecionadosPendentes.isEmpty || armazenamento.processandoFila)
-
-                Button {
-                    iniciarImpressao(Set(pendentes.map(\.id)))
-                } label: {
-                    Label("Imprimir todos os pendentes", systemImage: "printer.fill")
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(pendentes.isEmpty || armazenamento.processandoFila)
-
-                Spacer()
-                if enviados > 0 {
-                    Button("Limpar enviados") {
-                        armazenamento.limparEnviadosDaFila()
-                    }
-                    .disabled(armazenamento.processandoFila)
-                    .help("Remove apenas os registros já enviados; não apaga arquivos Word")
-                }
-            }
-            .padding(.horizontal)
-
-            Text("Impressora: \(impressora.isEmpty ? "padrão do macOS" : Impressao.nomeAmigavel(impressora)). Para alterar, use o seletor da barra lateral.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal)
-
-            if armazenamento.dados.filaImpressao.isEmpty {
-                Spacer()
+        Group {
+            if fila.isEmpty {
                 AvisoVazio(
                     titulo: "Fila vazia",
                     icone: "printer",
-                    mensagem: "Na tela Gerar documento, escolha “Adicionar à fila”. Depois imprima todos aqui."
+                    mensagem: "Na tela Gerar documento, deixe “Depois de gerar” em “Adicionar à fila de impressão”. Ao fim dos atendimentos, imprima tudo aqui de uma vez."
                 )
-                Spacer()
             } else {
-                List {
-                    ForEach(armazenamento.dados.filaImpressao.reversed()) { item in
-                        linha(item)
+                VStack(alignment: .leading, spacing: 0) {
+                    cabecalho
+                        .padding(16)
+                    List {
+                        ForEach(Array(fila.enumerated()), id: \.element.id) { posicao, item in
+                            linha(item, posicao: posicao + 1)
+                        }
                     }
+                    .fundoSuave()
+                    Text("“Enviado” quer dizer que o Word recebeu o documento; confira na impressora. Itens com erro ou envio interrompido só são reenviados com sua confirmação, para não sair em dobro.")
+                        .fonteApp(.legenda)
+                        .foregroundStyle(.secondary)
+                        .padding(16)
                 }
-                .listStyle(.inset)
+                .background(Tema.fundo)
             }
-
-            Text("“Enviado” significa que o Word recebeu o comando; confirme a impressão na impressora. Itens com erro ou envio interrompido só podem ser reenviados após sua confirmação.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding([.horizontal, .bottom])
         }
-        .padding(.top)
-        .fundoSuave()
         .confirmationDialog(
             "Reenviar este documento?",
             isPresented: Binding(
@@ -117,66 +72,163 @@ struct FilaImpressaoView: View {
         }
     }
 
-    private func linha(_ item: ItemFilaImpressao) -> some View {
-        let existe = FileManager.default.fileExists(atPath: item.caminho)
-        return HStack(spacing: 12) {
-            Toggle(
-                "Selecionar",
-                isOn: Binding(
-                    get: { selecionados.contains(item.id) },
-                    set: { marcado in
-                        if marcado { selecionados.insert(item.id) }
-                        else { selecionados.remove(item.id) }
+    private var cabecalho: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                TituloSecao("Fila de impressão", icone: "printer.fill")
+                Spacer()
+                if armazenamento.processandoFila {
+                    ProgressView().controlSize(.small)
+                    Text("Imprimindo um por vez…").foregroundStyle(.secondary)
+                }
+            }
+            Text(resumo)
+                .fonteApp(.apoio)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 10) {
+                Button {
+                    iniciarImpressao(Set(pendentes.map(\.id)))
+                } label: {
+                    Label("Imprimir todos (\(pendentes.count))", systemImage: "printer.fill")
+                        .padding(.horizontal, 6)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(pendentes.isEmpty || armazenamento.processandoFila)
+
+                Button("Imprimir marcados (\(selecionadosPendentes.count))") {
+                    iniciarImpressao(selecionadosPendentes)
+                }
+                .controlSize(.large)
+                .disabled(selecionadosPendentes.isEmpty || armazenamento.processandoFila)
+
+                Spacer()
+                if enviados > 0 {
+                    Button("Limpar enviados") {
+                        armazenamento.limparEnviadosDaFila()
                     }
-                )
-            )
+                    .disabled(armazenamento.processandoFila)
+                    .help("Tira da lista os já enviados; os arquivos Word continuam salvos")
+                }
+            }
+        }
+    }
+
+    private var resumo: String {
+        var partes = ["\(pendentes.count) aguardando"]
+        if folhas != pendentes.count { partes.append("\(folhas) cópias no total") }
+        if enviados > 0 { partes.append("\(enviados) \(enviados == 1 ? "enviado" : "enviados")") }
+        let destino = impressora.isEmpty ? "impressora padrão do Mac" : Impressao.nomeAmigavel(impressora)
+        return partes.joined(separator: " · ") + " — imprime em: \(destino) (troque na barra lateral)"
+    }
+
+    private func linha(_ item: ItemFilaImpressao, posicao: Int) -> some View {
+        let existe = FileManager.default.fileExists(atPath: item.caminho)
+        let pendente = item.situacao == .pendente
+        return HStack(spacing: 12) {
+            Toggle("Marcar", isOn: Binding(
+                get: { selecionados.contains(item.id) },
+                set: { marcado in
+                    if marcado { selecionados.insert(item.id) } else { selecionados.remove(item.id) }
+                }
+            ))
             .labelsHidden()
-            .disabled(item.situacao != .pendente || armazenamento.processandoFila)
+            .disabled(!pendente || armazenamento.processandoFila)
+
+            Text("\(posicao)")
+                .fonteApp(.codigo)
+                .foregroundStyle(.secondary)
+                .frame(minWidth: 22, alignment: .trailing)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text([item.modelo, item.paciente].filter { !$0.isEmpty }.joined(separator: " — "))
-                    .fontWeight(.medium)
-                Text("\(item.local ?? "Sem local") · \(item.copias) \(item.copias == 1 ? "cópia" : "cópias") · \(situacao(item.situacao))")
-                    .font(.caption)
+                Text(item.paciente.isEmpty ? item.modelo : "\(item.paciente) — \(item.modelo)")
+                    .fontWeight(.semibold)
+                    .lineLimit(1)
+                Text("\(item.local ?? "Sem local") · \(item.criadoEm.formatted(date: .omitted, time: .shortened))")
+                    .fonteApp(.legenda)
                     .foregroundStyle(.secondary)
-                if let observacao = item.observacao {
+                if let observacao = item.observacao, !pendente {
                     Text(observacao)
-                        .font(.caption)
+                        .fonteApp(.legenda)
                         .foregroundStyle(item.situacao == .erro || item.situacao == .incerto ? Color.orange : Color.secondary)
                         .lineLimit(2)
                 }
                 if !existe {
-                    Label("Arquivo não encontrado", systemImage: "exclamationmark.triangle")
-                        .font(.caption)
+                    Label("Arquivo não encontrado", systemImage: "exclamationmark.triangle.fill")
+                        .fonteApp(.legenda)
                         .foregroundStyle(.orange)
                 }
             }
             Spacer(minLength: 8)
-            Button("Abrir") {
-                NSWorkspace.shared.open(URL(fileURLWithPath: item.caminho))
+
+            etiqueta(item.situacao)
+
+            if pendente {
+                Stepper(value: Binding(
+                    get: { item.copias },
+                    set: { armazenamento.definirCopias($0, doItem: item.id) }
+                ), in: 1...20) {
+                    Text("\(item.copias) \(item.copias == 1 ? "cópia" : "cópias")").monospacedDigit()
+                }
+                .fixedSize()
+                .disabled(armazenamento.processandoFila)
+            } else {
+                Text("\(item.copias) \(item.copias == 1 ? "cópia" : "cópias")")
+                    .foregroundStyle(.secondary)
             }
+
+            if item.situacao == .erro || item.situacao == .incerto {
+                Button("Reenviar…") { confirmarReenvio = item }
+                    .disabled(armazenamento.processandoFila || !existe)
+            }
+            Button {
+                NSWorkspace.shared.open(URL(fileURLWithPath: item.caminho))
+            } label: {
+                Image(systemName: "doc.text")
+            }
+            .buttonStyle(.borderless)
             .disabled(!existe)
+            .help("Abrir no Word")
             Button {
                 NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: item.caminho)])
             } label: {
                 Image(systemName: "folder")
             }
-            .help("Mostrar no Finder")
+            .buttonStyle(.borderless)
             .disabled(!existe)
-            if item.situacao == .erro || item.situacao == .incerto {
-                Button("Reenviar…") { confirmarReenvio = item }
-                    .disabled(armazenamento.processandoFila || !existe)
-            }
+            .help("Mostrar no Finder")
             Button {
                 selecionados.remove(item.id)
                 armazenamento.removerDaFila(item.id)
             } label: {
                 Image(systemName: "xmark.circle")
             }
-            .help("Remover da fila sem excluir o documento")
+            .buttonStyle(.borderless)
+            .foregroundStyle(.secondary)
             .disabled(armazenamento.processandoFila)
+            .help("Tirar da fila (o documento continua salvo)")
         }
-        .padding(.vertical, 5)
+        .padding(.vertical, 4)
+        .opacity(pendente || item.situacao == .enviando ? 1 : 0.75)
+    }
+
+    private func etiqueta(_ situacao: SituacaoImpressao) -> some View {
+        let (texto, cor): (String, Color) = {
+            switch situacao {
+            case .pendente: return ("Aguardando", Tema.destaque)
+            case .enviando: return ("Imprimindo…", Tema.destaque)
+            case .enviado: return ("Enviado", Tema.sucesso)
+            case .erro: return ("Erro", .orange)
+            case .incerto: return ("Conferir", .orange)
+            }
+        }()
+        return Text(texto)
+            .fonteApp(.legenda)
+            .foregroundStyle(cor)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(Capsule().fill(cor.opacity(0.15)))
     }
 
     private func iniciarImpressao(_ ids: Set<UUID>) {
@@ -184,16 +236,6 @@ struct FilaImpressaoView: View {
         selecionados.subtract(ids)
         Task {
             await armazenamento.imprimirFila(ids: ids, impressora: impressora)
-        }
-    }
-
-    private func situacao(_ valor: SituacaoImpressao) -> String {
-        switch valor {
-        case .pendente: return "Aguardando impressão"
-        case .enviando: return "Enviando ao Word"
-        case .enviado: return "Enviado ao Word"
-        case .erro: return "Erro no envio"
-        case .incerto: return "Envio interrompido; conferir"
         }
     }
 }

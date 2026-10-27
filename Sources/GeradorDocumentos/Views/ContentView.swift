@@ -37,11 +37,8 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             List(Secao.allCases, selection: $secao) { item in
-                if item == .fila {
-                    Label("\(item.rawValue) (\(armazenamento.pendentesNaFila))", systemImage: item.icone)
-                } else {
-                    Label(item.rawValue, systemImage: item.icone)
-                }
+                Label(item.rawValue, systemImage: item.icone)
+                    .badge(item == .fila ? armazenamento.pendentesNaFila : 0)
             }
             .fundoSuave(Tema.lateral)
             .navigationSplitViewColumnWidth(min: 210, ideal: 230)

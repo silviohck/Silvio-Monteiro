@@ -50,6 +50,8 @@ Na tela *Gerar documento*, **Escolher pasta principal…** define a pasta onde t
 
 ### Impressão
 
+**Fila de impressão:** na tela *Gerar documento*, em **Depois de gerar**, escolha **Adicionar à fila de impressão** (padrão), **Imprimir agora** ou **Só salvar**. Os documentos vão se acumulando na aba **Fila de impressão** (o número de pendentes aparece na barra lateral) e, ao fim dos atendimentos, **Imprimir todos** manda um por vez para o Word, na ordem em que foram gerados. Dá para mudar as cópias de cada item, imprimir só os marcados ou tirar um item da fila (o arquivo continua salvo). A fila continua lá se o app for fechado; um envio interrompido fica como “Conferir” e só é reenviado com sua confirmação. No *Histórico*, **Pôr na fila** coloca de novo um documento antigo.
+
 Escolha a impressora na barra lateral. Na tela *Gerar documento*, marque **Imprimir ao gerar** (ao lado, escolha quantas **cópias**) ou use o botão **Imprimir** depois de salvar; no *Histórico* também há um botão **Imprimir**. A impressão é feita pelo **Microsoft Word** (precisa estar instalado), e a impressora escolhida passa a ser a padrão do Mac. Em **Procurar impressoras…** (barra lateral) você busca pelo nome entre as instaladas e as encontradas na rede ou no USB, adiciona uma nova e define a padrão com um clique. Na primeira vez, o macOS pergunta se o app pode controlar o Word: clique em **OK**.
 
 No cadastro de cada modelo (aba *Modelos*), a seção **Impressão** define o número de **cópias** que já vem marcado ao escolher o modelo em *Gerar documento*.

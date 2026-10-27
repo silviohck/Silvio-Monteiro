@@ -466,10 +466,11 @@ final class Armazenamento: ObservableObject {
         dados.filaImpressao.filter { $0.situacao == .pendente }.count
     }
 
-    /// Salva uma referência ao documento, nunca uma cópia do arquivo Word.
+    /// Salva uma referência ao documento, nunca uma cópia do arquivo Word. Se o documento já está
+    /// aguardando na fila, devolve esse item; se já foi impresso, entra de novo (ex.: pelo Histórico).
     @discardableResult
     func adicionarAFila(_ documento: DocumentoGerado, copias: Int) -> UUID {
-        if let existente = dados.filaImpressao.first(where: { $0.documentoID == documento.id }) {
+        if let existente = dados.filaImpressao.first(where: { $0.documentoID == documento.id && $0.situacao == .pendente }) {
             return existente.id
         }
         let item = ItemFilaImpressao(documento: documento, copias: copias)
@@ -488,6 +489,12 @@ final class Armazenamento: ObservableObject {
         dados.filaImpressao.removeAll { $0.situacao == .enviado }
     }
 
+    func definirCopias(_ copias: Int, doItem id: UUID) {
+        guard let indice = dados.filaImpressao.firstIndex(where: { $0.id == id }),
+              dados.filaImpressao[indice].situacao == .pendente else { return }
+        dados.filaImpressao[indice].copias = max(1, min(20, copias))
+    }
+
     /// Reenvio só após confirmação explícita na interface: pode causar impressão duplicada.
     func reenfileirar(_ id: UUID) {
         guard !processandoFila,
@@ -499,7 +506,8 @@ final class Armazenamento: ObservableObject {
     }
 
     /// Envia os arquivos um por vez ao Word. Sucesso significa "comando enviado", não impressão física.
-    func imprimirFila(ids: Set<UUID>, impressora: String) async {
+    /// `manterAberto`: deixa o documento aberto no Word depois de imprimir (quando também foi aberto ao gerar).
+    func imprimirFila(ids: Set<UUID>, impressora: String, manterAberto: Bool = false) async {
         guard !processandoFila else { return }
         processandoFila = true
         defer { processandoFila = false }
@@ -525,7 +533,7 @@ final class Armazenamento: ObservableObject {
                 Impressao.imprimir(
                     URL(fileURLWithPath: item.caminho),
                     impressora: impressora,
-                    manterAberto: false,
+                    manterAberto: manterAberto,
                     copias: item.copias
                 ) { erro in
                     continuation.resume(returning: erro)
