@@ -13,6 +13,11 @@ struct ModeloDocumento: Identifiable, Codable, Hashable {
     /// Ajustes usados quando o documento é impresso pelo app (ex.: receita de controle especial em 2 por folha).
     var paginasPorFolha = 1
     var copias = 1
+    /// Caminho do arquivo dentro da pasta sincronizada (ex.: "OPERA PB/RX/rx joelho.docx");
+    /// nil para modelos importados um a um.
+    var origem: String?
+    /// Data de modificação do arquivo de origem na última cópia, para saber quando ele mudou.
+    var origemModificadaEm: Date?
     var criadoEm = Date()
 }
 
@@ -28,6 +33,8 @@ extension ModeloDocumento {
         localID = try container.decodeIfPresent(UUID.self, forKey: .localID)
         paginasPorFolha = try container.decodeIfPresent(Int.self, forKey: .paginasPorFolha) ?? 1
         copias = try container.decodeIfPresent(Int.self, forKey: .copias) ?? 1
+        origem = try container.decodeIfPresent(String.self, forKey: .origem)
+        origemModificadaEm = try container.decodeIfPresent(Date.self, forKey: .origemModificadaEm)
         criadoEm = try container.decodeIfPresent(Date.self, forKey: .criadoEm) ?? Date()
     }
 
@@ -76,6 +83,8 @@ struct LocalAtendimento: Identifiable, Codable, Hashable {
     var cnpj = ""
     /// Pasta onde os documentos deste local são salvos; vazia = pasta padrão em Documentos.
     var pasta = ""
+    /// Subpasta da pasta sincronizada que pertence a este local (ex.: "OPERA PB").
+    var pastaSincronizada: String?
 }
 
 extension LocalAtendimento {
@@ -89,6 +98,7 @@ extension LocalAtendimento {
         email = try container.decodeIfPresent(String.self, forKey: .email) ?? ""
         cnpj = try container.decodeIfPresent(String.self, forKey: .cnpj) ?? ""
         pasta = try container.decodeIfPresent(String.self, forKey: .pasta) ?? ""
+        pastaSincronizada = try container.decodeIfPresent(String.self, forKey: .pastaSincronizada)
     }
 }
 
@@ -109,6 +119,10 @@ struct DadosApp: Codable {
     var locais: [LocalAtendimento] = []
     var categorias = DadosApp.categoriasPadrao
     var historico: [DocumentoGerado] = []
+    /// Pasta com os modelos (uma subpasta por local, uma subpasta por tipo) acompanhada pelo app.
+    var pastaSincronizada = ""
+    /// Subpastas da pasta sincronizada que não são locais de atendimento.
+    var pastasIgnoradas: [String] = []
 
     static let categoriasPadrao = ["Receitas", "Atestados", "Laudos", "Relatórios médicos", "Radiografias", "Outros"]
 
@@ -122,5 +136,7 @@ struct DadosApp: Codable {
         locais = try container.decodeIfPresent([LocalAtendimento].self, forKey: .locais) ?? []
         categorias = try container.decodeIfPresent([String].self, forKey: .categorias) ?? Self.categoriasPadrao
         historico = try container.decodeIfPresent([DocumentoGerado].self, forKey: .historico) ?? []
+        pastaSincronizada = try container.decodeIfPresent(String.self, forKey: .pastaSincronizada) ?? ""
+        pastasIgnoradas = try container.decodeIfPresent([String].self, forKey: .pastasIgnoradas) ?? []
     }
 }

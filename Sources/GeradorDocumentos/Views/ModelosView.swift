@@ -76,14 +76,16 @@ struct ModelosView: View {
     var body: some View {
         HSplitView {
             VStack(spacing: 0) {
+                PainelSincronizacao()
+                    .padding([.horizontal, .top], 8)
                 Button(action: importarArquivos) {
                     Label(textoImportar, systemImage: "square.and.arrow.down")
                     .lineLimit(1)
                     .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .padding([.horizontal, .top], 8)
+                .help("Importa arquivos avulsos, fora da pasta sincronizada")
                 Picker("Local", selection: $filtroLocal) {
                     Text("Todos os modelos").tag("")
                     ForEach(armazenamento.locaisOrdenados) { local in
@@ -116,10 +118,16 @@ struct ModelosView: View {
                                     .tag(modelo.id)
                                     .contextMenu {
                                         Button("Abrir no Word") {
-                                            NSWorkspace.shared.open(armazenamento.urlDoModelo(modelo))
+                                            NSWorkspace.shared.open(armazenamento.urlParaEditar(modelo))
                                         }
-                                        Button("Excluir modelo…", role: .destructive) {
-                                            modeloParaExcluir = modelo
+                                        if modelo.origem != nil {
+                                            Button("Mostrar arquivo no Finder") {
+                                                NSWorkspace.shared.activateFileViewerSelecting([armazenamento.urlParaEditar(modelo)])
+                                            }
+                                        } else {
+                                            Button("Excluir modelo…", role: .destructive) {
+                                                modeloParaExcluir = modelo
+                                            }
                                         }
                                     }
                             }
@@ -127,7 +135,7 @@ struct ModelosView: View {
                     }
                 }
                 .onDeleteCommand {
-                    modeloParaExcluir = armazenamento.modelo(selecao)
+                    modeloParaExcluir = armazenamento.modelo(selecao).flatMap { $0.origem == nil ? $0 : nil }
                 }
                 .fundoSuave(Tema.lateral)
             }
@@ -172,7 +180,7 @@ struct ModelosView: View {
                 Label("Importar modelo", systemImage: "square.and.arrow.down")
             }
             Button(role: .destructive) {
-                modeloParaExcluir = armazenamento.modelo(selecao)
+                modeloParaExcluir = armazenamento.modelo(selecao).flatMap { $0.origem == nil ? $0 : nil }
             } label: {
                 Label("Excluir modelo", systemImage: "trash")
             }
@@ -201,7 +209,15 @@ struct ModelosView: View {
 
     private func linha(_ modelo: ModeloDocumento) -> some View {
         VStack(alignment: .leading) {
-            Text(modelo.nome)
+            HStack(spacing: 4) {
+                Text(modelo.nome)
+                if modelo.origem != nil {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .fonteApp(.legenda)
+                        .foregroundStyle(.secondary)
+                        .help("Vem da pasta sincronizada")
+                }
+            }
             Text(
                 "\(modelo.categoria) · \(modelo.campos.count) \(modelo.campos.count == 1 ? "campo" : "campos")"
                     + (modelo.paginasPorFolha > 1 ? " · \(modelo.paginasPorFolha) por folha" : "")
@@ -264,9 +280,24 @@ struct ModeloEditor: View {
                 }
             }
 
+            if let origem = modelo.origem {
+                Section {
+                    LabeledContent("Arquivo") {
+                        Text(origem).foregroundStyle(.secondary).textSelection(.enabled)
+                    }
+                } header: {
+                    Text("Vem da pasta sincronizada")
+                } footer: {
+                    Text("Edite o arquivo no Word: ao voltar para o app, as mudanças entram sozinhas. Para tirar este modelo do app, apague ou mova o arquivo na pasta.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             Section {
                 if modelo.campos.isEmpty {
-                    Text("Nenhum campo {{...}} encontrado. Abra no Word, troque o nome do paciente por {{NOME_PACIENTE}} (e a data por {{DATA}}, etc.), salve e clique em “Atualizar campos”.")
+                    Text(modelo.origem == nil
+                        ? "Nenhum campo {{...}} encontrado. Abra no Word, troque o nome do paciente por {{NOME_PACIENTE}} (e a data por {{DATA}}, etc.), salve e clique em “Atualizar campos”."
+                        : "Nenhum campo {{...}} encontrado. Abra no Word, troque o nome do paciente por {{NOME_PACIENTE}} (e a data por {{DATA}}, etc.) e salve; o app atualiza sozinho.")
                         .foregroundStyle(.secondary)
                 }
                 ForEach(modelo.campos, id: \.self) { campo in
@@ -297,20 +328,26 @@ struct ModeloEditor: View {
             Section {
                 HStack {
                     Button("Editar no Word") {
-                        NSWorkspace.shared.open(armazenamento.urlDoModelo(modelo))
+                        NSWorkspace.shared.open(armazenamento.urlParaEditar(modelo))
                     }
-                    .help("Abre o modelo salvo. Depois de editar e salvar no Word, clique em “Atualizar campos”.")
-                    Button("Atualizar campos") {
-                        executar { try armazenamento.atualizarCampos(modelo) }
-                    }
-                    Button("Substituir arquivo…") {
-                        if let url = escolherArquivosDocx(multiplos: false).first {
-                            executar { try armazenamento.substituirArquivo(modelo, por: url) }
+                    if modelo.origem != nil {
+                        Button("Mostrar no Finder") {
+                            NSWorkspace.shared.activateFileViewerSelecting([armazenamento.urlParaEditar(modelo)])
                         }
-                    }
-                    Spacer()
-                    Button(role: .destructive, action: aoExcluir) {
-                        Label("Excluir modelo…", systemImage: "trash")
+                    } else {
+                        Button("Atualizar campos") {
+                            executar { try armazenamento.atualizarCampos(modelo) }
+                        }
+                        .help("Depois de editar e salvar no Word, relê os campos do modelo")
+                        Button("Substituir arquivo…") {
+                            if let url = escolherArquivosDocx(multiplos: false).first {
+                                executar { try armazenamento.substituirArquivo(modelo, por: url) }
+                            }
+                        }
+                        Spacer()
+                        Button(role: .destructive, action: aoExcluir) {
+                            Label("Excluir modelo…", systemImage: "trash")
+                        }
                     }
                 }
             }

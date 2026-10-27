@@ -60,6 +60,11 @@ struct ContentView: View {
             case .historico: HistoricoView()
             }
         }
+        // Ao abrir o app e sempre que ele volta para a frente, acompanha a pasta de modelos.
+        .task { await armazenamento.sincronizar() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            Task { await armazenamento.sincronizar() }
+        }
         .alert(
             "Atenção",
             isPresented: Binding(get: { armazenamento.erro != nil }, set: { if !$0 { armazenamento.erro = nil } })

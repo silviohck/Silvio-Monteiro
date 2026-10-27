@@ -10,7 +10,9 @@ App para Mac com Apple Silicon (M1, M2, M3, M4…) que gera documentos do Word a
 
    A formatação do Word (negrito, fonte, tabelas, cabeçalho e rodapé) é mantida. Há um exemplo pronto em [`Exemplos/Atestado-Exemplo.docx`](Exemplos/Atestado-Exemplo.docx).
 
-2. **Importe os modelos** na aba *Modelos*: escolha o local no filtro e clique em *Importar modelo para …*. Cada local tem seus próprios modelos (ou marque “Todos os locais” para um modelo comum). O app encontra os campos sozinho.
+2. **Sincronize sua pasta de modelos** (recomendado): na aba *Modelos*, clique em *Sincronizar com uma pasta…* e escolha a pasta principal — uma subpasta para cada local (ex.: OPERA PB) e, dentro dela, uma subpasta para cada tipo (ex.: RX, LAUDO MÉDICO). Desmarque as subpastas que não são locais. A partir daí o app acompanha a pasta sozinho: **arquivo novo** vira modelo, **arquivo editado** no Word é atualizado e **arquivo apagado** sai do app — sempre que você volta para o app, ou no botão ⟳. Os arquivos nunca são alterados pelo app.
+
+   Ou **importe modelos avulsos** na aba *Modelos*: escolha o local no filtro e clique em *Importar modelo para …*. Cada local tem seus próprios modelos (ou marque “Todos os locais” para um modelo comum). O app encontra os campos sozinho.
    Escolha também o **tipo** (Receitas, Atestados, Relatórios médicos, Radiografias…) no segundo filtro. Em *Gerenciar…* você cria, renomeia, exclui e reordena os tipos.
 3. **Cadastre seus locais de atendimento** na aba *Locais de atendimento*: só o nome e, se quiser, a **pasta** onde os documentos dele são salvos.
 4. Na aba **Gerar documento**, escolha o modelo e o local, **digite o nome do paciente**, confira os valores e clique em *Gerar documento*. O `.docx` é salvo automaticamente na pasta do local, na subpasta do tipo, e aberto no Word.
