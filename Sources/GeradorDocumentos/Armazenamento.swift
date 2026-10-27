@@ -12,6 +12,8 @@ final class Armazenamento: ObservableObject {
     }
     @Published var erro: String?
     @Published var sincronizacao = EstadoSincronizacao()
+    /// Criando o .zip da pasta sincronizada.
+    @Published var compactando = false
 
     let pasta: URL
     let pastaModelos: URL
@@ -114,21 +116,14 @@ final class Armazenamento: ObservableObject {
         local(modelo.localID)
     }
 
-    /// Modelos que aparecem para um local: os dele e os de todos os locais, em ordem de tipo e nome.
+    /// Modelos que aparecem para um local: os dele e os de todos os locais, em ordem alfabética de subpasta e nome.
     func modelos(para local: LocalAtendimento?) -> [ModeloDocumento] {
-        let ordem = tipos(doLocal: local?.id)
-        return dados.modelos
+        dados.modelos
             .filter { modelo in
                 guard let dono = localDoModelo(modelo) else { return true }
                 return dono.id == local?.id
             }
             .sorted { a, b in
-                // "RX / Joelho" fica logo depois de "RX".
-                let principalA = a.categoria.components(separatedBy: Self.separadorDeSubpastas)[0]
-                let principalB = b.categoria.components(separatedBy: Self.separadorDeSubpastas)[0]
-                let tipoA = ordem.firstIndex(of: principalA) ?? ordem.firstIndex(of: a.categoria) ?? Int.max
-                let tipoB = ordem.firstIndex(of: principalB) ?? ordem.firstIndex(of: b.categoria) ?? Int.max
-                if tipoA != tipoB { return tipoA < tipoB }
                 if a.categoria != b.categoria {
                     return a.categoria.localizedStandardCompare(b.categoria) == .orderedAscending
                 }
@@ -258,13 +253,18 @@ final class Armazenamento: ObservableObject {
     // MARK: Tipos de documento
     // Cada local tem a sua lista de tipos; `local == nil` são os modelos de "Todos os locais".
 
-    /// Tipos do local, na ordem escolhida, mais algum tipo usado por modelo dele que não esteja na lista.
+    /// Tipos do local mais algum tipo usado por modelo dele que não esteja na lista, em ordem alfabética.
     func tipos(doLocal id: UUID?) -> [String] {
         var lista = listaDeTipos(id)
         for modelo in dados.modelos where pertence(modelo, ao: id) && !lista.contains(modelo.categoria) {
             lista.append(modelo.categoria)
         }
-        return lista
+        return Self.emOrdemAlfabetica(lista)
+    }
+
+    /// Ordem alfabética do Finder: "1 - APAC" antes de "2 - RX", "RX" antes de "RX / Joelho".
+    static func emOrdemAlfabetica(_ nomes: [String]) -> [String] {
+        nomes.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
     }
 
     func pertence(_ modelo: ModeloDocumento, ao local: UUID?) -> Bool {
@@ -320,12 +320,6 @@ final class Armazenamento: ObservableObject {
         }
         dados.modelos = modelos
         lista.removeAll { $0 == nome }
-        definirListaDeTipos(lista, id)
-    }
-
-    func moverCategorias(de origem: IndexSet, para destino: Int, local id: UUID?) {
-        var lista = tipos(doLocal: id)
-        lista.move(fromOffsets: origem, toOffset: destino)
         definirListaDeTipos(lista, id)
     }
 

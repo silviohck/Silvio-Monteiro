@@ -42,7 +42,7 @@ struct ModelosView: View {
         for tipo in armazenamento.tipos(doLocal: local.id) + armazenamento.modelos(para: local).map(\.categoria) where !tipos.contains(tipo) {
             tipos.append(tipo)
         }
-        return tipos
+        return Armazenamento.emOrdemAlfabetica(tipos)
     }
 
     /// Sempre há um local escolhido no filtro, se houver locais cadastrados.

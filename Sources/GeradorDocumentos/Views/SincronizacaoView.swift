@@ -39,6 +39,14 @@ struct PainelSincronizacao: View {
                         .disabled(armazenamento.sincronizacao.emAndamento)
                         .help("Sincronizar agora")
                         Button {
+                            Task { await armazenamento.compactarPastaSincronizada() }
+                        } label: {
+                            Image(systemName: armazenamento.compactando ? "hourglass" : "archivebox")
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(armazenamento.compactando)
+                        .help("Compactar todos os arquivos da pasta num .zip")
+                        Button {
                             configurando = true
                         } label: {
                             Image(systemName: "gearshape")
@@ -126,6 +134,10 @@ struct AjustesSincronizacaoView: View {
                 .buttonStyle(.borderedProminent)
                 if let url = armazenamento.urlPastaSincronizada {
                     Button("Abrir no Finder") { NSWorkspace.shared.open(url) }
+                    Button(armazenamento.compactando ? "Compactando…" : "Compactar (.zip)…") {
+                        Task { await armazenamento.compactarPastaSincronizada() }
+                    }
+                    .disabled(armazenamento.compactando)
                 }
             }
 

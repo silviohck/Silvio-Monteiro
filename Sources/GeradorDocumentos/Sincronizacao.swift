@@ -1,4 +1,6 @@
+import AppKit
 import Foundation
+import UniformTypeIdentifiers
 
 /// Um documento encontrado na pasta sincronizada.
 struct ArquivoDaPasta {
@@ -251,6 +253,46 @@ extension Armazenamento {
             if modelo.nome != arquivo.nome && modelo.nome.contains(separador) {
                 dados.modelos[indice].nome = arquivo.nome
             }
+        }
+    }
+
+    /// Compacta a pasta sincronizada inteira num .zip escolhido pelo usuário (para levar a outro computador
+    /// ou guardar uma cópia). Os arquivos originais não mudam.
+    func compactarPastaSincronizada() async {
+        guard let pasta = urlPastaSincronizada else { return }
+        let formatador = DateFormatter()
+        formatador.dateFormat = "dd-MM-yyyy"
+        let painel = NSSavePanel()
+        painel.allowedContentTypes = [.zip]
+        painel.nameFieldStringValue = "\(pasta.lastPathComponent) \(formatador.string(from: Date())).zip"
+        painel.directoryURL = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first
+        painel.message = "Onde salvar o .zip com todos os arquivos da pasta sincronizada?"
+        painel.prompt = "Compactar"
+        guard painel.runModal() == .OK, let destino = painel.url else { return }
+
+        compactando = true
+        defer { compactando = false }
+        do {
+            try await Task.detached(priority: .userInitiated) {
+                try? FileManager.default.removeItem(at: destino)
+                let processo = Process()
+                processo.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+                // -c -k: .zip comum (abre no Windows também); --keepParent: a pasta fica dentro do .zip.
+                processo.arguments = ["-c", "-k", "--sequesterRsrc", "--keepParent", pasta.path, destino.path]
+                let erro = Pipe()
+                processo.standardError = erro
+                try processo.run()
+                processo.waitUntilExit()
+                guard processo.terminationStatus == 0 else {
+                    let mensagem = String(data: erro.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+                    throw NSError(domain: "Orthck", code: Int(processo.terminationStatus), userInfo: [
+                        NSLocalizedDescriptionKey: "Não foi possível criar o .zip. \(mensagem)",
+                    ])
+                }
+            }.value
+            NSWorkspace.shared.activateFileViewerSelecting([destino])
+        } catch {
+            erro = error.localizedDescription
         }
     }
 
