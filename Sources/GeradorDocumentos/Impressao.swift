@@ -20,11 +20,13 @@ enum Impressao {
     }
 
     /// Imprime `arquivo` pelo Word. Com uma impressora escolhida, ela passa a ser a padrão do Mac
-    /// (o Word sempre imprime na impressora padrão). `concluir` recebe nil ou a mensagem de erro.
+    /// (o Word sempre imprime na impressora padrão). `concluir` recebe nil ou a mensagem de erro/aviso.
     static func imprimir(
         _ arquivo: URL,
         impressora: String,
         manterAberto: Bool,
+        paginasPorFolha: Int = 1,
+        copias: Int = 1,
         concluir: @escaping (String?) -> Void
     ) {
         guard wordInstalado else {
@@ -40,12 +42,34 @@ enum Impressao {
                 }
             }
             if erro == nil {
-                let resultado = executar("/usr/bin/osascript", ["-e", script, arquivo.path, manterAberto ? "sim" : "nao"])
-                if resultado.status != 0 {
-                    erro = mensagem(paraErroDoAppleScript: resultado.erro)
+                let argumentos = [arquivo.path, manterAberto ? "sim" : "nao", String(max(1, copias))]
+                let (colunas, linhas) = grade(paginasPorFolha)
+                if colunas * linhas > 1 {
+                    let resultado = executar("/usr/bin/osascript", ["-e", scriptVariasPorFolha] + argumentos + [String(colunas), String(linhas)])
+                    if resultado.status != 0 {
+                        // Se o Word não aceitar o ajuste, imprime normal para não perder a impressão.
+                        let normal = executar("/usr/bin/osascript", ["-e", script] + argumentos)
+                        erro = normal.status != 0
+                            ? mensagem(paraErroDoAppleScript: normal.erro)
+                            : "O documento foi impresso, mas o Word não aceitou “\(paginasPorFolha) páginas por folha”. Ajuste na janela de impressão do Word. (\(resultado.erro))"
+                    }
+                } else {
+                    let resultado = executar("/usr/bin/osascript", ["-e", script] + argumentos)
+                    if resultado.status != 0 {
+                        erro = mensagem(paraErroDoAppleScript: resultado.erro)
+                    }
                 }
             }
             DispatchQueue.main.async { concluir(erro) }
+        }
+    }
+
+    /// 2 por folha = 2 colunas × 1 linha; 4 por folha = 2 × 2.
+    private static func grade(_ paginasPorFolha: Int) -> (colunas: Int, linhas: Int) {
+        switch paginasPorFolha {
+        case 2: return (2, 1)
+        case 4: return (2, 2)
+        default: return (1, 1)
         }
     }
 
@@ -53,9 +77,29 @@ enum Impressao {
     on run argv
         set arquivo to (POSIX file (item 1 of argv)) as alias
         set manterAberto to item 2 of argv
+        set copias to (item 3 of argv) as integer
         tell application "Microsoft Word"
             open arquivo
-            print out active document
+            repeat copias times
+                print out active document
+            end repeat
+            if manterAberto is "nao" then close active document saving no
+        end tell
+    end run
+    """
+
+    private static let scriptVariasPorFolha = """
+    on run argv
+        set arquivo to (POSIX file (item 1 of argv)) as alias
+        set manterAberto to item 2 of argv
+        set copias to (item 3 of argv) as integer
+        set colunas to (item 4 of argv) as integer
+        set linhas to (item 5 of argv) as integer
+        tell application "Microsoft Word"
+            open arquivo
+            repeat copias times
+                print out active document print zoom column colunas print zoom row linhas
+            end repeat
             if manterAberto is "nao" then close active document saving no
         end tell
     end run

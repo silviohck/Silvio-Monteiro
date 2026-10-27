@@ -15,6 +15,7 @@ struct GerarView: View {
     @State private var imprimindo = false
     @State private var aviso: String?
     @State private var ultimoDocumento: URL?
+    @State private var ultimoModeloID: ModeloDocumento.ID?
     /// Subpasta onde o documento será salvo ("" = direto na pasta do local).
     @State private var subpasta = ""
     @State private var pedindoSubpasta = false
@@ -194,7 +195,7 @@ struct GerarView: View {
                                 }
                                 .buttonStyle(.link)
                                 Button(imprimindo ? "Imprimindo…" : "Imprimir") {
-                                    imprimir(ultimoDocumento, manterAberto: true)
+                                    imprimir(ultimoDocumento, modelo: armazenamento.modelo(ultimoModeloID), manterAberto: true)
                                 }
                                 .buttonStyle(.link)
                                 .disabled(imprimindo)
@@ -256,9 +257,16 @@ struct GerarView: View {
         }
     }
 
-    private func imprimir(_ arquivo: URL, manterAberto: Bool) {
+    /// Imprime com os ajustes do modelo (páginas por folha e cópias).
+    private func imprimir(_ arquivo: URL, modelo: ModeloDocumento?, manterAberto: Bool) {
         imprimindo = true
-        Impressao.imprimir(arquivo, impressora: impressora, manterAberto: manterAberto) { erro in
+        Impressao.imprimir(
+            arquivo,
+            impressora: impressora,
+            manterAberto: manterAberto,
+            paginasPorFolha: modelo?.paginasPorFolha ?? 1,
+            copias: modelo?.copias ?? 1
+        ) { erro in
             imprimindo = false
             if let erro {
                 armazenamento.erro = erro
@@ -344,11 +352,12 @@ struct GerarView: View {
             CamposAutomaticos.guardar(valoresFinais, campos: modelo.campos, em: &paciente)
             armazenamento.atualizarPaciente(paciente)
         }
-        armazenamento.registrar(DocumentoGerado(modelo: modelo.nome, paciente: nome, local: local?.nome, caminho: destino.path))
+        armazenamento.registrar(DocumentoGerado(modelo: modelo.nome, modeloID: modelo.id, paciente: nome, local: local?.nome, caminho: destino.path))
         aviso = "Salvo: \(destino.lastPathComponent)"
         ultimoDocumento = destino
+        ultimoModeloID = modelo.id
         if imprimirAoGerar {
-            imprimir(destino, manterAberto: abrirAoGerar)
+            imprimir(destino, modelo: modelo, manterAberto: abrirAoGerar)
         } else if abrirAoGerar {
             NSWorkspace.shared.open(destino)
         }

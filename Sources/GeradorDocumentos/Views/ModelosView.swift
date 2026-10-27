@@ -200,7 +200,10 @@ struct ModelosView: View {
     private func linha(_ modelo: ModeloDocumento) -> some View {
         VStack(alignment: .leading) {
             Text(modelo.nome)
-            Text("\(modelo.categoria) · \(modelo.campos.count) \(modelo.campos.count == 1 ? "campo" : "campos")")
+            Text(
+                "\(modelo.categoria) · \(modelo.campos.count) \(modelo.campos.count == 1 ? "campo" : "campos")"
+                    + (modelo.paginasPorFolha > 1 ? " · \(modelo.paginasPorFolha) por folha" : "")
+            )
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -273,6 +276,20 @@ struct ModeloEditor: View {
                 }
             } header: {
                 Text("Campos do modelo (\(modelo.campos.count))")
+            }
+
+            Section {
+                Picker("Páginas por folha", selection: $modelo.paginasPorFolha) {
+                    Text("1 (normal)").tag(1)
+                    Text("2 por folha").tag(2)
+                    Text("4 por folha").tag(4)
+                }
+                Stepper("Cópias: \(modelo.copias)", value: $modelo.copias, in: 1...10)
+            } header: {
+                Text("Impressão")
+            } footer: {
+                Text("Usado sempre que este modelo é impresso pelo app (tela Gerar documento e Histórico). Ex.: receita de controle especial com 2 páginas por folha.")
+                    .foregroundStyle(.secondary)
             }
 
             Section {

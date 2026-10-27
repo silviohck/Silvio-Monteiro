@@ -47,6 +47,8 @@ Se o local não tiver pasta escolhida, o app usa `Documentos/Gerador de Document
 
 Escolha a impressora na barra lateral. Na tela *Gerar documento*, marque **Imprimir ao gerar** ou use o botão **Imprimir** depois de salvar; no *Histórico* também há um botão **Imprimir**. A impressão é feita pelo **Microsoft Word** (precisa estar instalado), e a impressora escolhida passa a ser a padrão do Mac. Na primeira vez, o macOS pergunta se o app pode controlar o Word: clique em **OK**.
 
+No cadastro de cada modelo (aba *Modelos*), a seção **Impressão** define **páginas por folha** (1, 2 ou 4) e **cópias**, usadas sempre que esse modelo é impresso — por exemplo, receita de controle especial com 2 páginas por folha.
+
 ### Onde os dados ficam salvos
 
 Tudo fica no próprio Mac, em `~/Library/Application Support/GeradorDocumentos/`: o arquivo `dados.json` (pacientes, locais e histórico) e a pasta `Modelos/` (cópias dos modelos). O botão *Pasta de dados* no app abre essa pasta. Para fazer backup, copie a pasta inteira.

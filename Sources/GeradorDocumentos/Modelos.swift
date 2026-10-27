@@ -10,6 +10,9 @@ struct ModeloDocumento: Identifiable, Codable, Hashable {
     var categoria = "Outros"
     /// Local de atendimento dono do modelo; nil = disponível em todos os locais.
     var localID: UUID?
+    /// Ajustes usados quando o documento é impresso pelo app (ex.: receita de controle especial em 2 por folha).
+    var paginasPorFolha = 1
+    var copias = 1
     var criadoEm = Date()
 }
 
@@ -23,6 +26,8 @@ extension ModeloDocumento {
         campos = try container.decode([String].self, forKey: .campos)
         categoria = try container.decodeIfPresent(String.self, forKey: .categoria) ?? "Outros"
         localID = try container.decodeIfPresent(UUID.self, forKey: .localID)
+        paginasPorFolha = try container.decodeIfPresent(Int.self, forKey: .paginasPorFolha) ?? 1
+        copias = try container.decodeIfPresent(Int.self, forKey: .copias) ?? 1
         criadoEm = try container.decodeIfPresent(Date.self, forKey: .criadoEm) ?? Date()
     }
 
@@ -90,6 +95,8 @@ extension LocalAtendimento {
 struct DocumentoGerado: Identifiable, Codable, Hashable {
     var id = UUID()
     var modelo: String
+    /// Para reaproveitar os ajustes de impressão do modelo no Histórico.
+    var modeloID: UUID?
     var paciente: String
     var local: String?
     var caminho: String

@@ -49,7 +49,14 @@ struct HistoricoView: View {
                 .disabled(!existe)
             Button(imprimindo == documento.id ? "Imprimindo…" : "Imprimir") {
                 imprimindo = documento.id
-                Impressao.imprimir(url, impressora: impressora, manterAberto: false) { erro in
+                let modelo = armazenamento.modelo(documento.modeloID)
+                Impressao.imprimir(
+                    url,
+                    impressora: impressora,
+                    manterAberto: false,
+                    paginasPorFolha: modelo?.paginasPorFolha ?? 1,
+                    copias: modelo?.copias ?? 1
+                ) { erro in
                     imprimindo = nil
                     if let erro { armazenamento.erro = erro }
                 }
