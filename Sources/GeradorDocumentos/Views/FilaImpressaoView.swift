@@ -38,7 +38,12 @@ struct FilaImpressaoView: View {
             } else {
                 VStack(alignment: .leading, spacing: 0) {
                     cabecalho
-                        .padding(16)
+                        .padding(18)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Tema.superficie)
+                        .overlay(alignment: .bottom) {
+                            Rectangle().fill(Tema.borda.opacity(0.75)).frame(height: 1)
+                        }
                     List {
                         ForEach(Array(fila.enumerated()), id: \.element.id) { posicao, item in
                             linha(item, posicao: posicao + 1)
@@ -226,9 +231,9 @@ struct FilaImpressaoView: View {
         return Text(texto)
             .fonteApp(.legenda)
             .foregroundStyle(cor)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(Capsule().fill(cor.opacity(0.15)))
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(cor.opacity(0.10)))
     }
 
     private func iniciarImpressao(_ ids: Set<UUID>) {
