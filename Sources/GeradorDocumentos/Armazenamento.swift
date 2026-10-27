@@ -108,14 +108,49 @@ final class Armazenamento: ObservableObject {
         dados.pacientes[indice] = paciente
     }
 
-    func novoPaciente() -> Paciente {
-        let paciente = Paciente()
+    func novoPaciente(nome: String = "") -> Paciente {
+        let paciente = Paciente(nome: nome)
         dados.pacientes.append(paciente)
         return paciente
     }
 
+    /// Paciente cadastrado com exatamente este nome (sem diferenciar maiúsculas e acentos).
+    func paciente(chamado nome: String) -> Paciente? {
+        let nome = nome.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !nome.isEmpty else { return nil }
+        return dados.pacientes.first {
+            $0.nome.trimmingCharacters(in: .whitespacesAndNewlines)
+                .compare(nome, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+        }
+    }
+
     func removerPaciente(_ id: Paciente.ID) {
         dados.pacientes.removeAll { $0.id == id }
+    }
+
+    // MARK: Locais de atendimento
+
+    var locaisOrdenados: [LocalAtendimento] {
+        dados.locais.sorted { $0.nome.localizedStandardCompare($1.nome) == .orderedAscending }
+    }
+
+    func local(_ id: LocalAtendimento.ID?) -> LocalAtendimento? {
+        dados.locais.first { $0.id == id }
+    }
+
+    func atualizarLocal(_ local: LocalAtendimento) {
+        guard let indice = dados.locais.firstIndex(where: { $0.id == local.id }) else { return }
+        dados.locais[indice] = local
+    }
+
+    func novoLocal() -> LocalAtendimento {
+        let local = LocalAtendimento()
+        dados.locais.append(local)
+        return local
+    }
+
+    func removerLocal(_ id: LocalAtendimento.ID) {
+        dados.locais.removeAll { $0.id == id }
     }
 
     // MARK: Histórico

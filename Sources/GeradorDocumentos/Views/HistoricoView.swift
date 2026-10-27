@@ -35,7 +35,7 @@ struct HistoricoView: View {
         let existe = FileManager.default.fileExists(atPath: documento.caminho)
         return HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(documento.paciente.isEmpty ? documento.modelo : "\(documento.modelo) — \(documento.paciente)")
+                Text([documento.modelo, documento.paciente, documento.local ?? ""].filter { !$0.isEmpty }.joined(separator: " — "))
                 Text("\(documento.data.formatted(date: .abbreviated, time: .shortened)) · \(existe ? url.lastPathComponent : "arquivo não encontrado")")
                     .font(.caption)
                     .foregroundStyle(.secondary)

@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 enum Secao: String, CaseIterable, Identifiable {
     case gerar = "Gerar documento"
     case pacientes = "Pacientes"
+    case locais = "Locais de atendimento"
     case modelos = "Modelos"
     case historico = "Histórico"
 
@@ -14,6 +15,7 @@ enum Secao: String, CaseIterable, Identifiable {
         switch self {
         case .gerar: return "doc.badge.plus"
         case .pacientes: return "person.2"
+        case .locais: return "building.2"
         case .modelos: return "doc.text"
         case .historico: return "clock"
         }
@@ -43,6 +45,7 @@ struct ContentView: View {
             switch secao ?? .gerar {
             case .gerar: GerarView()
             case .pacientes: PacientesView()
+            case .locais: LocaisView()
             case .modelos: ModelosView()
             case .historico: HistoricoView()
             }

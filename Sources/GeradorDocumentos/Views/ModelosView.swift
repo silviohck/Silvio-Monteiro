@@ -100,7 +100,7 @@ struct ModelosView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Como preparar um modelo").font(.headline)
                 Text("No Word, escreva os campos entre chaves duplas onde o texto deve ser trocado, por exemplo: Declaro que {{NOME_PACIENTE}}, CPF {{CPF}}, compareceu em {{DATA}}. Salve como .docx (arquivos .doc, .rtf e .odt são convertidos automaticamente) e clique em “Importar modelo…”.")
-                Text("Preenchidos automaticamente: NOME_PACIENTE (ou NOME), CPF, RG, DATA_NASCIMENTO, IDADE, TELEFONE, EMAIL, ENDERECO, CONVENIO, DATA (dd/mm/aaaa) e DATA_EXTENSO (27 de outubro de 2026). Qualquer outro nome vira um campo para digitar, e o valor fica salvo no cadastro do paciente.")
+                Text("Preenchidos automaticamente — paciente: NOME_PACIENTE (ou NOME), CPF, RG, DATA_NASCIMENTO, IDADE, TELEFONE, EMAIL, ENDERECO, CONVENIO; local de atendimento: LOCAL, LOCAL_ENDERECO, CIDADE, LOCAL_TELEFONE, LOCAL_EMAIL, CNPJ; data: DATA (dd/mm/aaaa) e DATA_EXTENSO (27 de outubro de 2026). Qualquer outro nome vira um campo para digitar, e o valor fica salvo no cadastro do paciente.")
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)

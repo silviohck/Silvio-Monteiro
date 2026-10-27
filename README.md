@@ -11,8 +11,10 @@ App para Mac com Apple Silicon (M1, M2, M3, M4…) que gera documentos do Word a
    A formatação do Word (negrito, fonte, tabelas, cabeçalho e rodapé) é mantida. Há um exemplo pronto em [`Exemplos/Atestado-Exemplo.docx`](Exemplos/Atestado-Exemplo.docx).
 
 2. **Importe o modelo** na aba *Modelos*. O app encontra os campos sozinho.
-3. **Cadastre os pacientes** na aba *Pacientes*.
-4. Na aba **Gerar documento**, escolha o modelo e o paciente, confira os valores e clique em *Gerar documento…*. O novo `.docx` é salvo onde você escolher e aberto no Word.
+3. **Cadastre seus locais de atendimento** na aba *Locais de atendimento* (clínica, hospital, consultório).
+4. Na aba **Gerar documento**, escolha o modelo e o local, **digite o nome do paciente**, confira os valores e clique em *Gerar documento…*. O novo `.docx` é salvo onde você escolher e aberto no Word.
+   - Se o paciente já tem cadastro, o app sugere o nome e preenche CPF, nascimento etc.
+   - Se é um paciente novo, o cadastro é criado sozinho com o que você digitou.
 
 ### Campos preenchidos automaticamente
 
@@ -22,6 +24,8 @@ App para Mac com Apple Silicon (M1, M2, M3, M4…) que gera documentos do Word a
 | `{{CPF}}`, `{{RG}}` | Documentos |
 | `{{DATA_NASCIMENTO}}`, `{{IDADE}}` | Nascimento e idade calculada |
 | `{{TELEFONE}}`, `{{EMAIL}}`, `{{ENDERECO}}`, `{{CONVENIO}}` | Contato |
+| `{{LOCAL}}`, `{{LOCAL_ENDERECO}}`, `{{CIDADE}}` | Nome, endereço e cidade do local de atendimento |
+| `{{LOCAL_TELEFONE}}`, `{{LOCAL_EMAIL}}`, `{{CNPJ}}` | Contato e CNPJ do local |
 | `{{DATA}}` | Data de hoje (27/10/2026) |
 | `{{DATA_EXTENSO}}` | Data por extenso (27 de outubro de 2026) |
 
@@ -29,7 +33,7 @@ Maiúsculas, acentos e espaços não importam (`{{Data de Nascimento}}` também 
 
 ### Onde os dados ficam salvos
 
-Tudo fica no próprio Mac, em `~/Library/Application Support/GeradorDocumentos/`: o arquivo `dados.json` (pacientes e histórico) e a pasta `Modelos/` (cópias dos modelos). O botão *Pasta de dados* no app abre essa pasta. Para fazer backup, copie a pasta inteira.
+Tudo fica no próprio Mac, em `~/Library/Application Support/GeradorDocumentos/`: o arquivo `dados.json` (pacientes, locais e histórico) e a pasta `Modelos/` (cópias dos modelos). O botão *Pasta de dados* no app abre essa pasta. Para fazer backup, copie a pasta inteira.
 
 ## Instalar
 
