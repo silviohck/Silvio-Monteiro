@@ -17,6 +17,13 @@ struct PacientesView: View {
     var body: some View {
         HSplitView {
             VStack(spacing: 0) {
+                Button(action: novoPaciente) {
+                    Label("Novo paciente", systemImage: "person.badge.plus")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .padding([.horizontal, .top], 8)
                 TextField("Buscar por nome ou CPF", text: $busca)
                     .textFieldStyle(.roundedBorder)
                     .padding(8)
@@ -42,17 +49,16 @@ struct PacientesView: View {
                     AvisoVazio(
                         titulo: "Nenhum paciente selecionado",
                         icone: "person.crop.circle",
-                        mensagem: "Escolha um paciente na lista ou cadastre um novo."
+                        mensagem: "Escolha um paciente na lista ou cadastre um novo. Pacientes também são cadastrados sozinhos quando você gera um documento com um nome novo.",
+                        botao: "Cadastrar paciente",
+                        acao: novoPaciente
                     )
                 }
             }
             .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
         }
         .toolbar {
-            Button {
-                busca = ""
-                selecao = armazenamento.novoPaciente().id
-            } label: {
+            Button(action: novoPaciente) {
                 Label("Novo paciente", systemImage: "person.badge.plus")
             }
             Button(role: .destructive) {
@@ -72,6 +78,13 @@ struct PacientesView: View {
         } message: {
             Text("Os documentos já gerados não são apagados.")
         }
+    }
+}
+
+extension PacientesView {
+    private func novoPaciente() {
+        busca = ""
+        selecao = armazenamento.novoPaciente().id
     }
 }
 

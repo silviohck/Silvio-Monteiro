@@ -92,6 +92,8 @@ struct AvisoVazio: View {
     let titulo: String
     let icone: String
     var mensagem: String = ""
+    var botao: String?
+    var acao: (() -> Void)?
 
     var body: some View {
         VStack(spacing: 10) {
@@ -104,6 +106,12 @@ struct AvisoVazio: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 420)
+            }
+            if let botao, let acao {
+                Button(botao, action: acao)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .padding(.top, 6)
             }
         }
         .padding()

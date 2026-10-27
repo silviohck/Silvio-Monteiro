@@ -8,11 +8,20 @@ struct LocaisView: View {
 
     var body: some View {
         HSplitView {
-            List(armazenamento.locaisOrdenados, selection: $selecao) { local in
-                VStack(alignment: .leading) {
-                    Text(local.nome.isEmpty ? "Sem nome" : local.nome)
-                    if !local.cidade.isEmpty {
-                        Text(local.cidade).font(.caption).foregroundStyle(.secondary)
+            VStack(spacing: 0) {
+                Button(action: novoLocal) {
+                    Label("Novo local", systemImage: "plus")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .padding(8)
+                List(armazenamento.locaisOrdenados, selection: $selecao) { local in
+                    VStack(alignment: .leading) {
+                        Text(local.nome.isEmpty ? "Novo local (sem nome)" : local.nome)
+                        if !local.cidade.isEmpty {
+                            Text(local.cidade).font(.caption).foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
@@ -29,16 +38,16 @@ struct LocaisView: View {
                     AvisoVazio(
                         titulo: armazenamento.dados.locais.isEmpty ? "Nenhum local cadastrado" : "Nenhum local selecionado",
                         icone: "building.2",
-                        mensagem: "Cadastre os lugares onde você atende (clínica, hospital, consultório) e escolha a pasta de cada um. Os documentos gerados são salvos lá automaticamente, separados em Receitas, Laudos e Relatórios médicos."
+                        mensagem: "Cadastre os lugares onde você atende (clínica, hospital, consultório) e escolha a pasta de cada um. Os documentos gerados são salvos lá automaticamente, separados em Receitas, Laudos e Relatórios médicos.",
+                        botao: "Cadastrar local de atendimento",
+                        acao: novoLocal
                     )
                 }
             }
             .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
         }
         .toolbar {
-            Button {
-                selecao = armazenamento.novoLocal().id
-            } label: {
+            Button(action: novoLocal) {
                 Label("Novo local", systemImage: "plus")
             }
             Button(role: .destructive) {
@@ -56,6 +65,12 @@ struct LocaisView: View {
                 }
             }
         }
+    }
+}
+
+extension LocaisView {
+    private func novoLocal() {
+        selecao = armazenamento.novoLocal().id
     }
 }
 
