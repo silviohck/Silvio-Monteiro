@@ -31,14 +31,17 @@ struct ContentView: View {
             List(Secao.allCases, selection: $secao) { item in
                 Label(item.rawValue, systemImage: item.icone)
             }
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200)
+            .navigationSplitViewColumnWidth(min: 200, ideal: 220)
             .safeAreaInset(edge: .bottom) {
-                Button {
-                    armazenamento.abrirPastaDeDados()
-                } label: {
-                    Label("Pasta de dados", systemImage: "folder")
+                VStack(alignment: .leading, spacing: 10) {
+                    SeletorDeImpressora()
+                    Button {
+                        armazenamento.abrirPastaDeDados()
+                    } label: {
+                        Label("Pasta de dados", systemImage: "folder")
+                    }
+                    .buttonStyle(.borderless)
                 }
-                .buttonStyle(.borderless)
                 .padding()
             }
         } detail: {
@@ -58,6 +61,42 @@ struct ContentView: View {
         } message: {
             Text(armazenamento.erro ?? "")
         }
+    }
+}
+
+/// Impressora usada pelos botões "Imprimir" (vazia = padrão do sistema).
+struct SeletorDeImpressora: View {
+    @AppStorage("impressora") private var impressora = ""
+    @State private var filas: [String] = []
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label("Impressora", systemImage: "printer")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack(spacing: 4) {
+                Picker("Impressora", selection: $impressora) {
+                    Text("Padrão do sistema").tag("")
+                    ForEach(opcoes, id: \.self) { fila in
+                        Text(Impressao.nomeAmigavel(fila)).tag(fila)
+                    }
+                }
+                .labelsHidden()
+                Button {
+                    filas = Impressao.impressoras()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.borderless)
+                .help("Atualizar a lista de impressoras")
+            }
+        }
+        .onAppear { filas = Impressao.impressoras() }
+    }
+
+    /// Mantém na lista a impressora escolhida mesmo se ela estiver desligada ou removida.
+    private var opcoes: [String] {
+        impressora.isEmpty || filas.contains(impressora) ? filas : filas + [impressora]
     }
 }
 

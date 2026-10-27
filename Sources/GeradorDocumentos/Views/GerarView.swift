@@ -10,6 +10,9 @@ struct GerarView: View {
     @State private var nomePaciente = ""
     @State private var valores: [String: String] = [:]
     @State private var abrirAoGerar = true
+    @AppStorage("imprimirAoGerar") private var imprimirAoGerar = false
+    @AppStorage("impressora") private var impressora = ""
+    @State private var imprimindo = false
     @State private var aviso: String?
     @State private var ultimoDocumento: URL?
     /// Subpasta onde o documento será salvo ("" = direto na pasta do local).
@@ -177,6 +180,10 @@ struct GerarView: View {
                         }
                     }
                     Toggle("Abrir o documento depois de gerar", isOn: $abrirAoGerar)
+                    Toggle(isOn: $imprimirAoGerar) {
+                        Text("Imprimir ao gerar")
+                        Text("Impressora: \(impressora.isEmpty ? "padrão do sistema" : Impressao.nomeAmigavel(impressora)) (escolha na barra lateral)")
+                    }
                     HStack {
                         if let aviso {
                             Label(aviso, systemImage: "checkmark.circle.fill")
@@ -186,6 +193,11 @@ struct GerarView: View {
                                     NSWorkspace.shared.activateFileViewerSelecting([ultimoDocumento])
                                 }
                                 .buttonStyle(.link)
+                                Button(imprimindo ? "Imprimindo…" : "Imprimir") {
+                                    imprimir(ultimoDocumento, manterAberto: true)
+                                }
+                                .buttonStyle(.link)
+                                .disabled(imprimindo)
                             }
                         }
                         Spacer()
@@ -241,6 +253,18 @@ struct GerarView: View {
         let disponiveis = armazenamento.modelos(para: local)
         if !disponiveis.contains(where: { $0.id.uuidString == modeloSelecionado }) {
             modeloSelecionado = disponiveis.first?.id.uuidString ?? ""
+        }
+    }
+
+    private func imprimir(_ arquivo: URL, manterAberto: Bool) {
+        imprimindo = true
+        Impressao.imprimir(arquivo, impressora: impressora, manterAberto: manterAberto) { erro in
+            imprimindo = false
+            if let erro {
+                armazenamento.erro = erro
+            } else if ultimoDocumento == arquivo {
+                aviso = "Salvo e enviado para impressão: \(arquivo.lastPathComponent)"
+            }
         }
     }
 
@@ -323,7 +347,9 @@ struct GerarView: View {
         armazenamento.registrar(DocumentoGerado(modelo: modelo.nome, paciente: nome, local: local?.nome, caminho: destino.path))
         aviso = "Salvo: \(destino.lastPathComponent)"
         ultimoDocumento = destino
-        if abrirAoGerar {
+        if imprimirAoGerar {
+            imprimir(destino, manterAberto: abrirAoGerar)
+        } else if abrirAoGerar {
             NSWorkspace.shared.open(destino)
         }
     }

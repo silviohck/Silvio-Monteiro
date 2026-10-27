@@ -4,6 +4,8 @@ import SwiftUI
 struct HistoricoView: View {
     @EnvironmentObject private var armazenamento: Armazenamento
     @State private var confirmarLimpeza = false
+    @AppStorage("impressora") private var impressora = ""
+    @State private var imprimindo: DocumentoGerado.ID?
 
     var body: some View {
         Group {
@@ -45,6 +47,14 @@ struct HistoricoView: View {
                 .disabled(!existe)
             Button("Mostrar no Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
                 .disabled(!existe)
+            Button(imprimindo == documento.id ? "Imprimindo…" : "Imprimir") {
+                imprimindo = documento.id
+                Impressao.imprimir(url, impressora: impressora, manterAberto: false) { erro in
+                    imprimindo = nil
+                    if let erro { armazenamento.erro = erro }
+                }
+            }
+            .disabled(!existe || imprimindo != nil)
         }
         .padding(.vertical, 2)
     }

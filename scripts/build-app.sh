@@ -31,6 +31,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
     <key>NSHighResolutionCapable</key><true/>
+    <key>NSAppleEventsUsageDescription</key><string>O Gerador de Documentos usa o Microsoft Word para imprimir os documentos gerados.</string>
 </dict>
 </plist>
 PLIST
