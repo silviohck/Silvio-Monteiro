@@ -387,13 +387,17 @@ struct GerarView: View {
             focoNoNome = true
         }
         .onChange(of: nomePaciente) { _ in
+            // Outro nome depois de gerar = outro paciente: os campos do documento anterior não seguem
+            // (o cadastro pode continuar nil entre dois pacientes novos). Antes de gerar, corrigir
+            // o nome não apaga o que já foi digitado nos campos.
+            let acabouDeGerar = geracaoConcluida || ultimoDocumento != nil
             aviso = nil
             ultimoDocumento = nil
             geracaoConcluida = false
-            // O cadastro pode continuar nil ao trocar entre dois pacientes novos.
-            // Não depender só do onChange de pacienteCadastrado?.id para limpar os campos.
-            valores = [:]
-            preencher(.tudo)
+            if acabouDeGerar {
+                valores = [:]
+                preencher(.tudo)
+            }
             // Nome mudou: a escolha entre homônimos só vale se ainda for o mesmo nome.
             if let id = pacienteEscolhido, !homonimos.contains(where: { $0.id == id }) {
                 pacienteEscolhido = nil
@@ -636,7 +640,6 @@ struct GerarView: View {
         )
     }
 
-    /// Recalcula os campos; ao trocar o local, os dados do paciente já digitados não são apagados (e vice-versa).
     /// Recomeça do início para o próximo atendimento: limpa paciente, subpasta e modelo;
     /// só o local de atendimento (e as opções de abrir e imprimir) continuam.
     private func proximoPaciente() {
@@ -662,6 +665,7 @@ struct GerarView: View {
         focoNoNome = true
     }
 
+    /// Recalcula os campos; ao trocar o paciente, os dados do local não são apagados (e vice-versa).
     private func preencher(_ escopo: Escopo) {
         guard let modelo else { return }
         for campo in modelo.campos where !CamposAutomaticos.ehNomeDoPaciente(campo) {
