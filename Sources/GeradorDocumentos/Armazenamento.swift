@@ -581,6 +581,98 @@ final class Armazenamento: ObservableObject {
         }
     }
 
+    // MARK: Importar dados (.json)
+
+    enum ModoDeImportacao {
+        /// Acrescenta pacientes, locais, histórico e fila que ainda não existem aqui.
+        case juntar
+        /// Troca todos os dados por os do arquivo (restaurar um backup).
+        case substituir
+    }
+
+    /// Importa um dados.json (de um backup diário ou do .zip). Antes, guarda uma cópia dos dados atuais
+    /// em Backups/. Devolve um resumo do que entrou.
+    func importarDados(de url: URL, modo: ModoDeImportacao) throws -> String {
+        let conteudo = try Data(contentsOf: url)
+        let importados: DadosApp
+        do {
+            importados = try Self.decodificador.decode(DadosApp.self, from: conteudo)
+        } catch {
+            throw NSError(domain: "Orthck", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "“\(url.lastPathComponent)” não é um arquivo de dados do Orthck.",
+            ])
+        }
+
+        // Cópia dos dados de agora, para poder voltar atrás.
+        if FileManager.default.fileExists(atPath: arquivoDados.path) {
+            let formatador = DateFormatter()
+            formatador.dateFormat = "yyyy-MM-dd-HHmmss"
+            try? FileManager.default.createDirectory(at: pastaBackups, withIntermediateDirectories: true)
+            try? FileManager.default.copyItem(
+                at: arquivoDados,
+                to: pastaBackups.appendingPathComponent("antes-de-importar-\(formatador.string(from: Date())).json")
+            )
+        }
+
+        switch modo {
+        case .substituir:
+            var novos = importados
+            // Pastas de outro computador podem não existir neste: mantém as daqui.
+            if !FileManager.default.fileExists(atPath: novos.pastaSincronizada) {
+                novos.pastaSincronizada = dados.pastaSincronizada
+            }
+            if !novos.pastaDocumentos.isEmpty && !FileManager.default.fileExists(atPath: novos.pastaDocumentos) {
+                novos.pastaDocumentos = dados.pastaDocumentos
+            }
+            // Modelos importados à mão cujo arquivo não está neste Mac não funcionariam; os da pasta
+            // sincronizada são copiados de novo na próxima sincronização.
+            let antes = novos.modelos.count
+            novos.modelos.removeAll { $0.origem == nil && !FileManager.default.fileExists(atPath: urlDoModelo($0).path) }
+            let semArquivo = antes - novos.modelos.count
+            for indice in novos.filaImpressao.indices where novos.filaImpressao[indice].situacao == .enviando {
+                novos.filaImpressao[indice].situacao = .incerto
+            }
+            dados = novos
+            separarTiposPorLocal()
+            var resumo = "Dados substituídos: \(novos.pacientes.count) pacientes, \(novos.locais.count) locais e \(novos.historico.count) documentos no histórico."
+            if semArquivo > 0 {
+                resumo += " \(semArquivo) modelo(s) importado(s) à mão ficaram de fora porque o arquivo não está neste Mac."
+            }
+            return resumo
+
+        case .juntar:
+            var atual = dados
+            // Locais: o mesmo (pelo id ou pelo nome) é reaproveitado; os outros entram.
+            var mapaDeLocais: [UUID: UUID] = [:]
+            var locaisNovos = 0
+            for local in importados.locais {
+                if atual.locais.contains(where: { $0.id == local.id }) {
+                    mapaDeLocais[local.id] = local.id
+                } else if let mesmo = atual.locais.first(where: { Self.mesmoNome($0.nome, local.nome) }) {
+                    mapaDeLocais[local.id] = mesmo.id
+                } else {
+                    atual.locais.append(local)
+                    mapaDeLocais[local.id] = local.id
+                    locaisNovos += 1
+                }
+            }
+            var pacientesNovos = 0
+            for paciente in importados.pacientes where !atual.pacientes.contains(where: { $0.id == paciente.id }) {
+                var paciente = paciente
+                paciente.localID = paciente.localID.flatMap { mapaDeLocais[$0] }
+                atual.pacientes.append(paciente)
+                pacientesNovos += 1
+            }
+            let idsDoHistorico = Set(atual.historico.map(\.id))
+            let historicoNovo = importados.historico.filter { !idsDoHistorico.contains($0.id) }
+            atual.historico = (atual.historico + historicoNovo).sorted { $0.data > $1.data }
+            let idsDaFila = Set(atual.filaImpressao.map(\.id))
+            atual.filaImpressao += importados.filaImpressao.filter { !idsDaFila.contains($0.id) && $0.situacao == .pendente }
+            dados = atual
+            return "Dados juntados: \(pacientesNovos) pacientes, \(locaisNovos) locais e \(historicoNovo.count) documentos no histórico entraram."
+        }
+    }
+
     /// Versões anteriores tinham uma lista de tipos só: cada local passa a ter a sua,
     /// começando pelos tipos que os modelos dele já usam.
     private func separarTiposPorLocal() {

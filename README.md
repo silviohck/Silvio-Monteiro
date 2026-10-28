@@ -76,7 +76,7 @@ Para atualizar as duas tabelas (o SIGTAP muda todo mês), abra no GitHub *Action
 
 Tudo fica no próprio Mac, em `~/Library/Application Support/GeradorDocumentos/`: o arquivo `dados.json` (pacientes, locais, histórico e fila) e a pasta `Modelos/` (cópias dos modelos). O menu *Arquivo › Abrir pasta de dados (backup)* abre essa pasta.
 
-**Backup automático:** uma vez por dia o app guarda uma cópia do `dados.json` em `Backups/` (as últimas 30). Para restaurar, feche o app e copie o backup desejado por cima de `dados.json`. Além disso, **Compactar (.zip)…** na barra lateral leva junto o arquivo `Orthck - dados (backup).json` — guarde esse .zip no iCloud, OneDrive ou pendrive para ter uma cópia fora do Mac.
+**Backup automático:** uma vez por dia o app guarda uma cópia do `dados.json` em `Backups/` (as últimas 30). Para restaurar ou levar os dados a outro Mac, use **Importar dados (.json)…** na barra lateral: escolha o backup e depois **Juntar** (entram os pacientes, locais e documentos que faltam) ou **Substituir** (volta tudo para o que está no arquivo). Antes de importar, o app guarda uma cópia dos dados atuais em `Backups/`. Além disso, **Compactar (.zip)…** na barra lateral leva junto o arquivo `Orthck - dados (backup).json` — guarde esse .zip no iCloud, OneDrive ou pendrive para ter uma cópia fora do Mac.
 
 ## Instalar
 
