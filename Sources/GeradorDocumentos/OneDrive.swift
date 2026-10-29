@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import SwiftUI
 
 /// Envio da pasta sincronizada ao OneDrive pelo app do OneDrive instalado no Mac: o Orthck copia a
 /// pasta para dentro da pasta do OneDrive, e o app do OneDrive leva para a nuvem (sem outro login).
