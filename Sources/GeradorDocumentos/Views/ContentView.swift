@@ -139,6 +139,7 @@ struct CompactarPastaBotao: View {
                     .frame(maxWidth: .infinity)
             }
             .help("Traz pacientes, locais, histórico e fila de um backup (dados.json ou “Orthck - dados (backup).json”)")
+            EnviarAoOneDrive()
             CopiaNaNuvem()
                 .padding(.top, 4)
         }

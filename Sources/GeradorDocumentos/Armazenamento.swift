@@ -15,6 +15,8 @@ final class Armazenamento: ObservableObject {
     @Published var sincronizacao = EstadoSincronizacao()
     /// Criando o .zip da pasta sincronizada.
     @Published var compactando = false
+    /// Copiando a pasta sincronizada para a pasta do OneDrive.
+    @Published var enviandoOneDrive = false
     /// Bloqueio global: não dispara duas sequências de impressão simultaneamente.
     @Published private(set) var processandoFila = false
 
