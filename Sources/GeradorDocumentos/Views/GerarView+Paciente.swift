@@ -8,7 +8,11 @@ extension GerarView {
     var secaoPaciente: some View {
         Section {
             HStack {
-                TextField("Nome do paciente", text: $nomePaciente)
+                TextField("Nome do paciente", text: Binding(
+                    get: { nomePaciente },
+                    // Sempre em maiúsculas, como nos documentos.
+                    set: { nomePaciente = GerarView.maiusculas($0) }
+                ))
                     .focused($focoNoNome)
                 if !nomePaciente.isEmpty {
                     Button(action: limparPaciente) {
@@ -20,9 +24,9 @@ extension GerarView {
                 Button {
                     // Cola o nome copiado de outro lugar (sistema da clínica, mensagem…), numa linha só.
                     if let texto = NSPasteboard.general.string(forType: .string) {
-                        nomePaciente = texto.components(separatedBy: .newlines)
+                        nomePaciente = GerarView.maiusculas(texto.components(separatedBy: .newlines)
                             .map { $0.trimmingCharacters(in: .whitespaces) }
-                            .first { !$0.isEmpty } ?? ""
+                            .first { !$0.isEmpty } ?? "")
                         focoNoNome = true
                     }
                 } label: {
@@ -81,7 +85,7 @@ extension GerarView {
             } else if !nomeDigitado.isEmpty {
                 ForEach(sugestoes) { paciente in
                     Button {
-                        nomePaciente = paciente.nome
+                        nomePaciente = GerarView.maiusculas(paciente.nome)
                         pacienteEscolhido = paciente.id
                     } label: {
                         Label(textoDaSugestao(paciente), systemImage: "person.crop.circle")
@@ -161,7 +165,7 @@ extension GerarView {
     /// Depois de editar o cadastro: acompanha mudança de nome e recarrega os dados no formulário.
     func voltarDoCadastro() {
         if let id = pacienteEmEdicao, let paciente = armazenamento.paciente(id), !paciente.nome.isEmpty {
-            nomePaciente = paciente.nome
+            nomePaciente = GerarView.maiusculas(paciente.nome)
             pacienteEscolhido = id
         }
         pacienteEmEdicao = nil

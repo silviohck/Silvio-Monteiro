@@ -35,6 +35,11 @@ struct GerarView: View {
 
     enum Escopo { case tudo, paciente, local }
 
+    /// Nome e campos dos documentos vão sempre em maiúsculas (como com o Caps Lock ligado).
+    static func maiusculas(_ texto: String) -> String {
+        texto.uppercased(with: Locale(identifier: "pt_BR"))
+    }
+
     /// O modelo guardado como escolhido, mesmo que não seja da subpasta mostrada.
     var modeloEscolhido: ModeloDocumento? {
         armazenamento.dados.modelos.first { $0.id.uuidString == modeloSelecionado }

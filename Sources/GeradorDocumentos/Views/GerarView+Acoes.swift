@@ -60,7 +60,7 @@ extension GerarView {
         Binding(
             get: { valores[campo, default: ""] },
             set: { novoValor in
-                valores[campo] = novoValor
+                valores[campo] = GerarView.maiusculas(novoValor)
                 geracaoConcluida = false
                 aviso = nil
                 ultimoDocumento = nil
@@ -109,7 +109,9 @@ extension GerarView {
             }
             let atualizar = escopo == .tudo || (escopo == .local) == doLocal
             if atualizar {
-                valores[campo] = CamposAutomaticos.valor(para: campo, paciente: pacienteCadastrado, local: local) ?? ""
+                valores[campo] = GerarView.maiusculas(
+                    CamposAutomaticos.valor(para: campo, paciente: pacienteCadastrado, local: local) ?? ""
+                )
             }
         }
     }
