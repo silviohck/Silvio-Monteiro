@@ -183,6 +183,7 @@ struct CompactarPastaBotao: View {
 
 /// Impressora usada pelos botões "Imprimir" (vazia = padrão do sistema).
 struct SeletorDeImpressora: View {
+    @EnvironmentObject private var armazenamento: Armazenamento
     @AppStorage("impressora") private var impressora = ""
     @State private var filas: [String] = []
     @State private var procurando = false
@@ -213,6 +214,14 @@ struct SeletorDeImpressora: View {
                     .frame(maxWidth: .infinity)
             }
             .help("Procura impressoras instaladas e na rede, e define a padrão")
+            Button(role: .destructive) {
+                armazenamento.pararImpressoes(impressora: impressora)
+            } label: {
+                Label("Parar todas as impressões", systemImage: "stop.circle.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .tint(.red)
+            .help("Cancela tudo o que está na fila de impressão do Mac para esta impressora e para a fila do app")
         }
         .onAppear { filas = Impressao.impressoras() }
         .onChange(of: impressora) { fila in

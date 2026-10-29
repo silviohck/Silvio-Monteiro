@@ -567,11 +567,24 @@ final class Armazenamento: ObservableObject {
         dados.filaImpressao[indice].observacao = nil
     }
 
+    /// Pedido de parar: a fila não manda o próximo documento.
+    private var pararFila = false
+
+    /// Botão de emergência: a fila do app para de mandar documentos e os trabalhos que já estão
+    /// na fila de impressão do Mac são cancelados.
+    func pararImpressoes(impressora: String) {
+        pararFila = true
+        if let erro = Impressao.cancelarTudo(impressora: impressora) {
+            self.erro = erro
+        }
+    }
+
     /// Envia os arquivos um por vez ao Word. Sucesso significa "comando enviado", não impressão física.
     /// `manterAberto`: deixa o documento aberto no Word depois de imprimir (quando também foi aberto ao gerar).
     func imprimirFila(ids: Set<UUID>, impressora: String, manterAberto: Bool = false) async {
         guard !processandoFila else { return }
         processandoFila = true
+        pararFila = false
         defer { processandoFila = false }
 
         // Fotografia da ordem no momento do clique. Novos itens aguardarão a próxima rodada.
@@ -580,7 +593,7 @@ final class Armazenamento: ObservableObject {
             .map(\.id)
 
         for id in ordem {
-            if Task.isCancelled { break }
+            if Task.isCancelled || pararFila { break }
             guard let indice = dados.filaImpressao.firstIndex(where: { $0.id == id }),
                   dados.filaImpressao[indice].situacao == .pendente else { continue }
             let item = dados.filaImpressao[indice]

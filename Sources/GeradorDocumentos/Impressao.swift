@@ -64,7 +64,9 @@ enum Impressao {
     static func instalar(_ impressora: ImpressoraEncontrada) -> Result<String, Error> {
         let fila = String(impressora.nome.map { $0.isLetter || $0.isNumber ? $0 : "_" })
             .folding(options: .diacriticInsensitive, locale: nil)
-        let resultado = executar("/usr/sbin/lpadmin", ["-p", fila, "-E", "-v", impressora.endereco, "-m", "everywhere", "-D", impressora.nome])
+        let resultado = executar("/usr/sbin/lpadmin", ["-p", fila, "-E", "-v", impressora.endereco, "-m", "everywhere", "-D", impressora.nome,
+            // Se um trabalho falhar, descarta em vez de tentar de novo sem parar.
+            "-o", "printer-error-policy=abort-job"])
         guard resultado.status == 0 else {
             return .failure(NSError(domain: "Orthck", code: Int(resultado.status), userInfo: [
                 NSLocalizedDescriptionKey: "O Mac não deixou instalar “\(impressora.nome)” por aqui. \(resultado.erro)",
@@ -84,6 +86,19 @@ enum Impressao {
         NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.microsoft.Word") != nil
     }
 
+    /// Último arquivo mandado para o Word e quando: o mesmo arquivo de novo em menos de 20 segundos
+    /// (clique duplo, dois caminhos ao mesmo tempo) não é reenviado.
+    private static var ultimoEnvio: (caminho: String, quando: Date)?
+    private static let travaDoEnvio = NSLock()
+
+    /// Cancela todos os trabalhos de impressão esperando na fila do Mac para esta impressora
+    /// (vazia = impressora padrão). Para parar um documento que está saindo sem parar.
+    static func cancelarTudo(impressora: String) -> String? {
+        let fila = impressora.isEmpty ? padraoDoSistema() : impressora
+        let resultado = executar("/usr/bin/cancel", fila.isEmpty ? ["-a"] : ["-a", fila])
+        return resultado.status == 0 ? nil : "Não foi possível cancelar as impressões. \(resultado.erro)"
+    }
+
     /// Imprime `arquivo` pelo Word. Com uma impressora escolhida, ela passa a ser a padrão do Mac
     /// (o Word sempre imprime na impressora padrão). `concluir` recebe nil ou a mensagem de erro.
     static func imprimir(
@@ -97,6 +112,14 @@ enum Impressao {
             concluir("Para imprimir direto pelo app é preciso ter o Microsoft Word instalado.")
             return
         }
+        travaDoEnvio.lock()
+        if let ultimo = ultimoEnvio, ultimo.caminho == arquivo.path, Date().timeIntervalSince(ultimo.quando) < 20 {
+            travaDoEnvio.unlock()
+            concluir("“\(arquivo.lastPathComponent)” acabou de ser enviado para a impressora; não foi enviado de novo.")
+            return
+        }
+        ultimoEnvio = (arquivo.path, Date())
+        travaDoEnvio.unlock()
         DispatchQueue.global(qos: .userInitiated).async {
             var erro: String?
             if !impressora.isEmpty {
@@ -125,6 +148,7 @@ enum Impressao {
         set copias to (item 3 of argv) as integer
         set nomeDoArquivo to item 4 of argv
         tell application "Microsoft Word"
+          with timeout of 300 seconds
             open arquivo
             set alvo to missing value
             repeat 60 times
@@ -154,6 +178,7 @@ enum Impressao {
                 print out alvo
             end repeat
             if manterAberto is "nao" then close alvo saving no
+          end timeout
         end tell
     end run
     """

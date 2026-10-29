@@ -86,6 +86,13 @@ struct FilaImpressaoView: View {
                     ProgressView().controlSize(.small)
                     Text("Imprimindo um por vez…").foregroundStyle(.secondary)
                 }
+                Button(role: .destructive) {
+                    armazenamento.pararImpressoes(impressora: impressora)
+                } label: {
+                    Label("Parar impressões", systemImage: "stop.circle.fill")
+                }
+                .tint(.red)
+                .help("Para a fila do app e cancela o que já está na fila de impressão do Mac")
             }
             Text(resumo)
                 .fonteApp(.apoio)
