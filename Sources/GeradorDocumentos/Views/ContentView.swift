@@ -90,9 +90,16 @@ struct ContentView: View {
             }
         }
         // Ao abrir o app e sempre que ele volta para a frente, acompanha a pasta de modelos.
-        .task { await armazenamento.sincronizar() }
+        // Antes, junta os dados da cópia no Google Drive, se ela mudou em outro computador.
+        .task {
+            await armazenamento.sincronizarDriveAoVoltar()
+            await armazenamento.sincronizar()
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            Task { await armazenamento.sincronizar() }
+            Task {
+                await armazenamento.sincronizarDriveAoVoltar()
+                await armazenamento.sincronizar()
+            }
         }
         .alert(
             "Atenção",
@@ -132,6 +139,8 @@ struct CompactarPastaBotao: View {
                     .frame(maxWidth: .infinity)
             }
             .help("Traz pacientes, locais, histórico e fila de um backup (dados.json ou “Orthck - dados (backup).json”)")
+            CopiaNaNuvem()
+                .padding(.top, 4)
         }
         .confirmationDialog(
             "Importar “\(arquivoParaImportar?.lastPathComponent ?? "")”?",

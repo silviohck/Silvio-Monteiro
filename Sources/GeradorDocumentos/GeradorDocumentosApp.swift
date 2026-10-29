@@ -57,4 +57,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
     }
+
+    /// Antes de fechar, envia ao Google Drive as mudanças que ainda esperavam o envio periódico
+    /// (no máximo 15 segundos; sem internet, fecha assim mesmo).
+    @MainActor
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let armazenamento = Armazenamento.atual, armazenamento.envioPendente else { return .terminateNow }
+        var respondido = false
+        let responder = {
+            guard !respondido else { return }
+            respondido = true
+            NSApp.reply(toApplicationShouldTerminate: true)
+        }
+        Task { @MainActor in
+            await armazenamento.enviarPendenteAoDrive()
+            responder()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 15) { responder() }
+        return .terminateLater
+    }
 }

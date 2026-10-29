@@ -16,6 +16,14 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/$EXECUTAVEL" "$APP/Contents/MacOS/$EXECUTAVEL"
 cp Recursos/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
+# Credencial do Google (cliente "App para computador") vinda dos Secrets do GitHub: com ela, conectar
+# ao Google Drive pede só o login no navegador. Sem as variáveis, o app pede o arquivo da credencial.
+GOOGLE_CHAVES=""
+if [[ -n "${GOOGLE_CLIENT_ID:-}" && -n "${GOOGLE_CLIENT_SECRET:-}" ]]; then
+    GOOGLE_CHAVES="<key>GoogleClientID</key><string>$GOOGLE_CLIENT_ID</string>
+    <key>GoogleClientSecret</key><string>$GOOGLE_CLIENT_SECRET</string>"
+fi
+
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -34,6 +42,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
     <key>NSHighResolutionCapable</key><true/>
+    $GOOGLE_CHAVES
     <key>NSAppleEventsUsageDescription</key><string>O Orthck usa o Microsoft Word para imprimir os documentos gerados.</string>
 </dict>
 </plist>

@@ -1,4 +1,5 @@
 import AppKit
+import CryptoKit
 import DocxTemplateKit
 import Foundation
 import SwiftUI
@@ -25,12 +26,47 @@ final class Armazenamento: ObservableObject {
     private var diaDoUltimoBackup = ""
     private static let backupsGuardados = 30
 
+    /// Cópia dos dados no Google Drive, direto pela internet.
+    let drive: GoogleDrive
+    @Published private(set) var googleConectado = false
+    /// Situação da cópia no Google Drive, mostrada na barra lateral.
+    @Published var situacaoNuvem = ""
+    @Published private(set) var sincronizandoDrive = false
+    /// Há mudanças esperando o próximo envio ao Drive.
+    @Published private(set) var envioPendente = false
+    private var envioAgendado: Task<Void, Never>?
+    /// Ao voltar para o app, o Drive é consultado no máximo uma vez a cada 30 segundos.
+    private static let intervaloMinimoAoVoltar: TimeInterval = 30
+    private var ultimaConsultaAoVoltar = Date.distantPast
+    private var outraSincronizacaoPedida = false
+    /// Arquivo no Drive e a versão dele já lida ou enviada por este Mac (ficam só neste Mac).
+    private var idNoDrive: String? {
+        get { UserDefaults.standard.string(forKey: "driveArquivoID") }
+        set { UserDefaults.standard.set(newValue, forKey: "driveArquivoID") }
+    }
+    private var versaoConhecidaNoDrive: String {
+        get { UserDefaults.standard.string(forKey: "driveVersaoConhecida") ?? "" }
+        set { UserDefaults.standard.set(newValue, forKey: "driveVersaoConhecida") }
+    }
+    /// Resumo do último conteúdo enviado, para não reenviar o que não mudou.
+    private var ultimoEnviado: String {
+        get { UserDefaults.standard.string(forKey: "driveUltimoEnviado") ?? "" }
+        set { UserDefaults.standard.set(newValue, forKey: "driveUltimoEnviado") }
+    }
+    static let nomeDoArquivoNuvem = "Orthck - dados.json"
+
+    /// O armazenamento do app, para o fechamento do app enviar ao Drive o que estiver pendente.
+    static weak var atual: Armazenamento?
+
     init() {
         let suporte = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         pasta = suporte.appendingPathComponent("GeradorDocumentos", isDirectory: true)
         pastaModelos = pasta.appendingPathComponent("Modelos", isDirectory: true)
+        drive = GoogleDrive(pasta: pasta)
+        googleConectado = drive.conectado
         try? FileManager.default.createDirectory(at: pastaModelos, withIntermediateDirectories: true)
         carregar()
+        Self.atual = self
     }
 
     var pacientesOrdenados: [Paciente] {
@@ -614,7 +650,9 @@ final class Armazenamento: ObservableObject {
 
     /// Importa um dados.json (de um backup diário ou do .zip). Antes, guarda uma cópia dos dados atuais
     /// em Backups/. Devolve um resumo do que entrou.
-    func importarDados(de url: URL, modo: ModoDeImportacao) throws -> String {
+    /// `deOutroComputador`: junção automática da cópia no Google Drive — sem cópia de segurança a cada vez
+    /// e sem a fila de impressão (ela é de cada computador).
+    func importarDados(de url: URL, modo: ModoDeImportacao, deOutroComputador: Bool = false) throws -> String {
         let conteudo = try Data(contentsOf: url)
         let importados: DadosApp
         do {
@@ -626,7 +664,7 @@ final class Armazenamento: ObservableObject {
         }
 
         // Cópia dos dados de agora, para poder voltar atrás.
-        if FileManager.default.fileExists(atPath: arquivoDados.path) {
+        if !deOutroComputador, FileManager.default.fileExists(atPath: arquivoDados.path) {
             let formatador = DateFormatter()
             formatador.dateFormat = "yyyy-MM-dd-HHmmss"
             try? FileManager.default.createDirectory(at: pastaBackups, withIntermediateDirectories: true)
@@ -688,8 +726,14 @@ final class Armazenamento: ObservableObject {
             let idsDoHistorico = Set(atual.historico.map(\.id))
             let historicoNovo = importados.historico.filter { !idsDoHistorico.contains($0.id) }
             atual.historico = (atual.historico + historicoNovo).sorted { $0.data > $1.data }
-            let idsDaFila = Set(atual.filaImpressao.map(\.id))
-            atual.filaImpressao += importados.filaImpressao.filter { !idsDaFila.contains($0.id) && $0.situacao == .pendente }
+            if !deOutroComputador {
+                let idsDaFila = Set(atual.filaImpressao.map(\.id))
+                atual.filaImpressao += importados.filaImpressao.filter { !idsDaFila.contains($0.id) && $0.situacao == .pendente }
+            }
+            // Favoritos marcados no outro computador também valem aqui.
+            for favorito in importados.favoritos where !atual.favoritos.contains(where: { Self.mesmoNome($0, favorito) }) {
+                atual.favoritos.append(favorito)
+            }
             dados = atual
             return "Dados juntados: \(pacientesNovos) pacientes, \(locaisNovos) locais e \(historicoNovo.count) documentos no histórico entraram."
         }
@@ -711,9 +755,123 @@ final class Armazenamento: ObservableObject {
         fazerBackupDoDia()
         do {
             try Self.codificador.encode(dados).write(to: arquivoDados, options: .atomic)
+            agendarEnvioAoDrive()
         } catch {
             erro = "Não foi possível salvar os dados: \(error.localizedDescription)"
         }
+    }
+
+    // MARK: Cópia no Google Drive
+
+    /// Intervalo entre uma mudança e o envio ao Drive: as mudanças desse intervalo vão juntas.
+    private static let intervaloDoDrive: UInt64 = 120
+
+    /// Depois de uma mudança, a cópia no Drive é atualizada em até 2 minutos; mais mudanças
+    /// nesse tempo entram no mesmo envio. Ao fechar o app, o que estiver pendente é enviado.
+    private func agendarEnvioAoDrive() {
+        guard drive.conectado else { return }
+        envioPendente = true
+        guard envioAgendado == nil else { return }
+        envioAgendado = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: Self.intervaloDoDrive * 1_000_000_000)
+            guard !Task.isCancelled else { return }
+            self?.envioAgendado = nil
+            await self?.sincronizarDrive()
+        }
+    }
+
+    /// Antes de fechar o app: envia na hora o que estiver pendente.
+    func enviarPendenteAoDrive() async {
+        guard envioPendente, drive.conectado else { return }
+        envioAgendado?.cancel()
+        envioAgendado = nil
+        // Uma sincronização em andamento já leva as mudanças; espera ela terminar.
+        while sincronizandoDrive { try? await Task.sleep(nanoseconds: 200_000_000) }
+        if envioPendente { await sincronizarDrive() }
+    }
+
+    /// Ao abrir o app, ao voltar para ele e depois de cada mudança: se a cópia no Drive mudou
+    /// em outro computador, junta com os dados daqui; depois envia o resultado, se mudou.
+    func sincronizarDrive() async {
+        googleConectado = drive.conectado
+        guard drive.conectado else { return }
+        guard !sincronizandoDrive else {
+            outraSincronizacaoPedida = true
+            return
+        }
+        sincronizandoDrive = true
+        envioPendente = false
+        defer {
+            sincronizandoDrive = false
+            if outraSincronizacaoPedida {
+                outraSincronizacaoPedida = false
+                agendarEnvioAoDrive()
+            }
+        }
+        do {
+            var remoto: ArquivoNoDrive?
+            if let id = idNoDrive { remoto = try await drive.metadados(id: id) }
+            if remoto == nil { remoto = try await drive.procurarArquivo(nome: Self.nomeDoArquivoNuvem) }
+            var resumo: String?
+            if let remoto, remoto.modificado != versaoConhecidaNoDrive {
+                let conteudo = try await drive.baixar(id: remoto.id)
+                let temporario = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("orthck-drive-\(UUID().uuidString).json")
+                try conteudo.write(to: temporario)
+                defer { try? FileManager.default.removeItem(at: temporario) }
+                resumo = try importarDados(de: temporario, modo: .juntar, deOutroComputador: true)
+                versaoConhecidaNoDrive = remoto.modificado
+            }
+            let local = try Self.codificador.encode(dados)
+            let marca = SHA256.hash(data: local).map { String(format: "%02x", $0) }.joined()
+            if remoto == nil || marca != ultimoEnviado || remoto?.id != idNoDrive {
+                let enviado = try await drive.enviar(local, nome: Self.nomeDoArquivoNuvem, id: remoto?.id)
+                idNoDrive = enviado.id
+                versaoConhecidaNoDrive = enviado.modificado
+                ultimoEnviado = marca
+            } else if let remoto {
+                idNoDrive = remoto.id
+            }
+            let hora = Date().formatted(date: .omitted, time: .shortened)
+            situacaoNuvem = resumo.map { "Atualizado às \(hora) · \($0)" } ?? "Atualizado às \(hora)"
+        } catch {
+            situacaoNuvem = error.localizedDescription
+            // Não foi: tenta de novo no próximo intervalo.
+            agendarEnvioAoDrive()
+        }
+        googleConectado = drive.conectado
+    }
+
+    /// Ao abrir o app e ao voltar para ele: consulta o Drive só se a última consulta por esse motivo
+    /// foi há mais de 30 segundos. O envio a cada 2 minutos, ao fechar e o "Sincronizar agora" não
+    /// passam por esse limite.
+    func sincronizarDriveAoVoltar() async {
+        guard drive.conectado, Date().timeIntervalSince(ultimaConsultaAoVoltar) >= Self.intervaloMinimoAoVoltar else { return }
+        ultimaConsultaAoVoltar = Date()
+        await sincronizarDrive()
+    }
+
+    /// Login no Google pelo navegador; em seguida junta a cópia que já existir no Drive.
+    func conectarGoogle(clientID: String, clientSecret: String) async throws {
+        try await drive.conectar(clientID: clientID, clientSecret: clientSecret)
+        idNoDrive = nil
+        versaoConhecidaNoDrive = ""
+        ultimoEnviado = ""
+        googleConectado = true
+        await sincronizarDrive()
+    }
+
+    func desconectarGoogle() {
+        envioAgendado?.cancel()
+        envioAgendado = nil
+        envioPendente = false
+        drive.desconectar()
+        googleConectado = false
+        situacaoNuvem = ""
+    }
+
+    var enderecoNoDrive: URL? {
+        idNoDrive.flatMap { URL(string: "https://drive.google.com/file/d/\($0)/view") }
     }
 
     /// Uma vez por dia, antes de gravar, guarda uma cópia do dados.json como estava (a versão boa
