@@ -8,11 +8,9 @@ extension GerarView {
     var secaoPaciente: some View {
         Section {
             HStack {
-                TextField("Nome do paciente", text: Binding(
-                    get: { nomePaciente },
-                    // Sempre em maiúsculas, como nos documentos.
-                    set: { nomePaciente = GerarView.maiusculas($0) }
-                ))
+                // As maiúsculas são aplicadas em onChange(of: nomePaciente): transformar o texto no próprio
+                // campo faz o macOS perder o que foi digitado quando o foco sai dele (ex.: clique num favorito).
+                TextField("Nome do paciente", text: $nomePaciente)
                     .focused($focoNoNome)
                 if !nomePaciente.isEmpty {
                     Button(action: limparPaciente) {

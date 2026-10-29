@@ -128,7 +128,13 @@ struct GerarView: View {
             copias = armazenamento.dados.modelos.first { $0.id.uuidString == modeloSelecionado }?.copias ?? 1
             focoNoNome = true
         }
-        .onChange(of: nomePaciente) { _ in
+        .onChange(of: nomePaciente) { novo in
+            // Sempre em maiúsculas, como nos documentos; a troca chama este onChange de novo.
+            let emMaiusculas = GerarView.maiusculas(novo)
+            if novo != emMaiusculas {
+                nomePaciente = emMaiusculas
+                return
+            }
             // Outro nome depois de gerar = outro paciente: os campos do documento anterior não seguem
             // (o cadastro pode continuar nil entre dois pacientes novos). Antes de gerar, corrigir
             // o nome não apaga o que já foi digitado nos campos.

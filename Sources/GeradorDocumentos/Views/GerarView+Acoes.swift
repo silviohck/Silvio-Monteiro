@@ -70,8 +70,13 @@ extension GerarView {
 
     /// Atalho de favorito: escolhe de uma vez a subpasta e o modelo.
     func irParaFavorito(_ favorito: ModeloDocumento) {
+        // O nome do paciente continua: o favorito só troca o documento.
+        let nome = nomePaciente
         modeloSelecionado = favorito.id.uuidString
         subpasta = favorito.categoria
+        DispatchQueue.main.async {
+            if nomePaciente.isEmpty && !nome.isEmpty { nomePaciente = nome }
+        }
     }
 
     /// Recomeça do início para o próximo atendimento: limpa paciente, subpasta e modelo;
