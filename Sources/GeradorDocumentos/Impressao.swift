@@ -128,9 +128,14 @@ enum Impressao {
             open arquivo
             set alvo to missing value
             repeat 60 times
+                -- Confere o nome do documento achado: "document <nome>" sozinho não garante que
+                -- ele já abriu, e o Word imprimiria outro.
                 try
-                    set alvo to document nomeDoArquivo
-                    exit repeat
+                    set candidato to document nomeDoArquivo
+                    if (name of candidato) is nomeDoArquivo then
+                        set alvo to candidato
+                        exit repeat
+                    end if
                 end try
                 -- Plano B: percorre os documentos abertos pela posição.
                 try

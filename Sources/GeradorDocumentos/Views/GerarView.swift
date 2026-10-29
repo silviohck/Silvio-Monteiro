@@ -35,8 +35,18 @@ struct GerarView: View {
 
     enum Escopo { case tudo, paciente, local }
 
-    var modelo: ModeloDocumento? {
+    /// O modelo guardado como escolhido, mesmo que não seja da subpasta mostrada.
+    var modeloEscolhido: ModeloDocumento? {
         armazenamento.dados.modelos.first { $0.id.uuidString == modeloSelecionado }
+    }
+
+    /// O modelo que vale para gerar e imprimir: só o que está na tela — da subpasta mostrada e do local.
+    /// Assim nunca sai um documento diferente do que aparece em "Modelo".
+    var modelo: ModeloDocumento? {
+        guard let escolhido = modeloEscolhido,
+              escolhido.categoria == subpasta,
+              armazenamento.modelos(para: local).contains(where: { $0.id == escolhido.id }) else { return nil }
+        return escolhido
     }
 
     var local: LocalAtendimento? {

@@ -74,8 +74,13 @@ extension GerarView {
                     .fixedSize()
                 }
                 HStack {
-                    Picker("Modelo", selection: $modeloSelecionado) {
-                        if modeloSelecionado.isEmpty {
+                    // Mostra o modelo que vale de verdade; se o guardado não é desta subpasta, mostra "Escolha…"
+                    // (o macOS mostraria o primeiro da lista, e o documento sairia de outro modelo).
+                    Picker("Modelo", selection: Binding(
+                        get: { modelo?.id.uuidString ?? "" },
+                        set: { modeloSelecionado = $0 }
+                    )) {
+                        if modelo == nil {
                             Text("Escolha…").tag("")
                         }
                         ForEach(modelosDaSubpasta) { modelo in

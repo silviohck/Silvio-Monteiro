@@ -25,7 +25,7 @@ extension GerarView {
     func validarModelo() {
         let tipos = subpastasDisponiveis
         if !subpasta.isEmpty && !tipos.contains(subpasta) {
-            subpasta = modelo.map(\.categoria).flatMap { tipos.contains($0) ? $0 : nil } ?? ""
+            subpasta = modeloEscolhido.map(\.categoria).flatMap { tipos.contains($0) ? $0 : nil } ?? ""
         }
         let modelos = modelosDaSubpasta
         guard !subpasta.isEmpty else {
@@ -34,7 +34,7 @@ extension GerarView {
         }
         if !modelos.contains(where: { $0.id.uuidString == modeloSelecionado }) {
             // Ao trocar de local, fica com o modelo de mesmo nome deste local, se houver.
-            let mesmoNome = modelo.flatMap { anterior in modelos.first { $0.nome == anterior.nome } }
+            let mesmoNome = modeloEscolhido.flatMap { anterior in modelos.first { $0.nome == anterior.nome } }
             modeloSelecionado = (mesmoNome ?? modelos.first)?.id.uuidString ?? ""
         }
     }
@@ -116,10 +116,9 @@ extension GerarView {
 
     func gerar(_ modelo: ModeloDocumento) {
         guard !geracaoConcluida, !precisaEscolherPaciente else { return }
-        // O documento vai para a subpasta do próprio modelo; a caixa "Subpasta" pode estar
-        // desatualizada (ex.: a sincronização reorganizou as pastas) sem que o modelo esteja errado.
-        guard armazenamento.modelos(para: local).contains(where: { $0.id == modelo.id }) else {
-            armazenamento.erro = "Este modelo não é do local escolhido. Escolha a subpasta e o modelo de novo."
+        // Só gera o modelo que está na tela (subpasta e modelo mostrados, do local escolhido).
+        guard modelo.id == self.modelo?.id else {
+            armazenamento.erro = "O modelo mudou. Confira a subpasta e o modelo e clique em Gerar de novo."
             return
         }
         let nome = nomeDigitado
