@@ -567,6 +567,27 @@ final class Armazenamento: ObservableObject {
         dados.filaImpressao[indice].observacao = nil
     }
 
+    /// Quanto tempo um documento impresso continua aparecendo na fila.
+    static let tempoNaFilaDepoisDeImprimir: TimeInterval = 120
+
+    /// Tira da fila os enviados há mais de 2 minutos (ou sem data, de versões anteriores).
+    func limparEnviadosAntigos() {
+        let limite = Date().addingTimeInterval(-Self.tempoNaFilaDepoisDeImprimir)
+        let vencidos = dados.filaImpressao.filter { item in
+            item.situacao == .enviado && (item.enviadoEm ?? .distantPast) <= limite
+        }
+        guard !vencidos.isEmpty else { return }
+        let ids = Set(vencidos.map(\.id))
+        dados.filaImpressao.removeAll { ids.contains($0.id) }
+    }
+
+    private func agendarLimpezaDosEnviados() {
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64((Self.tempoNaFilaDepoisDeImprimir + 1) * 1_000_000_000))
+            self?.limparEnviadosAntigos()
+        }
+    }
+
     /// Pedido de parar: a fila não manda o próximo documento.
     private var pararFila = false
 
@@ -621,8 +642,12 @@ final class Armazenamento: ObservableObject {
                 dados.filaImpressao[atualizado].situacao = .erro
                 dados.filaImpressao[atualizado].observacao = erroDaImpressao
             } else {
-                // Impresso: sai da fila (o documento continua salvo e no Histórico).
-                dados.filaImpressao.remove(at: atualizado)
+                // Impresso: fica 2 minutos na fila como "Enviado" (dá tempo de conferir) e depois sai
+                // sozinho; o documento continua salvo e no Histórico.
+                dados.filaImpressao[atualizado].situacao = .enviado
+                dados.filaImpressao[atualizado].enviadoEm = Date()
+                dados.filaImpressao[atualizado].observacao = nil
+                agendarLimpezaDosEnviados()
             }
         }
     }
@@ -644,6 +669,8 @@ final class Armazenamento: ObservableObject {
                 dados.filaImpressao[indice].observacao = "O aplicativo foi fechado durante o envio. Confira a impressora antes de reenviar."
             }
             separarTiposPorLocal()
+            limparEnviadosAntigos()
+            if dados.filaImpressao.contains(where: { $0.situacao == .enviado }) { agendarLimpezaDosEnviados() }
         } catch {
             // Mantém uma cópia do arquivo que não pôde ser lido em vez de sobrescrevê-lo.
             let copia = pasta.appendingPathComponent("dados-ilegivel-\(Int(Date().timeIntervalSince1970)).json")

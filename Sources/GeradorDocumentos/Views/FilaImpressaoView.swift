@@ -50,7 +50,7 @@ struct FilaImpressaoView: View {
                         }
                     }
                     .fundoSuave()
-                    Text("Cada documento sai da fila assim que o Word o recebe para imprimir (continua salvo e no Histórico). Itens com erro ou envio interrompido ficam aqui e só são reenviados com sua confirmação, para não sair em dobro.")
+                    Text("Depois de enviado para imprimir, o documento fica 2 minutos na fila como “Enviado” e então sai sozinho (continua salvo e no Histórico). Itens com erro ou envio interrompido ficam aqui e só são reenviados com sua confirmação, para não sair em dobro.")
                         .fonteApp(.legenda)
                         .foregroundStyle(.secondary)
                         .padding(16)

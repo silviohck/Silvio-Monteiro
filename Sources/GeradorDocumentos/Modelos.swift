@@ -136,6 +136,8 @@ struct ItemFilaImpressao: Identifiable, Codable, Hashable {
     var criadoEm = Date()
     var situacao: SituacaoImpressao = .pendente
     var observacao: String?
+    /// Quando foi enviado para imprimir: o item sai da fila 2 minutos depois.
+    var enviadoEm: Date?
 
     init(documento: DocumentoGerado, copias: Int) {
         documentoID = documento.id
