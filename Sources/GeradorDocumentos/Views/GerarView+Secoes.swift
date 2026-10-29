@@ -245,7 +245,7 @@ extension GerarView {
                 .buttonStyle(.borderedProminent)
                 .opacity(ultimoDocumento == nil ? 0.6 : 1)
                 .help("Recomeça do início para o próximo paciente (⇧⌘N). Só o local de atendimento continua.")
-                Button("Gerar documento") { gerar(modelo) }
+                Button("Gerar documento") { gerar() }
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
                     .disabled(
