@@ -294,42 +294,48 @@ extension Armazenamento {
         let dadosDoApp = arquivoDados
         do {
             try await Task.detached(priority: .userInitiated) {
-                let arquivos = FileManager.default
-                try? arquivos.removeItem(at: destino)
-                // Copia para uma pasta temporária sem os arquivos temporários do Word ("~$…") e do Finder,
-                // e compacta a cópia; a pasta original não é tocada.
-                let temporaria = arquivos.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
-                try arquivos.createDirectory(at: temporaria, withIntermediateDirectories: true)
-                defer { try? arquivos.removeItem(at: temporaria) }
-                let copia = temporaria.appendingPathComponent(pasta.lastPathComponent, isDirectory: true)
-                try arquivos.copyItem(at: pasta, to: copia)
-                // Junto vai o backup dos pacientes, locais, histórico e fila (a pasta só tem .docx; um .json solto
-                // na pasta principal é ignorado pela sincronização).
-                try? arquivos.copyItem(at: dadosDoApp, to: copia.appendingPathComponent("Orthck - dados (backup).json"))
-                if let itens = arquivos.enumerator(at: copia, includingPropertiesForKeys: nil) {
-                    for case let item as URL in itens
-                    where item.lastPathComponent.hasPrefix("~$") || item.lastPathComponent == ".DS_Store" {
-                        try? arquivos.removeItem(at: item)
-                    }
-                }
-                let processo = Process()
-                processo.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
-                // -c -k: .zip comum (abre no Windows também); --keepParent: a pasta fica dentro do .zip.
-                processo.arguments = ["-c", "-k", "--sequesterRsrc", "--keepParent", copia.path, destino.path]
-                let erro = Pipe()
-                processo.standardError = erro
-                try processo.run()
-                processo.waitUntilExit()
-                guard processo.terminationStatus == 0 else {
-                    let mensagem = String(data: erro.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-                    throw NSError(domain: "Orthck", code: Int(processo.terminationStatus), userInfo: [
-                        NSLocalizedDescriptionKey: "Não foi possível criar o .zip. \(mensagem)",
-                    ])
-                }
+                try Armazenamento.criarZip(da: pasta, dados: dadosDoApp, em: destino)
             }.value
             NSWorkspace.shared.activateFileViewerSelecting([destino])
         } catch {
             erro = error.localizedDescription
+        }
+    }
+
+    /// Cria em `destino` o .zip da pasta sincronizada, sem os temporários do Word e com o backup dos
+    /// dados do app. Usado pelo Compactar (.zip)… e pelo envio ao Google Drive.
+    nonisolated static func criarZip(da pasta: URL, dados dadosDoApp: URL, em destino: URL) throws {
+        let arquivos = FileManager.default
+        try? arquivos.removeItem(at: destino)
+        // Copia para uma pasta temporária sem os arquivos temporários do Word ("~$…") e do Finder,
+        // e compacta a cópia; a pasta original não é tocada.
+        let temporaria = arquivos.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try arquivos.createDirectory(at: temporaria, withIntermediateDirectories: true)
+        defer { try? arquivos.removeItem(at: temporaria) }
+        let copia = temporaria.appendingPathComponent(pasta.lastPathComponent, isDirectory: true)
+        try arquivos.copyItem(at: pasta, to: copia)
+        // Junto vai o backup dos pacientes, locais, histórico e fila (a pasta só tem .docx; um .json solto
+        // na pasta principal é ignorado pela sincronização).
+        try? arquivos.copyItem(at: dadosDoApp, to: copia.appendingPathComponent("Orthck - dados (backup).json"))
+        if let itens = arquivos.enumerator(at: copia, includingPropertiesForKeys: nil) {
+            for case let item as URL in itens
+            where item.lastPathComponent.hasPrefix("~$") || item.lastPathComponent == ".DS_Store" {
+                try? arquivos.removeItem(at: item)
+            }
+        }
+        let processo = Process()
+        processo.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+        // -c -k: .zip comum (abre no Windows também); --keepParent: a pasta fica dentro do .zip.
+        processo.arguments = ["-c", "-k", "--sequesterRsrc", "--keepParent", copia.path, destino.path]
+        let erro = Pipe()
+        processo.standardError = erro
+        try processo.run()
+        processo.waitUntilExit()
+        guard processo.terminationStatus == 0 else {
+            let mensagem = String(data: erro.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            throw NSError(domain: "Orthck", code: Int(processo.terminationStatus), userInfo: [
+                NSLocalizedDescriptionKey: "Não foi possível criar o .zip. \(mensagem)",
+            ])
         }
     }
 

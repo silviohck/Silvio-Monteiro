@@ -262,6 +262,37 @@ final class GoogleDrive {
         return arquivo
     }
 
+    /// Envio "retomável" do Google, para arquivos grandes (como o .zip da pasta de modelos): cria o
+    /// arquivo (id nil) ou troca o conteúdo dele.
+    func enviarArquivoGrande(_ conteudo: Data, nome: String, tipo: String, id: String?) async throws -> ArquivoNoDrive {
+        let endereco = id.map { "https://www.googleapis.com/upload/drive/v3/files/\($0)?uploadType=resumable&fields=id,modifiedTime" }
+            ?? "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,modifiedTime"
+        var inicio = URLRequest(url: URL(string: endereco)!)
+        inicio.httpMethod = id == nil ? "POST" : "PATCH"
+        inicio.setValue("application/json; charset=UTF-8", forHTTPHeaderField: "Content-Type")
+        inicio.setValue(tipo, forHTTPHeaderField: "X-Upload-Content-Type")
+        inicio.setValue(String(conteudo.count), forHTTPHeaderField: "X-Upload-Content-Length")
+        let info: [String: Any] = id == nil ? ["name": nome, "mimeType": tipo] : [:]
+        inicio.httpBody = try JSONSerialization.data(withJSONObject: info)
+        inicio.setValue("Bearer \(try await token())", forHTTPHeaderField: "Authorization")
+        let (dadosDoInicio, respostaDoInicio) = try await URLSession.shared.data(for: inicio)
+        let http = respostaDoInicio as? HTTPURLResponse
+        guard http?.statusCode == 200, let sessao = http?.value(forHTTPHeaderField: "Location"), let url = URL(string: sessao) else {
+            if http?.statusCode == 401 { tokenDeAcesso = nil }
+            throw Self.erro(dadosDoInicio, http?.statusCode ?? 0)
+        }
+        var envio = URLRequest(url: url)
+        envio.httpMethod = "PUT"
+        envio.setValue(tipo, forHTTPHeaderField: "Content-Type")
+        envio.timeoutInterval = 600
+        let (dados, resposta) = try await URLSession.shared.upload(for: envio, from: conteudo)
+        let status = (resposta as? HTTPURLResponse)?.statusCode ?? 0
+        guard status == 200 || status == 201,
+              let json = (try? JSONSerialization.jsonObject(with: dados)) as? [String: Any],
+              let arquivo = Self.arquivo(json) else { throw Self.erro(dados, status) }
+        return arquivo
+    }
+
     private func chamar(_ pedido: URLRequest) async throws -> (Data, Int) {
         var pedido = pedido
         pedido.setValue("Bearer \(try await token())", forHTTPHeaderField: "Authorization")
