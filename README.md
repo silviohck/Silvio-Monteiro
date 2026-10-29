@@ -22,6 +22,8 @@ App para Mac com Apple Silicon (M1, M2, M3, M4…) que gera documentos do Word a
    - Depois de gerar, **Próximo paciente** (⇧⌘N, no topo da janela e no quadro verde de documento pronto) recomeça do início: limpa paciente, subpasta, modelo e campos, e mantém só o local de atendimento.
    - Se houver **mais de um paciente com o mesmo nome**, o app não escolhe sozinho: mostra os cadastros com data de nascimento e CPF para você escolher (ou “É outro paciente”, com a data de nascimento para diferenciar). Os documentos ficam ligados ao cadastro escolhido.
 
+**Favoritos:** na tela *Gerar documento*, a ⭐ ao lado do modelo (ou *Favorito* no cadastro do modelo) cria um atalho acima da Subpasta — ex.: **Retorno**. Um clique já escolhe a subpasta e o modelo. O favorito vale pelo nome, em todos os locais que tenham um modelo com esse nome.
+
 ### Campos preenchidos automaticamente
 
 | Campo no modelo | Valor |
@@ -50,7 +52,7 @@ Na tela *Gerar documento*, **Escolher pasta principal…** define a pasta onde t
 
 ### Impressão
 
-**Fila de impressão:** na tela *Gerar documento*, em **Depois de gerar**, escolha **Adicionar à fila de impressão** (padrão), **Imprimir agora** ou **Só salvar**. Os documentos vão se acumulando na aba **Fila de impressão** (o número de pendentes aparece na barra lateral) e, ao fim dos atendimentos, **Imprimir todos** manda um por vez para o Word, na ordem em que foram gerados. Dá para mudar as cópias de cada item, imprimir só os marcados ou tirar um item da fila (o arquivo continua salvo). A fila continua lá se o app for fechado; um envio interrompido fica como “Conferir” e só é reenviado com sua confirmação. No *Histórico*, **Pôr na fila** coloca de novo um documento antigo.
+**Fila de impressão:** na tela *Gerar documento*, em **Depois de gerar**, escolha **Adicionar à fila de impressão** (padrão), **Imprimir agora** ou **Só salvar**. Os documentos vão se acumulando na aba **Fila de impressão** (o número de pendentes aparece na barra lateral) e, ao fim dos atendimentos, **Imprimir todos** manda um por vez para o Word, na ordem em que foram gerados. Cada documento sai da fila assim que é enviado para imprimir. Dá para mudar as cópias de cada item, imprimir só os marcados ou tirar um item da fila (o arquivo continua salvo). A fila continua lá se o app for fechado; um envio interrompido fica como “Conferir” e só é reenviado com sua confirmação. No *Histórico*, **Pôr na fila** coloca de novo um documento antigo.
 
 Escolha a impressora na barra lateral. Na tela *Gerar documento*, marque **Imprimir ao gerar** (ao lado, escolha quantas **cópias**) ou use o botão **Imprimir** depois de salvar; no *Histórico* também há um botão **Imprimir**. A impressão é feita pelo **Microsoft Word** (precisa estar instalado), e a impressora escolhida passa a ser a padrão do Mac. Em **Procurar impressoras…** (barra lateral) você busca pelo nome entre as instaladas e as encontradas na rede ou no USB, adiciona uma nova e define a padrão com um clique. Na primeira vez, o macOS pergunta se o app pode controlar o Word: clique em **OK**.
 
@@ -66,11 +68,11 @@ A aba **CID-10** tem a tabela completa do DATASUS (capítulos, categorias e subc
 
 No campo `{{CID}}` da tela *Gerar documento* (e em `{{CID_PRINCIPAL}}`, `{{CID2}}`…), basta digitar o código ou palavras: o app sugere da tabela CID-10 e um clique preenche o código.
 
-### SIGTAP e TUSS
+### SIGTAP
 
-As abas **SIGTAP (SUS)** e **TUSS** funcionam como a do CID-10: busca por código (`03.01.01.007-2`, `0301010072`, `10101012`) ou por palavras, sem acentos, e cópia com botão, clique direito ou ⌘C. O SIGTAP traz a Tabela de Procedimentos do SUS (DATASUS) com filtro por grupo; a TUSS traz a tabela 22 da ANS (procedimentos e eventos em saúde, só termos vigentes).
+A aba **SIGTAP (SUS)** funciona como a do CID-10: busca por código (`03.01.01.007-2`, `0301010072`) ou por palavras, sem acentos, filtro por grupo e cópia com o botão ao lado da descrição, o clique direito ou ⌘C. Traz a Tabela de Procedimentos do SUS (DATASUS).
 
-Para atualizar as duas tabelas (o SIGTAP muda todo mês), abra no GitHub *Actions › Atualizar tabelas SIGTAP e TUSS › Run workflow*: a rotina baixa as versões oficiais, grava no projeto e compila um app novo.
+Para atualizar (o SIGTAP muda todo mês), abra no GitHub *Actions › Atualizar tabela SIGTAP › Run workflow*: a rotina baixa a versão oficial, grava no projeto e compila um app novo.
 
 ### Onde os dados ficam salvos
 

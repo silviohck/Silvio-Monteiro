@@ -68,6 +68,12 @@ extension GerarView {
         )
     }
 
+    /// Atalho de favorito: escolhe de uma vez a subpasta e o modelo.
+    func irParaFavorito(_ favorito: ModeloDocumento) {
+        modeloSelecionado = favorito.id.uuidString
+        subpasta = favorito.categoria
+    }
+
     /// Recomeça do início para o próximo atendimento: limpa paciente, subpasta e modelo;
     /// só o local de atendimento (e as opções de abrir e imprimir) continuam.
     func proximoPaciente() {

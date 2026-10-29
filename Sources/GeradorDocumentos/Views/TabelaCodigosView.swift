@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Pesquisa numa tabela completa (CID-10, SIGTAP, TUSS), com cópia do código para colar nos documentos.
+/// Pesquisa numa tabela completa (CID-10, SIGTAP), com cópia do código para colar nos documentos.
 struct TabelaCodigosView: View {
     let tabela: TabelaDeCodigos
     /// Itens recuados sob as linhas de título (categorias, subgrupos), se a tabela tiver títulos.

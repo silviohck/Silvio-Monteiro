@@ -44,6 +44,24 @@ extension GerarView {
                     .fonteApp(.apoio)
                     .foregroundStyle(.secondary)
             } else {
+                let favoritos = armazenamento.favoritos(para: local)
+                if !favoritos.isEmpty {
+                    // Atalhos para os modelos mais usados (ex.: Retorno): um clique já escolhe subpasta e modelo.
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(favoritos) { favorito in
+                                Button {
+                                    irParaFavorito(favorito)
+                                } label: {
+                                    Label(favorito.nome, systemImage: "star.fill")
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(favorito.id.uuidString == modeloSelecionado ? Tema.destaque : nil)
+                                .help("\(favorito.categoria.replacingOccurrences(of: Armazenamento.separadorDeSubpastas, with: " › ")) › \(favorito.nome)")
+                            }
+                        }
+                    }
+                }
                 LabeledContent("Subpasta") {
                     // Menu em níveis, como no Finder: 1 - APAC › Fisioterapia › coluna.
                     Menu {
@@ -55,12 +73,25 @@ extension GerarView {
                     }
                     .fixedSize()
                 }
-                Picker("Modelo", selection: $modeloSelecionado) {
-                    if modeloSelecionado.isEmpty {
-                        Text("Escolha…").tag("")
+                HStack {
+                    Picker("Modelo", selection: $modeloSelecionado) {
+                        if modeloSelecionado.isEmpty {
+                            Text("Escolha…").tag("")
+                        }
+                        ForEach(modelosDaSubpasta) { modelo in
+                            Text(modelo.nome).tag(modelo.id.uuidString)
+                        }
                     }
-                    ForEach(modelosDaSubpasta) { modelo in
-                        Text(modelo.nome).tag(modelo.id.uuidString)
+                    if let modelo {
+                        let favorito = armazenamento.ehFavorito(modelo)
+                        Button {
+                            armazenamento.alternarFavorito(modelo)
+                        } label: {
+                            Image(systemName: favorito ? "star.fill" : "star")
+                                .foregroundStyle(favorito ? Color.yellow : Color.secondary)
+                        }
+                        .buttonStyle(.borderless)
+                        .help(favorito ? "Tirar “\(modelo.nome)” dos favoritos" : "Favoritar “\(modelo.nome)”: vira um atalho acima da Subpasta")
                     }
                 }
             }

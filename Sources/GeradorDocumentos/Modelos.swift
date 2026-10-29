@@ -165,6 +165,9 @@ struct DadosApp: Codable {
     var pastasCompartilhadas: [String] = DadosApp.pastasCompartilhadasPadrao
     /// Pasta padrão dos documentos gerados para locais sem pasta própria (vazia = Documentos/Orthck).
     var pastaDocumentos = ""
+    /// Nomes dos modelos favoritos (ex.: "Retorno"), na ordem escolhida. Pelo nome, para valer
+    /// em todos os locais que tenham um modelo com esse nome.
+    var favoritos: [String] = []
 
     static let categoriasPadrao = ["Receitas", "Atestados", "Laudos", "Relatórios médicos", "Radiografias", "Outros"]
 
@@ -194,5 +197,6 @@ struct DadosApp: Codable {
         pastasCompartilhadas = try container.decodeIfPresent([String].self, forKey: .pastasCompartilhadas)
             ?? Self.pastasCompartilhadasPadrao
         pastaDocumentos = try container.decodeIfPresent(String.self, forKey: .pastaDocumentos) ?? ""
+        favoritos = try container.decodeIfPresent([String].self, forKey: .favoritos) ?? []
     }
 }

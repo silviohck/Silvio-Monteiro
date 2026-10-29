@@ -1,4 +1,4 @@
-// Gerado por scripts/atualizar_tabelas.py (GitHub Actions › Atualizar tabelas SIGTAP e TUSS).
+// Gerado por scripts/atualizar_tabelas.py (GitHub Actions › Atualizar tabela SIGTAP).
 // Não edite à mão: rode a atualização de novo para trazer a versão mais recente.
 // Fonte: DATASUS, TabelaUnificada_202610_v2610271043.zip (competência 10/2026). Formato: "código|descrição".
 

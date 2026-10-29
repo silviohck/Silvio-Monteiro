@@ -137,6 +137,28 @@ final class Armazenamento: ObservableObject {
             }
     }
 
+    // MARK: Favoritos
+
+    func ehFavorito(_ modelo: ModeloDocumento) -> Bool {
+        dados.favoritos.contains { Self.mesmoNome($0, modelo.nome) }
+    }
+
+    func alternarFavorito(_ modelo: ModeloDocumento) {
+        if ehFavorito(modelo) {
+            dados.favoritos.removeAll { Self.mesmoNome($0, modelo.nome) }
+        } else {
+            dados.favoritos.append(modelo.nome)
+        }
+    }
+
+    /// Os favoritos que existem neste local, na ordem em que foram marcados.
+    func favoritos(para local: LocalAtendimento?) -> [ModeloDocumento] {
+        let disponiveis = modelos(para: local)
+        return dados.favoritos.compactMap { nome in
+            disponiveis.first { Self.mesmoNome($0.nome, nome) }
+        }
+    }
+
     func removerModelo(_ modelo: ModeloDocumento) {
         try? FileManager.default.removeItem(at: urlDoModelo(modelo))
         dados.modelos.removeAll { $0.id == modelo.id }
@@ -550,8 +572,8 @@ final class Armazenamento: ObservableObject {
                 dados.filaImpressao[atualizado].situacao = .erro
                 dados.filaImpressao[atualizado].observacao = erroDaImpressao
             } else {
-                dados.filaImpressao[atualizado].situacao = .enviado
-                dados.filaImpressao[atualizado].observacao = "Comando enviado ao Word. Confira o resultado na impressora."
+                // Impresso: sai da fila (o documento continua salvo e no Histórico).
+                dados.filaImpressao.remove(at: atualizado)
             }
         }
     }

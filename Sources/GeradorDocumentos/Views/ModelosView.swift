@@ -286,6 +286,12 @@ struct ModeloEditor: View {
         Form {
             Section(header: TituloSecao("Modelo", icone: "doc.text.fill")) {
                 TextField("Nome", text: $modelo.nome)
+                Toggle(isOn: Binding(
+                    get: { armazenamento.ehFavorito(modelo) },
+                    set: { _ in armazenamento.alternarFavorito(modelo) }
+                )) {
+                    Label("Favorito (atalho em Gerar documento)", systemImage: "star.fill")
+                }
                 Picker("Local de atendimento", selection: $modelo.localID) {
                     Text("Todos os locais").tag(UUID?.none)
                     ForEach(armazenamento.locaisOrdenados) { local in

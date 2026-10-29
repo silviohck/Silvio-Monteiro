@@ -50,7 +50,7 @@ struct FilaImpressaoView: View {
                         }
                     }
                     .fundoSuave()
-                    Text("“Enviado” quer dizer que o Word recebeu o documento; confira na impressora. Itens com erro ou envio interrompido só são reenviados com sua confirmação, para não sair em dobro.")
+                    Text("Cada documento sai da fila assim que o Word o recebe para imprimir (continua salvo e no Histórico). Itens com erro ou envio interrompido ficam aqui e só são reenviados com sua confirmação, para não sair em dobro.")
                         .fonteApp(.legenda)
                         .foregroundStyle(.secondary)
                         .padding(16)

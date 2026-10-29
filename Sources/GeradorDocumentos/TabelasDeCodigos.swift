@@ -32,7 +32,7 @@ struct CodigoDaTabela: Identifiable, Hashable {
     }
 }
 
-/// Tabela de códigos embutida no app (funciona sem internet): CID-10, SIGTAP ou TUSS.
+/// Tabela de códigos embutida no app (funciona sem internet): CID-10 ou SIGTAP.
 struct TabelaDeCodigos {
     let nome: String
     /// Texto curto sobre a origem e a versão dos dados.
@@ -131,23 +131,6 @@ extension TabelaDeCodigos {
             grupos: grupos,
             codigos: codigos,
             exemploDeBusca: "03.01.01.007-2, consulta, artroplastia joelho"
-        )
-    }()
-
-    /// TUSS (ANS), tabela 22: procedimentos e eventos em saúde.
-    static let tuss: TabelaDeCodigos = {
-        let codigos = linhas(TUSSDados.procedimentos, partes: 2).map {
-            CodigoDaTabela(codigo: $0[0], descricao: $0[1], grupo: 0, ehTitulo: false)
-        }
-        return TabelaDeCodigos(
-            nome: "TUSS",
-            fonte: TUSSDados.versao.isEmpty
-                ? "TUSS da ANS, tabela 22 (procedimentos e eventos em saúde)"
-                : "TUSS da ANS, tabela 22 (procedimentos e eventos em saúde), \(TUSSDados.versao)",
-            nomeDoGrupo: "",
-            grupos: [],
-            codigos: codigos,
-            exemploDeBusca: "10101012, consulta, ressonância joelho"
         )
     }()
 

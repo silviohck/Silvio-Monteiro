@@ -1,7 +1,7 @@
-name: Atualizar tabelas SIGTAP e TUSS
+name: Atualizar tabela SIGTAP
 
-# Baixa as tabelas oficiais (DATASUS e ANS), gera os arquivos de dados do app e
-# grava na mesma branch. Rode em Actions › Atualizar tabelas SIGTAP e TUSS › Run workflow.
+# Baixa a tabela oficial do DATASUS, gera os arquivos de dados do app e
+# grava na mesma branch. Rode em Actions › Atualizar tabela SIGTAP › Run workflow.
 on:
   workflow_dispatch:
 
@@ -25,12 +25,12 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Sources/GeradorDocumentos/SIGTAPDados.swift Sources/GeradorDocumentos/TUSSDados.swift
+          git add Sources/GeradorDocumentos/SIGTAPDados.swift
           if git diff --cached --quiet; then
             echo "Nada mudou."
             exit 0
           fi
-          git commit -m "Atualiza tabelas SIGTAP e TUSS"
+          git commit -m "Atualiza tabela SIGTAP"
           git push origin "HEAD:${GITHUB_REF_NAME}"
           # Um push feito por esta rotina não dispara a compilação sozinho.
           gh workflow run build.yml --ref "${GITHUB_REF_NAME}"
