@@ -113,6 +113,27 @@ final class Armazenamento: ObservableObject {
         }
     }
 
+    /// Na hora de gerar: se o arquivo do modelo na pasta sincronizada mudou desde a última cópia
+    /// (editado no Word e a sincronização ainda não passou), copia de novo agora. Assim o documento
+    /// sai sempre da versão mais nova do modelo. Devolve o modelo atualizado.
+    @discardableResult
+    func atualizarModeloDaPasta(_ modelo: ModeloDocumento) -> ModeloDocumento {
+        guard let origem = modelo.origem, let raiz = urlPastaSincronizada else { return modelo }
+        let original = raiz.appendingPathComponent(origem)
+        guard FileManager.default.fileExists(atPath: original.path) else { return modelo }
+        let modificado = (try? original.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+        let copia = urlDoModelo(modelo)
+        let desatualizado = modificado.map { data in
+            modelo.origemModificadaEm.map { abs($0.timeIntervalSince(data)) > 1 } ?? true
+        } ?? false
+        guard desatualizado || !FileManager.default.fileExists(atPath: copia.path) else { return modelo }
+        guard let campos = try? Self.copiarModelo(original, para: copia),
+              let indice = dados.modelos.firstIndex(where: { $0.id == modelo.id }) else { return modelo }
+        dados.modelos[indice].campos = campos
+        dados.modelos[indice].origemModificadaEm = modificado
+        return dados.modelos[indice]
+    }
+
     /// Leitura coordenada: faz o macOS baixar antes arquivos que estão só no iCloud/OneDrive.
     nonisolated private static func lerCoordenado(_ url: URL, _ acao: (URL) throws -> Void) throws {
         var erroCoordenacao: NSError?
@@ -503,9 +524,12 @@ final class Armazenamento: ObservableObject {
         let partes = [modelo.nome, paciente, local?.nome ?? "", formatador.string(from: data)]
         let base = Self.nomeSeguro(partes.filter { !$0.isEmpty }.joined(separator: " - "))
 
+        // Nome único também entre as pastas (não só nesta): o Word não abre dois documentos com o mesmo
+        // nome e imprimiria o que já estivesse aberto, de outra pasta.
+        let nomesJaUsados = Set(dados.historico.map { URL(fileURLWithPath: $0.caminho).lastPathComponent })
         var destino = pasta.appendingPathComponent(base + ".docx")
         var numero = 2
-        while FileManager.default.fileExists(atPath: destino.path) {
+        while FileManager.default.fileExists(atPath: destino.path) || nomesJaUsados.contains(destino.lastPathComponent) {
             destino = pasta.appendingPathComponent("\(base) (\(numero)).docx")
             numero += 1
         }

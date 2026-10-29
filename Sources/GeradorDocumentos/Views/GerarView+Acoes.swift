@@ -140,6 +140,14 @@ extension GerarView {
             armazenamento.erro = "Escolha a subpasta e o modelo antes de gerar o documento."
             return
         }
+        // Sempre da versão mais nova do modelo: se ele foi editado e a sincronização ainda não passou,
+        // copia agora. Se os campos mudaram, o formulário é refeito antes de gerar.
+        let atualizado = armazenamento.atualizarModeloDaPasta(modelo)
+        if atualizado.campos != modelo.campos {
+            preencher(.tudo)
+            armazenamento.erro = "O modelo “\(modelo.nome)” foi atualizado e tem campos diferentes. Confira os campos e clique em Gerar de novo."
+            return
+        }
         let nome = nomeDigitado
         var valoresFinais = valores
         for campo in modelo.campos where CamposAutomaticos.ehNomeDoPaciente(campo) {
