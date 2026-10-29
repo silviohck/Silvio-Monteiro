@@ -102,7 +102,12 @@ struct GerarView: View {
                 mensagem: "Vá em “Modelos” e importe um arquivo .docx com campos como {{NOME_PACIENTE}}."
             )
         } else {
-            formulario
+            HStack(alignment: .top, spacing: 0) {
+                formulario
+                Divider()
+                UltimosPacientes { documento in usarPacienteRecente(documento) }
+                    .frame(width: 250)
+            }
         }
     }
 
