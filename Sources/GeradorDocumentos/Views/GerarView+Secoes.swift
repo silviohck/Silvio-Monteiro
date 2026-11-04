@@ -47,20 +47,27 @@ extension GerarView {
                 let favoritos = armazenamento.favoritos(para: local)
                 if !favoritos.isEmpty {
                     // Atalhos para os modelos mais usados (ex.: Retorno): um clique já escolhe subpasta e modelo.
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(favoritos) { favorito in
-                                Button {
-                                    irParaFavorito(favorito)
-                                } label: {
-                                    Label(favorito.nome, systemImage: "star.fill")
+                    // Em grade (todos à vista, do mesmo tamanho), em vez de uma fila que rola para o lado.
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 190), spacing: 8)], alignment: .leading, spacing: 8) {
+                        ForEach(favoritos) { favorito in
+                            Button {
+                                irParaFavorito(favorito)
+                            } label: {
+                                Label {
+                                    Text(favorito.nome)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                } icon: {
+                                    Image(systemName: "star.fill")
                                 }
-                                .buttonStyle(.bordered)
-                                .tint(favorito.id.uuidString == modeloSelecionado ? Tema.destaque : nil)
-                                .help("\(favorito.categoria.replacingOccurrences(of: Armazenamento.separadorDeSubpastas, with: " › ")) › \(favorito.nome)")
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             }
+                            .buttonStyle(.bordered)
+                            .tint(favorito.id.uuidString == modeloSelecionado ? Tema.destaque : nil)
+                            .help("\(favorito.categoria.replacingOccurrences(of: Armazenamento.separadorDeSubpastas, with: " › ")) › \(favorito.nome)")
                         }
                     }
+                    .padding(.vertical, 2)
                 }
                 LabeledContent("Subpasta") {
                     // Menu em níveis, como no Finder: 1 - APAC › Fisioterapia › coluna.

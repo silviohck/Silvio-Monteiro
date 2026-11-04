@@ -170,6 +170,9 @@ struct DadosApp: Codable {
     /// Nomes dos modelos favoritos (ex.: "Retorno"), na ordem escolhida. Pelo nome, para valer
     /// em todos os locais que tenham um modelo com esse nome.
     var favoritos: [String] = []
+    /// Arquivos de entrada do Laudo AIH (ids no Google Drive) já importados, para nunca importar duas vezes,
+    /// nem no outro computador.
+    var entradasImportadas: [String] = []
 
     static let categoriasPadrao = ["Receitas", "Atestados", "Laudos", "Relatórios médicos", "Radiografias", "Outros"]
 
@@ -200,5 +203,6 @@ struct DadosApp: Codable {
             ?? Self.pastasCompartilhadasPadrao
         pastaDocumentos = try container.decodeIfPresent(String.self, forKey: .pastaDocumentos) ?? ""
         favoritos = try container.decodeIfPresent([String].self, forKey: .favoritos) ?? []
+        entradasImportadas = try container.decodeIfPresent([String].self, forKey: .entradasImportadas) ?? []
     }
 }

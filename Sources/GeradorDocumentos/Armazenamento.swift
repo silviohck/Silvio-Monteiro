@@ -796,6 +796,9 @@ final class Armazenamento: ObservableObject {
                 let idsDaFila = Set(atual.filaImpressao.map(\.id))
                 atual.filaImpressao += importados.filaImpressao.filter { !idsDaFila.contains($0.id) && $0.situacao == .pendente }
             }
+            for id in importados.entradasImportadas where !atual.entradasImportadas.contains(id) {
+                atual.entradasImportadas.append(id)
+            }
             // Favoritos marcados no outro computador também valem aqui.
             for favorito in importados.favoritos where !atual.favoritos.contains(where: { Self.mesmoNome($0, favorito) }) {
                 atual.favoritos.append(favorito)
@@ -887,6 +890,11 @@ final class Armazenamento: ObservableObject {
                 defer { try? FileManager.default.removeItem(at: temporario) }
                 resumo = try importarDados(de: temporario, modo: .juntar, deOutroComputador: true)
                 versaoConhecidaNoDrive = remoto.modificado
+            }
+            // Pacientes deixados pelo app do Laudo AIH na mesma pasta do arquivo de dados.
+            if let importados = await importarEntradasDoLaudo(pastaDe: remoto?.id ?? idNoDrive), importados > 0 {
+                let aviso = "\(importados) \(importados == 1 ? "paciente importado" : "pacientes importados") do Laudo AIH"
+                resumo = resumo.map { "\($0) · \(aviso)" } ?? aviso
             }
             let local = try Self.codificador.encode(dados)
             let marca = SHA256.hash(data: local).map { String(format: "%02x", $0) }.joined()

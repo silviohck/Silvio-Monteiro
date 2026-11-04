@@ -68,15 +68,13 @@ extension GerarView {
         )
     }
 
-    /// Clique num paciente da lista "Últimos pacientes": preenche o nome e escolhe o cadastro dele.
-    func usarPacienteRecente(_ documento: DocumentoGerado) {
-        if let id = documento.pacienteID, let paciente = armazenamento.paciente(id) {
-            nomePaciente = GerarView.maiusculas(paciente.nome)
-            pacienteEscolhido = paciente.id
-        } else {
-            nomePaciente = GerarView.maiusculas(documento.paciente)
-        }
-        focoNoNome = true
+    /// Clique num paciente do painel "Atendidos recentemente": preenche o nome e escolhe o cadastro dele.
+    func escolherPacienteAtendido(_ paciente: Paciente) {
+        outroPaciente = false
+        nascimentoDoNovo = ""
+        nomePaciente = GerarView.maiusculas(paciente.nome)
+        pacienteEscolhido = paciente.id
+        focoNoNome = false
     }
 
     /// Atalho de favorito: escolhe de uma vez a subpasta e o modelo.

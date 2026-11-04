@@ -105,8 +105,10 @@ struct GerarView: View {
             HStack(alignment: .top, spacing: 0) {
                 formulario
                 Divider()
-                UltimosPacientes { documento in usarPacienteRecente(documento) }
-                    .frame(width: 250)
+                PainelPacientesRecentes(pacienteAtual: pacienteCadastrado?.id) { paciente in
+                    escolherPacienteAtendido(paciente)
+                }
+                .frame(width: 300)
             }
         }
     }
