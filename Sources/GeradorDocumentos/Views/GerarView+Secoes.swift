@@ -95,15 +95,15 @@ extension GerarView {
                         }
                     }
                     if let modelo {
-                        let favorito = armazenamento.ehFavorito(modelo)
+                        let favorito = armazenamento.ehFavorito(modelo, noLocal: local?.id)
                         Button {
-                            armazenamento.alternarFavorito(modelo)
+                            armazenamento.alternarFavorito(modelo, noLocal: local?.id)
                         } label: {
                             Image(systemName: favorito ? "star.fill" : "star")
                                 .foregroundStyle(favorito ? Color.yellow : Color.secondary)
                         }
                         .buttonStyle(.borderless)
-                        .help(favorito ? "Tirar “\(modelo.nome)” dos favoritos" : "Favoritar “\(modelo.nome)”: vira um atalho acima da Subpasta")
+                        .help(favorito ? "Tirar “\(modelo.nome)” dos favoritos" : "Favoritar “\(modelo.nome)” em \(local?.nome ?? "este local"): vira um atalho acima da Subpasta")
                     }
                 }
             }

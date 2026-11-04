@@ -198,24 +198,49 @@ final class Armazenamento: ObservableObject {
 
     // MARK: Favoritos
 
-    func ehFavorito(_ modelo: ModeloDocumento) -> Bool {
-        dados.favoritos.contains { Self.mesmoNome($0, modelo.nome) }
+    // Cada local de atendimento tem os seus favoritos ("" = sem local).
+
+    private static func chaveDosFavoritos(_ local: UUID?) -> String {
+        local?.uuidString ?? ""
     }
 
-    func alternarFavorito(_ modelo: ModeloDocumento) {
-        if ehFavorito(modelo) {
-            dados.favoritos.removeAll { Self.mesmoNome($0, modelo.nome) }
+    func ehFavorito(_ modelo: ModeloDocumento, noLocal local: UUID?) -> Bool {
+        (dados.favoritosPorLocal[Self.chaveDosFavoritos(local)] ?? []).contains { Self.mesmoNome($0, modelo.nome) }
+    }
+
+    func alternarFavorito(_ modelo: ModeloDocumento, noLocal local: UUID?) {
+        let chave = Self.chaveDosFavoritos(local)
+        var lista = dados.favoritosPorLocal[chave] ?? []
+        if lista.contains(where: { Self.mesmoNome($0, modelo.nome) }) {
+            lista.removeAll { Self.mesmoNome($0, modelo.nome) }
         } else {
-            dados.favoritos.append(modelo.nome)
+            lista.append(modelo.nome)
         }
+        dados.favoritosPorLocal[chave] = lista.isEmpty ? nil : lista
     }
 
-    /// Os favoritos que existem neste local, na ordem em que foram marcados.
+    /// Os favoritos deste local, na ordem em que foram marcados.
     func favoritos(para local: LocalAtendimento?) -> [ModeloDocumento] {
         let disponiveis = modelos(para: local)
-        return dados.favoritos.compactMap { nome in
+        return (dados.favoritosPorLocal[Self.chaveDosFavoritos(local?.id)] ?? []).compactMap { nome in
             disponiveis.first { Self.mesmoNome($0.nome, nome) }
         }
+    }
+
+    /// Favoritos de versões anteriores (uma lista só): cada local fica com os que tem modelo com
+    /// esse nome. Depois, dá para desmarcar onde não for preciso.
+    fileprivate func separarFavoritosPorLocal() {
+        guard !dados.favoritos.isEmpty else { return }
+        var atual = dados
+        let locais: [LocalAtendimento?] = [nil] + atual.locais.map { $0 }
+        for local in locais {
+            let disponiveis = modelos(para: local)
+            let nomes = atual.favoritos.filter { nome in disponiveis.contains { Self.mesmoNome($0.nome, nome) } }
+            let chave = Self.chaveDosFavoritos(local?.id)
+            if !nomes.isEmpty, atual.favoritosPorLocal[chave] == nil { atual.favoritosPorLocal[chave] = nomes }
+        }
+        atual.favoritos = []
+        dados = atual
     }
 
     func removerModelo(_ modelo: ModeloDocumento) {
@@ -695,6 +720,7 @@ final class Armazenamento: ObservableObject {
                 dados.filaImpressao[indice].observacao = "O aplicativo foi fechado durante o envio. Confira a impressora antes de reenviar."
             }
             separarTiposPorLocal()
+            separarFavoritosPorLocal()
             limparEnviadosAntigos()
             if dados.filaImpressao.contains(where: { $0.situacao == .enviado }) { agendarLimpezaDosEnviados() }
         } catch {
@@ -796,12 +822,13 @@ final class Armazenamento: ObservableObject {
                 let idsDaFila = Set(atual.filaImpressao.map(\.id))
                 atual.filaImpressao += importados.filaImpressao.filter { !idsDaFila.contains($0.id) && $0.situacao == .pendente }
             }
-            for id in importados.entradasImportadas where !atual.entradasImportadas.contains(id) {
-                atual.entradasImportadas.append(id)
-            }
-            // Favoritos marcados no outro computador também valem aqui.
-            for favorito in importados.favoritos where !atual.favoritos.contains(where: { Self.mesmoNome($0, favorito) }) {
-                atual.favoritos.append(favorito)
+            // Favoritos marcados no outro computador também valem aqui, cada um no seu local.
+            for (chave, nomes) in importados.favoritosPorLocal {
+                var lista = atual.favoritosPorLocal[chave] ?? []
+                for nome in nomes where !lista.contains(where: { Self.mesmoNome($0, nome) }) {
+                    lista.append(nome)
+                }
+                atual.favoritosPorLocal[chave] = lista
             }
             dados = atual
             return "Dados juntados: \(pacientesNovos) pacientes, \(locaisNovos) locais e \(historicoNovo.count) documentos no histórico entraram."
@@ -890,11 +917,6 @@ final class Armazenamento: ObservableObject {
                 defer { try? FileManager.default.removeItem(at: temporario) }
                 resumo = try importarDados(de: temporario, modo: .juntar, deOutroComputador: true)
                 versaoConhecidaNoDrive = remoto.modificado
-            }
-            // Pacientes deixados pelo app do Laudo AIH na mesma pasta do arquivo de dados.
-            if let importados = await importarEntradasDoLaudo(pastaDe: remoto?.id ?? idNoDrive), importados > 0 {
-                let aviso = "\(importados) \(importados == 1 ? "paciente importado" : "pacientes importados") do Laudo AIH"
-                resumo = resumo.map { "\($0) · \(aviso)" } ?? aviso
             }
             let local = try Self.codificador.encode(dados)
             let marca = SHA256.hash(data: local).map { String(format: "%02x", $0) }.joined()

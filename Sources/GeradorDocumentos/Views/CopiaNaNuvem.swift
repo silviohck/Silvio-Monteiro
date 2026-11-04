@@ -36,12 +36,6 @@ struct CopiaNaNuvem: View {
                             .foregroundStyle(.secondary)
                             .lineLimit(3)
                     }
-                    if !armazenamento.drive.podeLerEntradas {
-                        Text("Para trazer os pacientes do Laudo AIH, desconecte (⋯) e conecte de novo, permitindo a leitura do Drive.")
-                            .fonteApp(.legenda)
-                            .foregroundStyle(.orange)
-                            .lineLimit(3)
-                    }
                     if armazenamento.envioPendente {
                         Text("Mudanças vão para o Drive em até 2 minutos (ou ao fechar o app).")
                             .fonteApp(.legenda)

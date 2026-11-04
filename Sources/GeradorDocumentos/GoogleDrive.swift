@@ -8,8 +8,6 @@ struct ContaGoogle: Codable {
     var clientID = ""
     var clientSecret = ""
     var refreshToken: String?
-    /// Permissões dadas pelo usuário no último login (o Google devolve junto com a autorização).
-    var escopos: String?
 }
 
 /// Um arquivo no Drive: o identificador e a data de modificação (texto do Google, comparado como está).
@@ -41,17 +39,7 @@ enum ErroGoogle: LocalizedError {
 /// (drive.file) só alcança os arquivos que o app criou, nada mais do Drive.
 @MainActor
 final class GoogleDrive {
-    /// drive.file: criar e trocar só os arquivos do próprio app. drive.readonly: ler, sem alterar,
-    /// os arquivos de entrada que o app do Laudo AIH deixa no Drive.
-    static let escopoDosArquivosDoApp = "https://www.googleapis.com/auth/drive.file"
-    static let escopoDeLeitura = "https://www.googleapis.com/auth/drive.readonly"
-    static let escopo = "\(escopoDosArquivosDoApp) \(escopoDeLeitura)"
-
-    /// O login atual permite ler os arquivos de entrada do Laudo AIH (conexões antigas só têm drive.file).
-    var podeLerEntradas: Bool {
-        let escopos = (conta.escopos ?? "").split(separator: " ").map(String.init)
-        return escopos.contains(Self.escopoDeLeitura) || escopos.contains("https://www.googleapis.com/auth/drive")
-    }
+    static let escopo = "https://www.googleapis.com/auth/drive.file"
 
     private let arquivoConta: URL
     private(set) var conta: ContaGoogle
@@ -198,10 +186,6 @@ final class GoogleDrive {
                 "O Google recusou o pedido: \(json["error_description"] as? String ?? json["error"] as? String ?? "erro desconhecido")."
             )
         }
-        if let escopos = json["scope"] as? String, escopos != conta.escopos {
-            conta.escopos = escopos
-            salvarConta()
-        }
         if let valor = json["access_token"] as? String {
             let segundos = (json["expires_in"] as? Double) ?? 3600
             tokenDeAcesso = (valor, Date().addingTimeInterval(segundos - 60))
@@ -226,37 +210,6 @@ final class GoogleDrive {
         guard status == 200 else { throw Self.erro(dados, status) }
         let json = (try? JSONSerialization.jsonObject(with: dados)) as? [String: Any]
         return ((json?["files"] as? [[String: Any]]) ?? []).first.flatMap(Self.arquivo)
-    }
-
-    /// Pasta onde está o arquivo (a primeira, se houver mais de uma).
-    func pastaDoArquivo(id: String) async throws -> String? {
-        var endereco = URLComponents(string: "https://www.googleapis.com/drive/v3/files/\(id)")!
-        endereco.queryItems = [URLQueryItem(name: "fields", value: "parents")]
-        let (dados, status) = try await chamar(URLRequest(url: endereco.url!))
-        guard status == 200 else { throw Self.erro(dados, status) }
-        let json = (try? JSONSerialization.jsonObject(with: dados)) as? [String: Any]
-        return (json?["parents"] as? [String])?.first
-    }
-
-    /// Arquivos cujo nome começa com `prefixo` (de qualquer app), na pasta indicada; nil = em todo o Drive.
-    func listar(comecandoCom prefixo: String, naPasta pasta: String?) async throws -> [(id: String, nome: String)] {
-        var endereco = URLComponents(string: "https://www.googleapis.com/drive/v3/files")!
-        var consulta = "name contains '\(prefixo.replacingOccurrences(of: "'", with: "\\'"))' and trashed = false"
-        if let pasta { consulta += " and '\(pasta)' in parents" }
-        endereco.queryItems = [
-            URLQueryItem(name: "q", value: consulta),
-            URLQueryItem(name: "spaces", value: "drive"),
-            URLQueryItem(name: "orderBy", value: "createdTime"),
-            URLQueryItem(name: "pageSize", value: "200"),
-            URLQueryItem(name: "fields", value: "files(id,name)"),
-        ]
-        let (dados, status) = try await chamar(URLRequest(url: endereco.url!))
-        guard status == 200 else { throw Self.erro(dados, status) }
-        let json = (try? JSONSerialization.jsonObject(with: dados)) as? [String: Any]
-        return ((json?["files"] as? [[String: Any]]) ?? []).compactMap { arquivo in
-            guard let id = arquivo["id"] as? String, let nome = arquivo["name"] as? String, nome.hasPrefix(prefixo) else { return nil }
-            return (id, nome)
-        }
     }
 
     /// Dados atuais do arquivo; nil se ele foi apagado (ou foi para a lixeira).

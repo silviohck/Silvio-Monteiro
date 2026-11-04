@@ -167,12 +167,11 @@ struct DadosApp: Codable {
     var pastasCompartilhadas: [String] = DadosApp.pastasCompartilhadasPadrao
     /// Pasta padrão dos documentos gerados para locais sem pasta própria (vazia = Documentos/Orthck).
     var pastaDocumentos = ""
-    /// Nomes dos modelos favoritos (ex.: "Retorno"), na ordem escolhida. Pelo nome, para valer
-    /// em todos os locais que tenham um modelo com esse nome.
+    /// Versões anteriores: favoritos de todos os locais numa lista só (passam para favoritosPorLocal ao abrir).
     var favoritos: [String] = []
-    /// Arquivos de entrada do Laudo AIH (ids no Google Drive) já importados, para nunca importar duas vezes,
-    /// nem no outro computador.
-    var entradasImportadas: [String] = []
+    /// Favoritos de cada local de atendimento (id do local; "" = sem local): nomes dos modelos, na
+    /// ordem em que foram marcados. Um local não vê os favoritos de outro.
+    var favoritosPorLocal: [String: [String]] = [:]
 
     static let categoriasPadrao = ["Receitas", "Atestados", "Laudos", "Relatórios médicos", "Radiografias", "Outros"]
 
@@ -203,6 +202,6 @@ struct DadosApp: Codable {
             ?? Self.pastasCompartilhadasPadrao
         pastaDocumentos = try container.decodeIfPresent(String.self, forKey: .pastaDocumentos) ?? ""
         favoritos = try container.decodeIfPresent([String].self, forKey: .favoritos) ?? []
-        entradasImportadas = try container.decodeIfPresent([String].self, forKey: .entradasImportadas) ?? []
+        favoritosPorLocal = try container.decodeIfPresent([String: [String]].self, forKey: .favoritosPorLocal) ?? [:]
     }
 }
