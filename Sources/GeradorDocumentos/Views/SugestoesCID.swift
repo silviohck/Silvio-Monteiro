@@ -8,8 +8,12 @@ struct SugestoesCID: View {
 
     /// {{CID}}, {{CID_PRINCIPAL}}, {{CID2}}, {{OUTRO_CID}}…
     static func ehCampoCID(_ campo: String) -> Bool {
-        let chave = CamposAutomaticos.chave(campo)
-        return chave.hasPrefix("CID") || chave.hasSuffix("_CID")
+        // A palavra CID inteira (CID, CID_PRINCIPAL, OUTRO_CID) ou CID seguido de número (CID2);
+        // não basta começar com "CID": CIDADE não é campo de CID.
+        let partes = CamposAutomaticos.chave(campo).split(separator: "_")
+        return partes.contains { parte in
+            parte == "CID" || (parte.hasPrefix("CID") && parte.dropFirst(3).allSatisfy(\.isNumber))
+        }
     }
 
     private var resultados: [CodigoDaTabela] {
