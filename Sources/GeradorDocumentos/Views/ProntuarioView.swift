@@ -24,6 +24,8 @@ struct ProntuarioView: View {
     @State var importandoFicha = false
     @State var ultimoPaciente: Paciente.ID?
     @FocusState var focoNoNome: Bool
+    /// Linha da ficha (H.D.A., exame físico…) em que se está digitando.
+    @FocusState var linhaEmFoco: String?
 
     // MARK: Estado derivado
 
@@ -86,7 +88,7 @@ struct ProntuarioView: View {
     }
 
     /// Letras que cabem numa linha da ficha (largura da página, letra 9,5).
-    static let caracteresPorLinha = 80
+    static let caracteresPorLinha = 76
 
     /// Quebra o texto em linhas de até `largura` letras, sem cortar palavras; Enter começa linha nova.
     static func quebrarEmLinhas(_ texto: String, largura: Int = caracteresPorLinha) -> [String] {
@@ -109,16 +111,6 @@ struct ProntuarioView: View {
         return linhas
     }
 
-    /// Distribui o texto pelas linhas do campo; se passar, o resto fica na última linha.
-    static func distribuir(_ texto: String, linhas vagas: Int) -> [String] {
-        let linhas = quebrarEmLinhas(texto)
-        guard vagas > 0 else { return [] }
-        var saida = Array(linhas.prefix(vagas))
-        if linhas.count > vagas {
-            saida[vagas - 1] = linhas[(vagas - 1)...].joined(separator: "\n")
-        }
-        return saida + Array(repeating: "", count: max(0, vagas - saida.count))
-    }
 
     static let partesLongas = ["QUEIXA", "HDA", "HISTORIA", "ANAMNESE", "EXAME", "PROGRAMACAO", "CONDUTA",
                                "EVOLUCAO", "PLANO", "OBSERVAC", "TRATAMENTO", "PRESCRICAO", "HIPOTESE"]
@@ -329,7 +321,10 @@ struct ProntuarioView: View {
             ForEach(campos, id: \.self) { campo in
                 VStack(alignment: .leading, spacing: 4) {
                     Text(Self.titulo(campo)).fontWeight(.semibold)
-                    if Self.ehLongo(campo) {
+                    let outras = Self.continuacoes(de: campo, em: ficha)
+                    if !outras.isEmpty {
+                        linhasDaFicha([campo] + outras)
+                    } else if Self.ehLongo(campo) {
                         TextField(Self.titulo(campo), text: valor(campo), axis: .vertical)
                             .labelsHidden()
                             .lineLimit(4...14)
@@ -348,7 +343,7 @@ struct ProntuarioView: View {
                 }
                 .padding(.vertical, 2)
             }
-            if Self.campoDeExames(ficha) == nil {
+            if Self.campoDeExames(ficha) == nil && !Self.temLinhas(Self.campoDoExameFisico(ficha), em: ficha) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Exames complementares").fontWeight(.semibold)
                     TextField("Exames complementares", text: Binding(
@@ -369,6 +364,78 @@ struct ProntuarioView: View {
             Text("Anamnese, exame e conduta valem só para este prontuário: não ficam no cadastro e não passam para o próximo paciente.")
                 .foregroundStyle(.secondary)
         }
+    }
+
+    /// As linhas da ficha, como no papel: uma caixa por linha. Ao passar do tamanho da linha, o texto
+    /// continua na de baixo; Enter vai para a próxima linha.
+    func linhasDaFicha(_ campos: [String]) -> some View {
+        VStack(spacing: 0) {
+            ForEach(Array(campos.enumerated()), id: \.element) { indice, campo in
+                HStack(spacing: 8) {
+                    Text("\(indice + 1)")
+                        .fonteApp(.legenda)
+                        .foregroundStyle(.tertiary)
+                        .monospacedDigit()
+                        .frame(width: 20, alignment: .trailing)
+                    TextField("", text: linha(indice, de: campos))
+                        .textFieldStyle(.plain)
+                        .font(.system(.body, design: .monospaced))
+                        .focused($linhaEmFoco, equals: campo)
+                        .onSubmit {
+                            if indice + 1 < campos.count { linhaEmFoco = campos[indice + 1] }
+                        }
+                }
+                .padding(.vertical, 5)
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(Tema.borda).frame(height: 1)
+                }
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Tema.superficie, in: RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Tema.borda))
+    }
+
+    /// Uma linha da ficha: em maiúsculas; o que não couber desce para as linhas seguintes.
+    func linha(_ indice: Int, de campos: [String]) -> Binding<String> {
+        Binding(
+            get: { valores[campos[indice], default: ""] },
+            set: { novo in
+                valores[campos[indice]] = GerarView.maiusculas(novo)
+                geracaoConcluida = false
+                aviso = nil
+                ultimoDocumento = nil
+                if fluir(campos, aPartirDe: indice), indice + 1 < campos.count {
+                    linhaEmFoco = campos[indice + 1]
+                }
+            }
+        )
+    }
+
+    /// Passa para a linha de baixo as palavras que não cabem. Devolve true se a linha `indice` transbordou.
+    @discardableResult
+    func fluir(_ campos: [String], aPartirDe indice: Int) -> Bool {
+        var transbordou = false
+        var atual = indice
+        while atual < campos.count {
+            let texto = valores[campos[atual], default: ""]
+            guard texto.count > Self.caracteresPorLinha, atual + 1 < campos.count else { break }
+            let partes = Self.quebrarEmLinhas(texto)
+            guard partes.count > 1 else { break }
+            valores[campos[atual]] = partes[0]
+            let resto = partes.dropFirst().joined(separator: " ")
+            let seguinte = valores[campos[atual + 1], default: ""]
+            valores[campos[atual + 1]] = seguinte.isEmpty ? resto : resto + " " + seguinte
+            if atual == indice { transbordou = true }
+            atual += 1
+        }
+        return transbordou
+    }
+
+    static func temLinhas(_ campo: String?, em ficha: ModeloDocumento) -> Bool {
+        guard let campo else { return false }
+        return !continuacoes(de: campo, em: ficha).isEmpty
     }
 
     func secaoGerar(_ ficha: ModeloDocumento) -> some View {
@@ -461,20 +528,15 @@ struct ProntuarioView: View {
     /// Valores que vão para o Word: o nome digitado e, sem campo próprio, os exames junto do exame físico.
     func valoresFinais(_ ficha: ModeloDocumento, nome: String) -> [String: String] {
         var finais = valores
+        // Campo deixado em branco sai em branco (não como {{DIAGNOSTICO}}).
+        for campo in ficha.campos where finais[campo] == nil { finais[campo] = "" }
         for campo in ficha.campos where CamposAutomaticos.ehNomeDoPaciente(campo) { finais[campo] = nome }
         let exames = examesExtras.trimmingCharacters(in: .whitespacesAndNewlines)
         if Self.campoDeExames(ficha) == nil, !exames.isEmpty, let alvo = Self.campoDoExameFisico(ficha) {
             let exame = finais[alvo, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
             finais[alvo] = [exame, "EXAMES COMPLEMENTARES: \(exames)"].filter { !$0.isEmpty }.joined(separator: "\n")
         }
-        // Campos com várias linhas na ficha ({{HDA}}, {{HDA_LINHA_2}}…): o texto ocupa as linhas em ordem.
-        for campo in ficha.campos where !Self.ehContinuacao(campo) {
-            let outras = Self.continuacoes(de: campo, em: ficha)
-            guard !outras.isEmpty else { continue }
-            let linhas = Self.distribuir(finais[campo, default: ""], linhas: outras.count + 1)
-            finais[campo] = linhas[0]
-            for (indice, outra) in outras.enumerated() { finais[outra] = linhas[indice + 1] }
-        }
+        // Campos com linhas ({{HDA}}, {{HDA_LINHA_2}}…) já vêm organizados linha por linha da tela.
         return finais
     }
 
