@@ -70,6 +70,7 @@ final class Armazenamento: ObservableObject {
         googleConectado = drive.conectado
         try? FileManager.default.createDirectory(at: pastaModelos, withIntermediateDirectories: true)
         carregar()
+        instalarFichasProntas()
         Self.atual = self
         limparDocumentosTemporarios()
         // Com o Google Drive conectado, confere a cópia a cada 30 segundos (traz o que mudou no outro

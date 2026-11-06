@@ -34,6 +34,8 @@ App para Mac com Apple Silicon (M1, M2, M3, M4…) que gera documentos do Word a
 | `{{CPF}}`, `{{RG}}` | Documentos |
 | `{{DATA_NASCIMENTO}}`, `{{IDADE}}` | Nascimento e idade calculada |
 | `{{TELEFONE}}`, `{{EMAIL}}`, `{{ENDERECO}}`, `{{CONVENIO}}` | Contato |
+| `{{NUMERO}}`, `{{BAIRRO}}`, `{{CIDADE_PACIENTE}}`, `{{UF}}`, `{{CEP}}` | Endereço do paciente (`{{CIDADE}}` sozinha é a cidade do local) |
+| `{{CNS}}` | Cartão Nacional de Saúde (cartão do SUS) |
 | `{{LOCAL}}` | Nome do local de atendimento |
 | `{{DATA}}` | Data de hoje (27/10/2026) |
 | `{{DATA_EXTENSO}}` | Data por extenso (27 de outubro de 2026) |
@@ -43,6 +45,10 @@ Maiúsculas, acentos e espaços não importam (`{{Data de Nascimento}}` também 
 ### Documentos gerados
 
 Os documentos não ficam guardados: o app cria cada um numa pasta temporária própria (`Documentos gerados`, dentro da pasta de dados), só para imprimir ou abrir, e apaga depois de 12 horas — menos os que ainda esperam na Fila de impressão. Em **Depois de gerar**, escolha **Adicionar à fila de impressão**, **Imprimir agora** ou **Só abrir**. O Histórico continua registrando o que foi gerado (paciente, modelo, local e data). O nome de cada arquivo nunca se repete, para o Word não confundir dois documentos.
+
+### Prontuário
+
+Aba **Prontuário** na barra lateral: escolha o local e a **ficha** (já vem a *Avaliação ortopédica – Araruna (CER II)*, ligada ao local cujo nome tem "Araruna"), digite o paciente e preencha **Identificação** (vem do cadastro; o que você completar — CPF, bairro, CNS… — fica no cadastro), **Atendimento** (queixa principal, H.D.A., exame físico, exames complementares, diagnóstico, CID-10 com sugestões, programação terapêutica e perfil CER II) e clique em **Gerar prontuário**. Sai em Word, como os outros documentos (fila, imprimir agora ou só abrir). A anamnese e o exame valem só para aquele prontuário: não ficam no cadastro e não passam para o próximo paciente. Outras fichas: **Importar ficha (.docx)** com campos como `{{NOME}}`, `{{QUEIXA_PRINCIPAL}}`, `{{HDA}}`, `{{EXAME_FISICO}}`, `{{EXAMES_COMPLEMENTARES}}`, `{{CID}}` e `{{CONDUTA}}`.
 
 ### Impressão
 

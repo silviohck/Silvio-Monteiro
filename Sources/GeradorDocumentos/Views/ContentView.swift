@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 enum Secao: String, CaseIterable, Identifiable {
     case gerar = "Gerar documento"
+    case prontuario = "Prontuário"
     case fila = "Fila de impressão"
     case pacientes = "Pacientes"
     case locais = "Locais de atendimento"
@@ -17,6 +18,7 @@ enum Secao: String, CaseIterable, Identifiable {
     var icone: String {
         switch self {
         case .gerar: return "doc.badge.plus"
+        case .prontuario: return "list.clipboard"
         case .fila: return "printer"
         case .pacientes: return "person.2"
         case .locais: return "building.2"
@@ -80,6 +82,7 @@ struct ContentView: View {
         } detail: {
             switch secao ?? .gerar {
             case .gerar: GerarView()
+            case .prontuario: ProntuarioView()
             case .fila: FilaImpressaoView()
             case .pacientes: PacientesView()
             case .locais: LocaisView()

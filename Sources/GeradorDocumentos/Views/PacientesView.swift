@@ -255,7 +255,13 @@ struct PacienteEditor: View {
                 TextField("E-mail", text: $paciente.email)
                 TextField("Endereço", text: $paciente.endereco, axis: .vertical)
                     .lineLimit(1...3)
+                TextField("Número", text: $paciente.numero)
+                TextField("Bairro", text: $paciente.bairro)
+                TextField("Cidade", text: $paciente.cidade)
+                TextField("UF", text: $paciente.uf)
+                TextField("CEP", text: $paciente.cep)
                 TextField("Convênio", text: $paciente.convenio)
+                TextField("CNS (cartão do SUS)", text: $paciente.cns)
             }
             Section(header: TituloSecao("Observações", icone: "note.text")) {
                 TextField("Observações", text: $paciente.observacoes, axis: .vertical)

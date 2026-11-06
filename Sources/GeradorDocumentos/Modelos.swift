@@ -63,11 +63,46 @@ struct Paciente: Identifiable, Codable, Hashable {
     var telefone = ""
     var email = ""
     var endereco = ""
+    /// Número, bairro, cidade, UF e CEP do endereço (pedidos em fichas como a de Araruna).
+    var numero = ""
+    var bairro = ""
+    var cidade = ""
+    var uf = ""
+    var cep = ""
+    /// Cartão Nacional de Saúde (CNS / cartão do SUS).
+    var cns = ""
     var convenio = ""
     var observacoes = ""
     /// Local de atendimento onde o paciente é atendido (opcional).
     var localID: UUID?
     // Campos próprios dos modelos (CID, dias, turno…) não ficam no cadastro: valem só para o documento.
+}
+
+extension Paciente {
+    // Lê também cadastros de versões anteriores (sem número, bairro, CNS…) e do Windows.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        func texto(_ chave: CodingKeys) throws -> String {
+            try container.decodeIfPresent(String.self, forKey: chave) ?? ""
+        }
+        nome = try texto(.nome)
+        cpf = try texto(.cpf)
+        rg = try texto(.rg)
+        dataNascimento = try texto(.dataNascimento)
+        telefone = try texto(.telefone)
+        email = try texto(.email)
+        endereco = try texto(.endereco)
+        numero = try texto(.numero)
+        bairro = try texto(.bairro)
+        cidade = try texto(.cidade)
+        uf = try texto(.uf)
+        cep = try texto(.cep)
+        cns = try texto(.cns)
+        convenio = try texto(.convenio)
+        observacoes = try texto(.observacoes)
+        localID = try container.decodeIfPresent(UUID.self, forKey: .localID)
+    }
 }
 
 struct LocalAtendimento: Identifiable, Codable, Hashable {
@@ -172,6 +207,8 @@ struct DadosApp: Codable {
     /// Favoritos de cada local de atendimento (id do local; "" = sem local): nomes dos modelos, na
     /// ordem em que foram marcados. Um local não vê os favoritos de outro.
     var favoritosPorLocal: [String: [String]] = [:]
+    /// Fichas do Prontuário (ex.: Avaliação ortopédica de Araruna): .docx com {{CAMPOS}}, na pasta Modelos.
+    var fichas: [ModeloDocumento] = []
 
     static let categoriasPadrao = ["Receitas", "Atestados", "Laudos", "Relatórios médicos", "Radiografias", "Outros"]
 
@@ -203,5 +240,6 @@ struct DadosApp: Codable {
         pastaDocumentos = try container.decodeIfPresent(String.self, forKey: .pastaDocumentos) ?? ""
         favoritos = try container.decodeIfPresent([String].self, forKey: .favoritos) ?? []
         favoritosPorLocal = try container.decodeIfPresent([String: [String]].self, forKey: .favoritosPorLocal) ?? [:]
+        fichas = try container.decodeIfPresent([ModeloDocumento].self, forKey: .fichas) ?? []
     }
 }

@@ -23,6 +23,13 @@ enum CamposAutomaticos {
         registrar(["EMAIL", "E_MAIL"], .paciente(\.email))
         registrar(["ENDERECO", "ENDERECO_PACIENTE"], .paciente(\.endereco))
         registrar(["CONVENIO", "PLANO", "PLANO_DE_SAUDE"], .paciente(\.convenio))
+        registrar(["NUMERO", "NUMERO_ENDERECO", "NUMERO_DA_CASA"], .paciente(\.numero))
+        registrar(["BAIRRO"], .paciente(\.bairro))
+        // "CIDADE" sozinha continua sendo a cidade do local (documentos antigos); a do paciente tem nome próprio.
+        registrar(["CIDADE_PACIENTE", "CIDADE_DO_PACIENTE", "MUNICIPIO"], .paciente(\.cidade))
+        registrar(["UF", "ESTADO"], .paciente(\.uf))
+        registrar(["CEP"], .paciente(\.cep))
+        registrar(["CNS", "CNS_PACIENTE", "CARTAO_SUS", "CARTAO_DO_SUS", "CARTAO_NACIONAL_DE_SAUDE"], .paciente(\.cns))
         registrar(["LOCAL", "LOCAL_ATENDIMENTO", "LOCAL_DE_ATENDIMENTO", "NOME_LOCAL", "CLINICA", "NOME_CLINICA"], .local(\.nome))
         registrar(["LOCAL_ENDERECO", "ENDERECO_LOCAL", "ENDERECO_CLINICA"], .local(\.endereco))
         registrar(["CIDADE", "LOCAL_CIDADE", "CIDADE_LOCAL"], .local(\.cidade))
