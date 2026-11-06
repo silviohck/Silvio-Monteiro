@@ -60,11 +60,15 @@ enum ModelosDeAtendimento {
             if modelo.meu { nota -= 10 } else if modelo.generico { nota += 5 }
             return nota
         }
-        return (meus + prontos)
-            .compactMap { modelo in nota(modelo).map { (modelo, $0) } }
-            .sorted { $0.1 != $1.1 ? $0.1 < $1.1 : $0.0.nome.localizedStandardCompare($1.0.nome) == .orderedAscending }
-            .prefix(limite)
-            .map(\.0)
+        var achados: [(modelo: ModeloDeAtendimento, nota: Int)] = []
+        for modelo in meus + prontos {
+            if let valor = nota(modelo) { achados.append((modelo, valor)) }
+        }
+        achados.sort { a, b in
+            if a.nota != b.nota { return a.nota < b.nota }
+            return a.modelo.nome.localizedStandardCompare(b.modelo.nome) == .orderedAscending
+        }
+        return Array(achados.prefix(limite).map { $0.modelo })
     }
 
     // Partes do corpo, para o lado concordar: JOELHO DIREITO, MÃO DIREITA; outras palavras: À DIREITA.
