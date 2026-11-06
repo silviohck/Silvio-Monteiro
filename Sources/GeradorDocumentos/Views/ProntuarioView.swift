@@ -64,7 +64,60 @@ struct ProntuarioView: View {
 
     /// Campos do atendimento: queixa, história, exame, CID, conduta…
     func camposClinicos(_ ficha: ModeloDocumento) -> [String] {
-        ficha.campos.filter { !CamposAutomaticos.ehAutomatico($0) }
+        ficha.campos.filter { !CamposAutomaticos.ehAutomatico($0) && !Self.ehContinuacao($0) }
+    }
+
+    /// {{HDA_LINHA_2}}, {{HDA_LINHA_3}}…: as outras linhas de um campo da ficha (não aparecem na tela).
+    static func ehContinuacao(_ campo: String) -> Bool {
+        let partes = CamposAutomaticos.chave(campo).components(separatedBy: "_LINHA_")
+        return partes.count == 2 && !partes[0].isEmpty && Int(partes[1]) != nil
+    }
+
+    /// As linhas seguintes do campo, em ordem (linha 2, 3…).
+    static func continuacoes(de campo: String, em ficha: ModeloDocumento) -> [String] {
+        let prefixo = CamposAutomaticos.chave(campo) + "_LINHA_"
+        return ficha.campos.compactMap { outro -> (Int, String)? in
+            let chave = CamposAutomaticos.chave(outro)
+            guard chave.hasPrefix(prefixo), let numero = Int(chave.dropFirst(prefixo.count)) else { return nil }
+            return (numero, outro)
+        }
+        .sorted { $0.0 < $1.0 }
+        .map(\.1)
+    }
+
+    /// Letras que cabem numa linha da ficha (largura da página, letra 9,5).
+    static let caracteresPorLinha = 80
+
+    /// Quebra o texto em linhas de até `largura` letras, sem cortar palavras; Enter começa linha nova.
+    static func quebrarEmLinhas(_ texto: String, largura: Int = caracteresPorLinha) -> [String] {
+        var linhas: [String] = []
+        for paragrafo in texto.components(separatedBy: .newlines) {
+            var atual = ""
+            for palavra in paragrafo.split(separator: " ") {
+                if atual.isEmpty {
+                    atual = String(palavra)
+                } else if atual.count + 1 + palavra.count <= largura {
+                    atual += " " + palavra
+                } else {
+                    linhas.append(atual)
+                    atual = String(palavra)
+                }
+            }
+            linhas.append(atual)
+        }
+        while linhas.count > 1, linhas.last?.isEmpty == true { linhas.removeLast() }
+        return linhas
+    }
+
+    /// Distribui o texto pelas linhas do campo; se passar, o resto fica na última linha.
+    static func distribuir(_ texto: String, linhas vagas: Int) -> [String] {
+        let linhas = quebrarEmLinhas(texto)
+        guard vagas > 0 else { return [] }
+        var saida = Array(linhas.prefix(vagas))
+        if linhas.count > vagas {
+            saida[vagas - 1] = linhas[(vagas - 1)...].joined(separator: "\n")
+        }
+        return saida + Array(repeating: "", count: max(0, vagas - saida.count))
     }
 
     static let partesLongas = ["QUEIXA", "HDA", "HISTORIA", "ANAMNESE", "EXAME", "PROGRAMACAO", "CONDUTA",
@@ -412,7 +465,15 @@ struct ProntuarioView: View {
         let exames = examesExtras.trimmingCharacters(in: .whitespacesAndNewlines)
         if Self.campoDeExames(ficha) == nil, !exames.isEmpty, let alvo = Self.campoDoExameFisico(ficha) {
             let exame = finais[alvo, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
-            finais[alvo] = [exame, "EXAMES COMPLEMENTARES:\n\(exames)"].filter { !$0.isEmpty }.joined(separator: "\n\n")
+            finais[alvo] = [exame, "EXAMES COMPLEMENTARES: \(exames)"].filter { !$0.isEmpty }.joined(separator: "\n")
+        }
+        // Campos com várias linhas na ficha ({{HDA}}, {{HDA_LINHA_2}}…): o texto ocupa as linhas em ordem.
+        for campo in ficha.campos where !Self.ehContinuacao(campo) {
+            let outras = Self.continuacoes(de: campo, em: ficha)
+            guard !outras.isEmpty else { continue }
+            let linhas = Self.distribuir(finais[campo, default: ""], linhas: outras.count + 1)
+            finais[campo] = linhas[0]
+            for (indice, outra) in outras.enumerated() { finais[outra] = linhas[indice + 1] }
         }
         return finais
     }
