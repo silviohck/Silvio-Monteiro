@@ -7797,7 +7797,7 @@ Q72.0|Ausência congênita completa do(s) membro(s) inferior(es)
 Q72.1|Ausência congênita da coxa e da perna com pé presente
 Q72.2|Ausência congênita da perna e do pé
 Q72.3|Ausência congênita do pé e de artelho(s)
-Q72.4|Defeito por redução longitudinal da tíbia
+Q72.4|Defeito por redução longitudinal do fêmur
 Q72.5|Defeito por redução longitudinal da tíbia
 Q72.6|Defeito por redução longitudinal do perônio [fíbula]
 Q72.7|Pé bífido

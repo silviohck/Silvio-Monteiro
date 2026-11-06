@@ -18,6 +18,12 @@ struct ProntuarioView: View {
     /// Exames complementares quando a ficha não tem campo próprio: vão junto do exame físico.
     @State var examesExtras = ""
     @State var copias = 1
+    // Modelo de atendimento (ProntuarioView+Modelos).
+    @State var buscaModelo = ""
+    @AppStorage("ladoModelo") var ladoModelo = "DIREITO"
+    @State var modeloParaAplicar: ModeloDeAtendimento?
+    @State var salvandoModelo = false
+    @State var nomeNovoModelo = ""
     @State var aviso: String?
     @State var ultimoDocumento: URL?
     @State var geracaoConcluida = false
@@ -164,6 +170,7 @@ struct ProntuarioView: View {
             secaoPaciente
             if let ficha {
                 secaoIdentificacao(ficha)
+                secaoModeloDeAtendimento(ficha)
                 secaoAtendimento(ficha)
                 secaoGerar(ficha)
             }

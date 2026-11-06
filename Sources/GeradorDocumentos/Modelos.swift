@@ -209,6 +209,8 @@ struct DadosApp: Codable {
     var favoritosPorLocal: [String: [String]] = [:]
     /// Fichas do Prontuário (ex.: Avaliação ortopédica de Araruna): .docx com {{CAMPOS}}, na pasta Modelos.
     var fichas: [ModeloDocumento] = []
+    /// Modelos de atendimento salvos pelo médico no Prontuário ("Salvar como meu modelo").
+    var modelosDeAtendimento: [ModeloDeAtendimento] = []
 
     static let categoriasPadrao = ["Receitas", "Atestados", "Laudos", "Relatórios médicos", "Radiografias", "Outros"]
 
@@ -241,5 +243,6 @@ struct DadosApp: Codable {
         favoritos = try container.decodeIfPresent([String].self, forKey: .favoritos) ?? []
         favoritosPorLocal = try container.decodeIfPresent([String: [String]].self, forKey: .favoritosPorLocal) ?? [:]
         fichas = try container.decodeIfPresent([ModeloDocumento].self, forKey: .fichas) ?? []
+        modelosDeAtendimento = try container.decodeIfPresent([ModeloDeAtendimento].self, forKey: .modelosDeAtendimento) ?? []
     }
 }
