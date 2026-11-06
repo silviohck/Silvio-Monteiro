@@ -399,9 +399,7 @@ struct ProntuarioView: View {
                         .font(.system(.body, design: .monospaced))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .focused($linhaEmFoco, equals: campo)
-                        .onSubmit {
-                            if indice + 1 < campos.count { linhaEmFoco = campos[indice + 1] }
-                        }
+                        .onSubmit { quebrarLinha(indice, de: campos) }
                 }
                 .padding(.vertical, 5)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -434,6 +432,42 @@ struct ProntuarioView: View {
                 }
             }
         )
+    }
+
+    /// Enter numa linha da ficha: o texto depois do cursor desce para a linha de baixo (as seguintes
+    /// descem junto, como num editor de texto) e o cursor vai para o começo dela.
+    func quebrarLinha(_ indice: Int, de campos: [String]) {
+        guard indice + 1 < campos.count else { return }
+        let texto = valores[campos[indice], default: ""] as NSString
+        // Posição do cursor no campo em que se está digitando; sem ela, quebra no fim da linha.
+        var posicao = texto.length
+        if let editor = NSApp.keyWindow?.firstResponder as? NSTextView, editor.string == texto as String {
+            posicao = min(editor.selectedRange().location, texto.length)
+        }
+        let antes = texto.substring(to: posicao).trimmingCharacters(in: .whitespaces)
+        let depois = texto.substring(from: posicao).trimmingCharacters(in: .whitespaces)
+        var linhas = campos.map { valores[$0, default: ""] }
+        linhas[indice] = antes
+        linhas.insert(depois, at: indice + 1)
+        // A última linha não some: se tinha texto, ele vai para o fim da última linha da ficha.
+        let sobra = linhas.removeLast()
+        if !sobra.isEmpty {
+            let ultima = linhas[linhas.count - 1]
+            linhas[linhas.count - 1] = ultima.isEmpty ? sobra : ultima + " " + sobra
+        }
+        for (posicaoNaLista, campo) in campos.enumerated() { valores[campo] = linhas[posicaoNaLista] }
+        fluir(campos, aPartirDe: indice + 1)
+        geracaoConcluida = false
+        aviso = nil
+        ultimoDocumento = nil
+        let proxima = campos[indice + 1]
+        DispatchQueue.main.async {
+            linhaEmFoco = proxima
+            // Ao entrar no campo o macOS seleciona tudo: põe o cursor no começo da linha.
+            DispatchQueue.main.async {
+                (NSApp.keyWindow?.firstResponder as? NSTextView)?.setSelectedRange(NSRange(location: 0, length: 0))
+            }
+        }
     }
 
     /// Passa para a linha de baixo as palavras que não cabem. Devolve true se a linha `indice` transbordou.
