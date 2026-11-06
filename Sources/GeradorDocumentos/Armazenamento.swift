@@ -248,7 +248,23 @@ final class Armazenamento: ObservableObject {
         dados.favoritosPorLocal[chave] = lista.isEmpty ? nil : lista
     }
 
-    /// Os favoritos deste local, na ordem em que foram marcados.
+    /// Muda a posição de um favorito do local: para antes de `destino` (nil = para o fim).
+    /// Os favoritos sem modelo neste local continuam guardados, no fim da lista.
+    func moverFavorito(_ modelo: ModeloDocumento, paraAntesDe destino: ModeloDocumento?, noLocal local: LocalAtendimento?) {
+        let chave = Self.chaveDosFavoritos(local?.id)
+        let visiveis = favoritos(para: local).map(\.nome)
+        guard let origem = visiveis.firstIndex(where: { Self.mesmoNome($0, modelo.nome) }) else { return }
+        var ordem = visiveis
+        let nome = ordem.remove(at: origem)
+        let posicao = destino.flatMap { alvo in ordem.firstIndex { Self.mesmoNome($0, alvo.nome) } } ?? ordem.count
+        ordem.insert(nome, at: posicao)
+        let escondidos = (dados.favoritosPorLocal[chave] ?? []).filter { nome in
+            !visiveis.contains { Self.mesmoNome($0, nome) }
+        }
+        dados.favoritosPorLocal[chave] = ordem + escondidos
+    }
+
+    /// Os favoritos deste local, na ordem escolhida.
     func favoritos(para local: LocalAtendimento?) -> [ModeloDocumento] {
         let disponiveis = modelos(para: local)
         return (dados.favoritosPorLocal[Self.chaveDosFavoritos(local?.id)] ?? []).compactMap { nome in

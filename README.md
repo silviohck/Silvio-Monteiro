@@ -24,7 +24,7 @@ App para Mac com Apple Silicon (M1, M2, M3, M4…) que gera documentos do Word a
    - Depois de gerar, **Próximo paciente** (⇧⌘N, no topo da janela e no quadro verde de documento pronto) recomeça do início: limpa paciente, subpasta, modelo e campos, e mantém só o local de atendimento.
    - Se houver **mais de um paciente com o mesmo nome**, o app não escolhe sozinho: mostra os cadastros com data de nascimento e CPF para você escolher (ou “É outro paciente”, com a data de nascimento para diferenciar). Os documentos ficam ligados ao cadastro escolhido.
 
-**Favoritos:** na tela *Gerar documento*, a ⭐ ao lado do modelo cria um atalho acima da Subpasta — ex.: **Retorno**. Um clique já escolhe a subpasta e o modelo. Cada local de atendimento tem os seus favoritos: marcar em Alagoa Grande não muda os de Araruna.
+**Favoritos:** na tela *Gerar documento*, a ⭐ ao lado do modelo cria um atalho acima da Subpasta — ex.: **Retorno**. Um clique já escolhe a subpasta e o modelo. Cada local de atendimento tem os seus favoritos: marcar em Alagoa Grande não muda os de Araruna. Para mudar a ordem, arraste um favorito para cima de outro, ou use o clique direito (mover para a esquerda, direita, início ou fim, ou tirar dos favoritos).
 
 ### Campos preenchidos automaticamente
 

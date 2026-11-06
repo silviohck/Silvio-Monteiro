@@ -64,7 +64,48 @@ extension GerarView {
                             }
                             .buttonStyle(.bordered)
                             .tint(favorito.id.uuidString == modeloSelecionado ? Tema.destaque : nil)
-                            .help("\(favorito.categoria.replacingOccurrences(of: Armazenamento.separadorDeSubpastas, with: " › ")) › \(favorito.nome)")
+                            .help("\(favorito.categoria.replacingOccurrences(of: Armazenamento.separadorDeSubpastas, with: " › ")) › \(favorito.nome) — arraste para mudar a ordem")
+                            // Reorganizar: arrastar um favorito para cima de outro, ou pelo clique direito.
+                            .draggable(favorito.id.uuidString)
+                            .dropDestination(for: String.self) { ids, _ in
+                                guard let id = ids.first, let arrastado = favoritos.first(where: { $0.id.uuidString == id }),
+                                      arrastado.id != favorito.id else { return false }
+                                let indiceArrastado = favoritos.firstIndex { $0.id == arrastado.id } ?? 0
+                                let indiceAlvo = favoritos.firstIndex { $0.id == favorito.id } ?? 0
+                                // Para a direita: entra depois do alvo; para a esquerda: antes.
+                                let antesDe = indiceArrastado < indiceAlvo
+                                    ? (indiceAlvo + 1 < favoritos.count ? favoritos[indiceAlvo + 1] : nil)
+                                    : favorito
+                                armazenamento.moverFavorito(arrastado, paraAntesDe: antesDe, noLocal: local)
+                                return true
+                            }
+                            .contextMenu {
+                                let indice = favoritos.firstIndex { $0.id == favorito.id } ?? 0
+                                Button("Mover para a esquerda") {
+                                    armazenamento.moverFavorito(favorito, paraAntesDe: favoritos[indice - 1], noLocal: local)
+                                }
+                                .disabled(indice == 0)
+                                Button("Mover para a direita") {
+                                    armazenamento.moverFavorito(
+                                        favorito,
+                                        paraAntesDe: indice + 2 < favoritos.count ? favoritos[indice + 2] : nil,
+                                        noLocal: local
+                                    )
+                                }
+                                .disabled(indice == favoritos.count - 1)
+                                Button("Mover para o início") {
+                                    armazenamento.moverFavorito(favorito, paraAntesDe: favoritos.first, noLocal: local)
+                                }
+                                .disabled(indice == 0)
+                                Button("Mover para o fim") {
+                                    armazenamento.moverFavorito(favorito, paraAntesDe: nil, noLocal: local)
+                                }
+                                .disabled(indice == favoritos.count - 1)
+                                Divider()
+                                Button("Tirar dos favoritos") {
+                                    armazenamento.alternarFavorito(favorito, noLocal: local?.id)
+                                }
+                            }
                         }
                     }
                     .padding(.vertical, 2)
