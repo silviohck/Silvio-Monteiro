@@ -20,8 +20,6 @@ struct GerarView: View {
     @State var ultimoDocumento: URL?
     /// Impede uma segunda geração idêntica por engano após concluir o documento.
     @State var geracaoConcluida = false
-    /// Pasta escolhida em "Só este documento…"; volta para nil depois de gerar.
-    @State var pastaAvulsa: URL?
     /// Subpasta = tipo do modelo (Receitas, Atestados…); filtra os modelos e é onde o documento é salvo.
     @AppStorage("subpastaSelecionada") var subpasta = ""
     @State var mostrandoCadastro = false

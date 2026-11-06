@@ -37,7 +37,7 @@ struct CopiaNaNuvem: View {
                             .lineLimit(3)
                     }
                     if armazenamento.envioPendente {
-                        Text("Mudanças vão para o Drive em até 2 minutos (ou ao fechar o app).")
+                        Text("Mudanças vão para o Drive em até 30 segundos (ou ao fechar o app).")
                             .fonteApp(.legenda)
                             .foregroundStyle(.secondary)
                             .lineLimit(2)

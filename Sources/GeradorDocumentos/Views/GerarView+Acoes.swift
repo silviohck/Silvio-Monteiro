@@ -104,7 +104,6 @@ extension GerarView {
         pacienteEscolhido = nil
         outroPaciente = false
         nascimentoDoNovo = ""
-        pastaAvulsa = nil
         aviso = nil
         ultimoDocumento = nil
         valores = [:]
@@ -155,7 +154,7 @@ extension GerarView {
         let destino: URL
         do {
             destino = try armazenamento.caminhoParaNovoDocumento(
-                modelo: modelo, subpasta: modelo.categoria, local: local, paciente: nome, pastaAvulsa: pastaAvulsa
+                modelo: modelo, subpasta: modelo.categoria, local: local, paciente: nome
             )
             try DocxTemplate.fill(template: armazenamento.urlDoModelo(modelo), values: valoresFinais, output: destino)
         } catch {
@@ -186,7 +185,6 @@ extension GerarView {
         aviso = nome.isEmpty ? "Salvo: \(destino.lastPathComponent)" : "Salvo: \(destino.lastPathComponent) · nome copiado"
         ultimoDocumento = destino
         geracaoConcluida = true
-        pastaAvulsa = nil
         let copiado = nome.isEmpty ? "" : " · nome copiado"
         if acaoDepoisDeGerar == "fila" || acaoDepoisDeGerar == "imprimir" {
             let jaImprimindo = armazenamento.processandoFila
@@ -203,8 +201,10 @@ extension GerarView {
                 aviso = "Salvo e na fila de impressão (\(armazenamento.pendentesNaFila) aguardando)\(copiado)"
             }
         }
-        if abrirAoGerar {
+        // "Só abrir" abre sempre: o documento não fica guardado, é para usar agora.
+        if abrirAoGerar || acaoDepoisDeGerar == "salvar" {
             NSWorkspace.shared.open(destino)
         }
+        armazenamento.limparDocumentosTemporarios()
     }
 }

@@ -40,17 +40,9 @@ App para Mac com Apple Silicon (M1, M2, M3, M4…) que gera documentos do Word a
 
 Maiúsculas, acentos e espaços não importam (`{{Data de Nascimento}}` também funciona). Qualquer outro campo, como `{{CID}}` ou `{{DIAS_AFASTAMENTO}}`, aparece para ser digitado e vale só para aquele documento (não fica no cadastro do paciente).
 
-### Organização dos documentos gerados
+### Documentos gerados
 
-```
-OPERA PB/                      ← pasta escolhida para o local
-├── Receitas/
-│   └── Receita - Silvio Romero - Opera PB - 27-10-2026.docx
-├── Laudos/
-└── Relatórios médicos/
-```
-
-Na tela *Gerar documento*, **Escolher pasta principal…** define a pasta onde tudo é guardado. Ao salvar, o app procura dentro dela a **pasta do local** (sem diferenciar maiúsculas e acentos — “CAMPINA GRANDE” serve para “Campina Grande”) e, dentro desta, a **pasta do tipo** do modelo; o que não existir é criado. Em **Mais opções** dá para usar outra pasta só para um local ou só para aquele documento. Sem pasta escolhida, a pasta principal é `Documentos/Orthck`. Se já existir um arquivo com o mesmo nome, o novo recebe "(2)", "(3)"… no final; nada é sobrescrito.
+Os documentos não ficam guardados: o app cria cada um numa pasta temporária própria (`Documentos gerados`, dentro da pasta de dados), só para imprimir ou abrir, e apaga depois de 12 horas — menos os que ainda esperam na Fila de impressão. Em **Depois de gerar**, escolha **Adicionar à fila de impressão**, **Imprimir agora** ou **Só abrir**. O Histórico continua registrando o que foi gerado (paciente, modelo, local e data). O nome de cada arquivo nunca se repete, para o Word não confundir dois documentos.
 
 ### Impressão
 
@@ -86,7 +78,7 @@ Tudo fica no próprio Mac, em `~/Library/Application Support/GeradorDocumentos/`
 
 **Enviar pasta ao Google Drive:** em *Backup*, o botão manda ao seu Google Drive o `Orthck - modelos (backup).zip`: a pasta sincronizada inteira (sem os temporários do Word) e o backup dos dados do app. A cada envio, o .zip anterior no Drive é substituído. Usa a mesma conexão do Google Drive de baixo (é preciso conectar antes).
 
-**Cópia no Google Drive (sem instalar o app do Google):** em *Backup*, **Conectar ao Google Drive…** abre o navegador para entrar na conta Google e autorizar, uma vez por computador. A credencial do Google (cliente *App para computador*, escopo `drive.file`) entra no app na compilação, pelos Secrets `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` do repositório; sem eles, a janela pede o `client_secret….json`. Depois, o app envia `Orthck - dados.json` ao Drive (até 2 minutos depois de cada mudança e ao fechar) e, ao abrir ou voltar para o app, junta o que mudou nele em outro computador (pacientes, locais, histórico e favoritos; a fila de impressão é de cada computador). A credencial e a autorização ficam só neste Mac (`google.json` na pasta de dados), nunca no repositório. Apagar um paciente não se propaga: a junção só acrescenta.
+**Cópia no Google Drive (sem instalar o app do Google):** em *Backup*, **Conectar ao Google Drive…** abre o navegador para entrar na conta Google e autorizar, uma vez por computador. A credencial do Google (cliente *App para computador*, escopo `drive.file`) entra no app na compilação, pelos Secrets `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` do repositório; sem eles, a janela pede o `client_secret….json`. Depois, o app envia `Orthck - dados.json` ao Drive (até 30 segundos depois de cada mudança e ao fechar) e, a cada 30 segundos (e ao abrir ou voltar para o app) junta o que mudou nele em outro computador (pacientes, locais, histórico e favoritos; a fila de impressão é de cada computador). A credencial e a autorização ficam só neste Mac (`google.json` na pasta de dados), nunca no repositório. Apagar um paciente não se propaga: a junção só acrescenta.
 
 ## Instalar
 

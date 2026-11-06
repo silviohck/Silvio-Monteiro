@@ -23,6 +23,8 @@ final class Armazenamento: ObservableObject {
     let pasta: URL
     let pastaModelos: URL
     var arquivoDados: URL { pasta.appendingPathComponent("dados.json") }
+    /// Documentos gerados: ficam aqui só o tempo de imprimir ou abrir (ver limparDocumentosTemporarios).
+    var pastaTemporaria: URL { pasta.appendingPathComponent("Documentos gerados", isDirectory: true) }
     /// Cópias diárias do dados.json (as últimas 30), em Backups/ dentro da pasta de dados.
     var pastaBackups: URL { pasta.appendingPathComponent("Backups", isDirectory: true) }
     private var diaDoUltimoBackup = ""
@@ -69,6 +71,33 @@ final class Armazenamento: ObservableObject {
         try? FileManager.default.createDirectory(at: pastaModelos, withIntermediateDirectories: true)
         carregar()
         Self.atual = self
+        limparDocumentosTemporarios()
+        // Com o Google Drive conectado, confere a cópia a cada 30 segundos (traz o que mudou no outro
+        // computador e envia o que mudou aqui).
+        Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 30 * 1_000_000_000)
+                guard let self else { return }
+                await self.sincronizarDrive()
+            }
+        }
+    }
+
+    /// Quanto tempo um documento gerado fica na pasta temporária antes de ser apagado.
+    static let tempoDosDocumentosTemporarios: TimeInterval = 12 * 60 * 60
+
+    /// Apaga os documentos gerados há mais de 12 horas, menos os que ainda esperam na fila de impressão.
+    /// O Histórico continua registrando o que foi gerado (sem o arquivo para abrir de novo).
+    func limparDocumentosTemporarios() {
+        let naFila = Set(dados.filaImpressao.filter { $0.situacao != .enviado }.map(\.caminho))
+        let limite = Date().addingTimeInterval(-Self.tempoDosDocumentosTemporarios)
+        let itens = (try? FileManager.default.contentsOfDirectory(
+            at: pastaTemporaria, includingPropertiesForKeys: [.contentModificationDateKey]
+        )) ?? []
+        for item in itens where !naFila.contains(item.path) {
+            let data = (try? item.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
+            if data < limite { try? FileManager.default.removeItem(at: item) }
+        }
     }
 
     var pacientesOrdenados: [Paciente] {
@@ -539,7 +568,9 @@ final class Armazenamento: ObservableObject {
         pastaAvulsa: URL? = nil,
         data: Date = Date()
     ) throws -> URL {
-        let pasta = pastaAvulsa ?? pastaDosDocumentos(subpasta: subpasta, local: local)
+        // Os documentos não ficam guardados: vão para uma pasta temporária do app, só para imprimir ou abrir,
+        // e são apagados depois (limparDocumentosTemporarios).
+        let pasta = pastaAvulsa ?? pastaTemporaria
         try FileManager.default.createDirectory(at: pasta, withIntermediateDirectories: true)
 
         let formatador = DateFormatter()
@@ -860,9 +891,9 @@ final class Armazenamento: ObservableObject {
     // MARK: Cópia no Google Drive
 
     /// Intervalo entre uma mudança e o envio ao Drive: as mudanças desse intervalo vão juntas.
-    private static let intervaloDoDrive: UInt64 = 120
+    private static let intervaloDoDrive: UInt64 = 30
 
-    /// Depois de uma mudança, a cópia no Drive é atualizada em até 2 minutos; mais mudanças
+    /// Depois de uma mudança, a cópia no Drive é atualizada em até 30 segundos; mais mudanças
     /// nesse tempo entram no mesmo envio. Ao fechar o app, o que estiver pendente é enviado.
     private func agendarEnvioAoDrive() {
         guard drive.conectado else { return }

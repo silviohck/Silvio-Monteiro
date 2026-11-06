@@ -141,74 +141,12 @@ extension GerarView {
     /// Onde salvar, o que fazer depois de gerar (fila, imprimir, só salvar) e o botão Gerar.
     func secaoSalvar(_ modelo: ModeloDocumento) -> some View {
         Section {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    Text("Será salvo em")
-                    if pastaAvulsa != nil {
-                        Text("(só este documento)").fonteApp(.legenda).foregroundStyle(.secondary)
-                    }
-                }
-                Text(caminhoAbreviado(pastaDeDestino))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .truncationMode(.middle)
-                    .textSelection(.enabled)
-                    .help(pastaDeDestino.path)
-                if pastaAvulsa == nil {
-                    Text(situacaoDasPastas)
-                        .fonteApp(.legenda)
-                        .foregroundStyle(.secondary)
-                }
-                HStack {
-                    Button {
-                        if let url = escolherPasta(mensagem: "Escolha a pasta principal. Dentro dela, o app usa (ou cria) uma pasta para cada local e, dentro desta, uma pasta para cada tipo de documento.") {
-                            armazenamento.dados.pastaDocumentos = url.path
-                            if let local, !local.pasta.isEmpty {
-                                // A pasta principal passa a valer também para este local.
-                                var semPastaPropria = local
-                                semPastaPropria.pasta = ""
-                                armazenamento.atualizarLocal(semPastaPropria)
-                            }
-                            pastaAvulsa = nil
-                        }
-                    } label: {
-                        Label("Escolher pasta principal…", systemImage: "folder.badge.gearshape")
-                    }
-                    .buttonStyle(.bordered)
-                    Menu("Mais opções") {
-                        if let local {
-                            Button("Usar outra pasta só para \(local.nome.isEmpty ? "este local" : local.nome)…") {
-                                if let url = escolherPasta(mensagem: "Escolha a pasta de \(local.nome.isEmpty ? "este local" : local.nome). Se ela não tiver o nome do local, o app cria a pasta do local dentro dela.") {
-                                    armazenamento.definirPasta(url, doLocal: local.id)
-                                    pastaAvulsa = nil
-                                }
-                            }
-                            if !local.pasta.isEmpty {
-                                Button("Voltar a usar a pasta principal") {
-                                    var semPastaPropria = local
-                                    semPastaPropria.pasta = ""
-                                    armazenamento.atualizarLocal(semPastaPropria)
-                                }
-                            }
-                        }
-                        Button("Só este documento…") {
-                            pastaAvulsa = escolherPasta(mensagem: "Escolha onde salvar só este documento.")
-                        }
-                        if pastaAvulsa != nil {
-                            Button("Voltar para a pasta do local") { pastaAvulsa = nil }
-                        }
-                    }
-                    .fixedSize()
-                    Button("Abrir no Finder") { abrirPasta(pastaDeDestino) }
-                }
-            }
-            .padding(.vertical, 4)
             Toggle("Abrir o documento depois de gerar", isOn: $abrirAoGerar)
             HStack {
                 Picker("Depois de gerar", selection: $acaoDepoisDeGerar) {
                     Text("Adicionar à fila de impressão").tag("fila")
                     Text("Imprimir agora").tag("imprimir")
-                    Text("Só salvar").tag("salvar")
+                    Text("Só abrir").tag("salvar")
                 }
                 .pickerStyle(.menu)
                 Spacer()
@@ -339,32 +277,5 @@ extension GerarView {
         .padding(16)
         .background(RoundedRectangle(cornerRadius: 14).fill(Tema.destaqueSuave))
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Tema.borda.opacity(0.7), lineWidth: 1))
-    }
-
-    /// "Pastas já existentes" ou quais serão criadas (pasta do local e/ou do tipo).
-    var situacaoDasPastas: String {
-        let fm = FileManager.default
-        let pastaDoLocal = armazenamento.pastaDoLocal(local)
-        var novas: [String] = []
-        if !fm.fileExists(atPath: pastaDoLocal.path) { novas.append("“\(pastaDoLocal.lastPathComponent)”") }
-        if pastaDeDestino != pastaDoLocal, !fm.fileExists(atPath: pastaDeDestino.path) {
-            novas.append("“\(pastaDeDestino.lastPathComponent)”")
-        }
-        if novas.isEmpty { return "Pasta do local e do tipo já existem; o arquivo vai direto para lá." }
-        return "Será criada ao gerar: " + novas.joined(separator: " e ") + "."
-    }
-
-    var pastaDeDestino: URL {
-        pastaAvulsa ?? armazenamento.pastaDosDocumentos(subpasta: modelo?.categoria ?? subpasta, local: local)
-    }
-
-    /// "/Users/silvio/Documents/…" → "~/Documents/…"
-    func caminhoAbreviado(_ url: URL) -> String {
-        (url.path as NSString).abbreviatingWithTildeInPath
-    }
-
-    func abrirPasta(_ url: URL) {
-        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-        NSWorkspace.shared.open(url)
     }
 }
