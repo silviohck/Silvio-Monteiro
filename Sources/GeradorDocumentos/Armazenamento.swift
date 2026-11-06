@@ -609,7 +609,7 @@ final class Armazenamento: ObservableObject {
         return destino
     }
 
-    static func nomeSeguro(_ nome: String) -> String {
+    nonisolated static func nomeSeguro(_ nome: String) -> String {
         nome.replacingOccurrences(of: "/", with: "-")
             .replacingOccurrences(of: ":", with: "-")
             .trimmingCharacters(in: .whitespacesAndNewlines)
