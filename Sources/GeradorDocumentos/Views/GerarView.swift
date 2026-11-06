@@ -83,15 +83,11 @@ struct GerarView: View {
 
     var sugestoes: [Paciente] {
         guard nomeDigitado.count >= 2, homonimos.isEmpty else { return [] }
-        // Pacientes de todos os locais; os já atendidos no local escolhido vêm primeiro.
-        let encontrados = armazenamento.pacientesOrdenados.filter {
-            $0.nome.range(of: nomeDigitado, options: [.caseInsensitive, .diacriticInsensitive]) != nil
-        }
-        let daqui = encontrados.filter { paciente in
-            armazenamento.locaisDoPaciente(paciente).contains { $0.id == local?.id }
-        }
-        let ids = Set(daqui.map(\.id))
-        return Array((daqui + encontrados.filter { !ids.contains($0.id) }).prefix(8))
+        // Só pacientes do local escolhido (cadastrados nele ou já atendidos nele); sem local, todos.
+        return Array(armazenamento.pacientesOrdenados.filter { paciente in
+            paciente.nome.range(of: nomeDigitado, options: [.caseInsensitive, .diacriticInsensitive]) != nil
+                && (local == nil || armazenamento.locaisDoPaciente(paciente).contains { $0.id == local?.id })
+        }.prefix(8))
     }
 
     var body: some View {
