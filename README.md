@@ -56,7 +56,7 @@ Aba **Prontuário** na barra lateral: escolha o local e a **ficha** (já vem a *
 
 ### PDF de registro
 
-Com **Salvar uma cópia em PDF para registro** ligado (no Gerar documento e no Prontuário), cada documento gerado ganha um PDF reduzido, só para registro, em **Documentos › Registro de arquivos › Local de atendimento › Nome do paciente** (a pasta base muda em **Escolher pasta…**). O PDF é feito pelo próprio Word, igual ao documento, e depois reduzido pelo filtro do macOS. O Word continua sendo o arquivo usado para imprimir.
+Com **Salvar uma cópia em PDF para registro** ligado (no Gerar documento e no Prontuário), cada documento gerado ganha um PDF reduzido, só para registro, em **<sua pasta de usuário> › Registro de arquivos › Local de atendimento › Nome do paciente** (fora de Documentos, que o macOS protege) (a pasta base muda em **Escolher pasta…**). O PDF é feito pelo próprio Word, igual ao documento, e depois reduzido pelo filtro do macOS. O Word continua sendo o arquivo usado para imprimir.
 
 ### Impressão
 

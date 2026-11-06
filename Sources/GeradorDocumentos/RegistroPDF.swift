@@ -6,9 +6,11 @@ import Quartz
 /// O PDF é feito pelo próprio Word (fica igual ao documento) e depois reduzido (filtro "Reduzir
 /// Tamanho do Arquivo" do macOS), para ocupar pouco espaço.
 enum RegistroPDF {
-    /// Pasta padrão: Documentos › Registro de arquivos.
+    /// Pasta padrão: <pasta de usuário> › Registro de arquivos. Fica fora de Documentos/Mesa/Downloads de
+    /// propósito: o macOS protege essas pastas e pode recusar a gravação (principalmente a cada versão nova
+    /// do app, que ele trata como outro app).
     static var pastaPadrao: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Registro de arquivos", isDirectory: true)
     }
 
@@ -56,8 +58,14 @@ enum RegistroPDF {
                 let bruto = temporaria.appendingPathComponent("orthck-\(UUID().uuidString).pdf")
                 defer { try? arquivos.removeItem(at: bruto) }
                 if let falha = Impressao.salvarComoPDF(docx, em: bruto) { throw erro(falha) }
-                try arquivos.createDirectory(at: final.deletingLastPathComponent(), withIntermediateDirectories: true)
-                try reduzir(bruto, para: final)
+                do {
+                    try arquivos.createDirectory(at: final.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    try reduzir(bruto, para: final)
+                } catch let falha as NSError where semPermissao(falha) {
+                    throw erro("O macOS não deixou o Orthck gravar em “\(base.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))”. "
+                        + "Clique em “Escolher pasta…” e escolha outra pasta (por exemplo, dentro da sua pasta de usuário), "
+                        + "ou permita em Ajustes do Sistema › Privacidade e Segurança › Arquivos e Pastas › Orthck.")
+                }
                 return final
             }
             DispatchQueue.main.async { concluir(resultado) }
@@ -77,6 +85,15 @@ enum RegistroPDF {
         } else {
             try FileManager.default.copyItem(at: origem, to: destino)
         }
+    }
+
+    /// Recusa de permissão (macOS protegendo Documentos/Mesa/Downloads ou pasta sem acesso).
+    static func semPermissao(_ falha: NSError) -> Bool {
+        let codigos = [NSFileWriteNoPermissionError, NSFileReadNoPermissionError]
+        if falha.domain == NSCocoaErrorDomain && codigos.contains(falha.code) { return true }
+        if falha.domain == NSPOSIXErrorDomain && (falha.code == Int(EPERM) || falha.code == Int(EACCES)) { return true }
+        if let interno = falha.userInfo[NSUnderlyingErrorKey] as? NSError { return semPermissao(interno) }
+        return false
     }
 
     private static func erro(_ mensagem: String) -> NSError {
