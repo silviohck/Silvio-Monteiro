@@ -22,6 +22,12 @@ struct GeradorDocumentosApp: App {
             CommandGroup(after: .newItem) {
                 Button("Abrir pasta de dados (backup)") { armazenamento.abrirPastaDeDados() }
             }
+            CommandGroup(after: .textEditing) {
+                Divider()
+                Button("Negrito") { Negrito.alternar() }
+                    .keyboardShortcut("b", modifiers: .command)
+                    .help("Selecione um trecho e aperte ⌘B: fica entre ** na tela e sai em negrito no Word")
+            }
             CommandGroup(after: .toolbar) {
                 Button("Aumentar texto") {
                     tamanhoTexto = min(tamanhoTexto + 1, TamanhoTexto.muitoGrande.rawValue)

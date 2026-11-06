@@ -8,7 +8,13 @@ import Foundation
 /// Por isso o texto de todos os `<w:t>` é concatenado, os campos são localizados no
 /// texto completo e a substituição é distribuída de volta: o valor vai para o `<w:t>`
 /// onde o campo começa (herdando a formatação dele) e o restante do campo é removido.
+///
+/// Negrito: no valor, o texto entre `**` (ex.: `DOR **INTENSA** À NOITE`) sai em negrito no Word;
+/// as marcas não aparecem no documento.
 enum TemplateXML {
+    /// Marca de negrito nos valores: `**trecho**`.
+    static let marcaNegrito = "**"
+
     private static let textElement = try! NSRegularExpression(
         pattern: #"<w:t((?:\s[^>]*)?)(?<!/)>(.*?)</w:t>"#,
         options: [.dotMatchesLineSeparators]
@@ -79,12 +85,62 @@ enum TemplateXML {
         guard !touched.isEmpty else { return xml }
         let result = NSMutableString(string: xml)
         for i in touched.sorted(by: >) {
-            result.replaceCharacters(
-                in: nodes[i].range,
-                with: element(attributes: nodes[i].attributes, text: texts[i] as String)
-            )
+            let texto = texts[i] as String
+            let novo = texto.contains(marcaNegrito)
+                ? elementWithBold(attributes: nodes[i].attributes, text: texto, runProperties: runProperties(before: nodes[i].range.location, in: xml))
+                : element(attributes: nodes[i].attributes, text: texto)
+            result.replaceCharacters(in: nodes[i].range, with: novo)
         }
         return result as String
+    }
+
+    /// `<w:rPr>…</w:rPr>` do run (`<w:r>`) que contém o texto na posição `location` (vazio se não houver).
+    static func runProperties(before location: Int, in xml: String) -> String {
+        let ns = xml as NSString
+        let antes = ns.substring(to: location) as NSString
+        // Último início de run: "<w:r>" ou "<w:r " (não "<w:rPr" nem "<w:rFonts").
+        let inicio = max(antes.range(of: "<w:r>", options: .backwards).location.notFoundAsMinusOne,
+                         antes.range(of: "<w:r ", options: .backwards).location.notFoundAsMinusOne)
+        guard inicio >= 0 else { return "" }
+        let trecho = antes.substring(from: inicio) as NSString
+        let abre = trecho.range(of: "<w:rPr>")
+        let fecha = trecho.range(of: "</w:rPr>")
+        guard abre.location != NSNotFound, fecha.location != NSNotFound, fecha.location > abre.location else { return "" }
+        return trecho.substring(with: NSRange(location: abre.location, length: NSMaxRange(fecha) - abre.location))
+    }
+
+    /// As mesmas propriedades do run, com negrito (`<w:b/><w:bCs/>` depois de rStyle/rFonts, na ordem do Word).
+    static func boldRunProperties(_ rPr: String) -> String {
+        guard !rPr.isEmpty else { return "<w:rPr><w:b/><w:bCs/></w:rPr>" }
+        var interno = String(rPr.dropFirst("<w:rPr>".count).dropLast("</w:rPr>".count))
+        // Tira negrito já existente (ex.: <w:b w:val="0"/>) para não haver dois.
+        interno = interno.replacingOccurrences(of: #"<w:bCs?(\s[^>]*)?/>"#, with: "", options: .regularExpression)
+        let ns = interno as NSString
+        var posicao = 0
+        for padrao in [#"<w:rStyle[^>]*/>"#, #"<w:rFonts[^>]*/>"#] {
+            let achado = ns.range(of: padrao, options: .regularExpression)
+            if achado.location != NSNotFound { posicao = max(posicao, NSMaxRange(achado)) }
+        }
+        let resultado = NSMutableString(string: interno)
+        resultado.insert("<w:b/><w:bCs/>", at: posicao)
+        return "<w:rPr>\(resultado)</w:rPr>"
+    }
+
+    /// Texto com trechos em negrito: fecha o run atual, abre um run em negrito para o trecho e reabre o
+    /// run original (mesma formatação) para o resto. Marcas `**` sem par são removidas.
+    private static func elementWithBold(attributes: String, text: String, runProperties rPr: String) -> String {
+        let partes = text.components(separatedBy: marcaNegrito)
+        var saida = ""
+        for (indice, parte) in partes.enumerated() {
+            let negrito = indice % 2 == 1 && indice < partes.count - (partes.count % 2 == 0 ? 1 : 0)
+            if negrito {
+                guard !parte.isEmpty else { continue }
+                saida += "</w:r><w:r>\(boldRunProperties(rPr))\(element(attributes: attributes, text: parte))</w:r><w:r>\(rPr)"
+            } else {
+                saida += element(attributes: attributes, text: parte)
+            }
+        }
+        return saida
     }
 
     private static func textNodes(in xml: String) -> [TextNode] {
@@ -152,4 +208,9 @@ enum TemplateXML {
         guard let code, let scalar = Unicode.Scalar(code) else { return nil }
         return Character(scalar)
     }
+}
+
+private extension Int {
+    /// `NSNotFound` vira -1, para comparar posições com `max`.
+    var notFoundAsMinusOne: Int { self == NSNotFound ? -1 : self }
 }

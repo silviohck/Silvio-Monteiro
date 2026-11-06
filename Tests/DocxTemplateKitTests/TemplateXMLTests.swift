@@ -52,4 +52,31 @@ final class TemplateXMLTests: XCTestCase {
     func testDecodificaEntidades() {
         XCTAssertEqual(TemplateXML.decodeEntities("a &amp; b &lt;&#123;&#x7D;&gt; &desconhecida;"), "a & b <{}> &desconhecida;")
     }
+
+    func testTrechoEntreAsteriscosSaiEmNegrito() {
+        let xml = #"<w:p><w:r><w:rPr><w:rFonts w:ascii="Times New Roman"/><w:sz w:val="19"/></w:rPr><w:t>{{HDA}}</w:t></w:r></w:p>"#
+        let resultado = TemplateXML.fill(xml, values: ["HDA": "DOR **INTENSA** À NOITE"])
+        XCTAssertEqual(
+            resultado,
+            #"<w:p><w:r><w:rPr><w:rFonts w:ascii="Times New Roman"/><w:sz w:val="19"/></w:rPr><w:t xml:space="preserve">DOR </w:t></w:r>"#
+                + #"<w:r><w:rPr><w:rFonts w:ascii="Times New Roman"/><w:b/><w:bCs/><w:sz w:val="19"/></w:rPr><w:t xml:space="preserve">INTENSA</w:t></w:r>"#
+                + #"<w:r><w:rPr><w:rFonts w:ascii="Times New Roman"/><w:sz w:val="19"/></w:rPr><w:t xml:space="preserve"> À NOITE</w:t></w:r></w:p>"#
+        )
+        XCTAssertFalse(resultado.contains("**"))
+    }
+
+    func testNegritoSemFormatacaoNoRunEMarcaSemPar() {
+        let xml = "<w:r><w:t>{{X}}</w:t></w:r>"
+        XCTAssertEqual(
+            TemplateXML.fill(xml, values: ["X": "**A** B **C"]),
+            #"<w:r><w:t xml:space="preserve"></w:t></w:r><w:r><w:rPr><w:b/><w:bCs/></w:rPr><w:t xml:space="preserve">A</w:t></w:r><w:r><w:t xml:space="preserve"> B </w:t><w:t xml:space="preserve">C</w:t></w:r>"#
+        )
+    }
+
+    func testNegritoTrocaNegritoJaExistente() {
+        XCTAssertEqual(
+            TemplateXML.boldRunProperties(#"<w:rPr><w:b w:val="0"/><w:i/></w:rPr>"#),
+            "<w:rPr><w:b/><w:bCs/><w:i/></w:rPr>"
+        )
+    }
 }

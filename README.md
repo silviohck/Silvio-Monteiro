@@ -50,6 +50,8 @@ Os documentos não ficam guardados: o app cria cada um numa pasta temporária pr
 
 Aba **Prontuário** na barra lateral: escolha o local e a **ficha** (já vem a *Avaliação ortopédica – Araruna (CER II)*, igual à ficha em papel e ligada ao local cujo nome tem "Araruna"; a H.D.A., o exame físico e a programação aparecem na tela com as mesmas linhas da ficha — o que não cabe numa linha desce para a de baixo, Enter vai para a próxima —, e os exames complementares são escritos nas linhas do exame físico), digite o paciente e preencha **Identificação** (vem do cadastro; o que você completar — CPF, bairro, CNS… — fica no cadastro), **Atendimento** (queixa principal, H.D.A., exame físico, exames complementares, diagnóstico, CID-10 com sugestões, programação terapêutica e perfil CER II) e clique em **Gerar prontuário**. Sai em Word, como os outros documentos (fila, imprimir agora ou só abrir). A anamnese e o exame valem só para aquele prontuário: não ficam no cadastro e não passam para o próximo paciente. Outras fichas: **Importar ficha (.docx)** com campos como `{{NOME}}`, `{{QUEIXA_PRINCIPAL}}`, `{{HDA}}`, `{{EXAME_FISICO}}`, `{{EXAMES_COMPLEMENTARES}}`, `{{CID}}` e `{{CONDUTA}}`.
 
+**Negrito:** em qualquer campo (Prontuário ou Gerar documento), selecione um trecho e aperte **⌘B** (menu Editar › Negrito, ou o botão Negrito no Prontuário). O trecho fica entre `**` na tela e sai em negrito no Word; ⌘B de novo tira.
+
 ### Impressão
 
 **Parar todas as impressões** (barra lateral, embaixo da impressora, e na aba Fila): se um documento começar a sair sem parar, esse botão cancela tudo o que está na fila de impressão do Mac para a impressora escolhida e interrompe a fila do app. O mesmo arquivo também não é enviado duas vezes em menos de 20 segundos.

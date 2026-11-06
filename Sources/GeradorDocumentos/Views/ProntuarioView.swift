@@ -211,6 +211,13 @@ struct ProntuarioView: View {
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
+                Button { Negrito.alternar() } label: {
+                    Label("Negrito", systemImage: "bold")
+                        .labelStyle(.titleAndIcon)
+                }
+                .help("Negrito (⌘B): selecione um trecho no campo; ele sai em negrito no Word")
+            }
+            ToolbarItem(placement: .primaryAction) {
                 Button(action: proximoPaciente) {
                     Label("Próximo paciente", systemImage: "arrow.uturn.left.circle.fill")
                         .labelStyle(.titleAndIcon)
@@ -361,7 +368,7 @@ struct ProntuarioView: View {
         } header: {
             TituloSecao("Atendimento", icone: "stethoscope")
         } footer: {
-            Text("Anamnese, exame e conduta valem só para este prontuário: não ficam no cadastro e não passam para o próximo paciente.")
+            Text("Negrito: selecione um trecho e aperte ⌘B (ou o botão Negrito no alto). Ele fica entre ** aqui e sai em negrito no Word. Anamnese, exame e conduta valem só para este prontuário: não ficam no cadastro e não passam para o próximo paciente.")
                 .foregroundStyle(.secondary)
         }
     }
@@ -545,7 +552,14 @@ struct ProntuarioView: View {
             let exame = finais[alvo, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
             finais[alvo] = [exame, "EXAMES COMPLEMENTARES: \(exames)"].filter { !$0.isEmpty }.joined(separator: "\n")
         }
-        // Campos com linhas ({{HDA}}, {{HDA_LINHA_2}}…) já vêm organizados linha por linha da tela.
+        // Campos com linhas ({{HDA}}, {{HDA_LINHA_2}}…) já vêm organizados linha por linha da tela;
+        // o negrito (**…**) que passa de uma linha para a outra é fechado e reaberto em cada linha.
+        for campo in ficha.campos where !Self.ehContinuacao(campo) {
+            let outras = Self.continuacoes(de: campo, em: ficha)
+            let grupo = [campo] + outras
+            let balanceadas = Negrito.balancear(grupo.map { finais[$0, default: ""] })
+            for (indice, nome) in grupo.enumerated() { finais[nome] = balanceadas[indice] }
+        }
         return finais
     }
 
