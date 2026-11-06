@@ -377,15 +377,22 @@ struct ProntuarioView: View {
                         .foregroundStyle(.tertiary)
                         .monospacedDigit()
                         .frame(width: 20, alignment: .trailing)
-                    TextField("", text: linha(indice, de: campos))
+                    // Sem rótulo e ocupando a linha toda: num Form, um campo "plain" vazio ficaria sem
+                    // largura e não daria para clicar nele.
+                    TextField("Linha \(indice + 1)", text: linha(indice, de: campos), prompt: Text(""))
+                        .labelsHidden()
                         .textFieldStyle(.plain)
                         .font(.system(.body, design: .monospaced))
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .focused($linhaEmFoco, equals: campo)
                         .onSubmit {
                             if indice + 1 < campos.count { linhaEmFoco = campos[indice + 1] }
                         }
                 }
                 .padding(.vertical, 5)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture { linhaEmFoco = campo }
                 .overlay(alignment: .bottom) {
                     Rectangle().fill(Tema.borda).frame(height: 1)
                 }
@@ -407,7 +414,9 @@ struct ProntuarioView: View {
                 aviso = nil
                 ultimoDocumento = nil
                 if fluir(campos, aPartirDe: indice), indice + 1 < campos.count {
-                    linhaEmFoco = campos[indice + 1]
+                    // Depois da digitação terminar: mudar o foco durante a edição atrapalha o campo.
+                    let proxima = campos[indice + 1]
+                    DispatchQueue.main.async { linhaEmFoco = proxima }
                 }
             }
         )
