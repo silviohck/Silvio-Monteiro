@@ -50,6 +50,16 @@ Os documentos não ficam guardados: o app cria cada um numa pasta temporária pr
 
 Aba **Prontuário** na barra lateral: escolha o local e a **ficha** (já vem a *Avaliação ortopédica – Araruna (CER II)*, igual à ficha em papel e ligada ao local cujo nome tem "Araruna"; a H.D.A., o exame físico e a programação aparecem na tela com as mesmas linhas da ficha — o que não cabe numa linha desce para a de baixo, Enter vai para a próxima —, e os exames complementares são escritos nas linhas do exame físico), digite o paciente e preencha **Identificação** (vem do cadastro; o que você completar — CPF, bairro, CNS… — fica no cadastro), **Atendimento** (queixa principal, H.D.A., exame físico, exames complementares, diagnóstico, CID-10 com sugestões, programação terapêutica e perfil CER II) e clique em **Gerar prontuário**. Sai em Word, como os outros documentos (fila, imprimir agora ou só abrir). A anamnese e o exame valem só para aquele prontuário: não ficam no cadastro e não passam para o próximo paciente. Outras fichas: **Importar ficha (.docx)** com campos como `{{NOME}}`, `{{QUEIXA_PRINCIPAL}}`, `{{HDA}}`, `{{EXAME_FISICO}}`, `{{EXAMES_COMPLEMENTARES}}`, `{{CID}}` e `{{CONDUTA}}`.
 
+### Ler ficha por foto
+
+Na aba **Prontuário**, **Ler ficha por foto…** (ou arraste a foto para a seção): o Claude, da Anthropic, lê a ficha de papel (feito para a *Avaliação ortopédica – Araruna (CER II)*, mas lê outras com os mesmos campos) e:
+
+- **cadastra o paciente**: se já existe (mesmo CPF, mesmo CNS ou mesmo nome e nascimento), só completa os campos vazios do cadastro, e o que já estava lá não muda; com homônimos, o app pergunta qual é; se o nome ficou duvidoso, você corrige e confirma antes de criar o cadastro;
+- **preenche a ficha na tela**: identificação, Q.P., H.D.A. e exame físico linha a linha, exames, diagnóstico, CID, programação e perfil CER II. A data da avaliação escrita na ficha substitui a de hoje;
+- mostra os campos de leitura duvidosa e o CPF com dígitos que não conferem, para conferir antes de **Gerar prontuário**.
+
+Na primeira vez, informe uma chave de API da Anthropic (console.anthropic.com). Ela fica nas **Chaves do Mac**, não no dados.json nem no Google Drive (*Trocar chave* apaga). A foto é reduzida e enviada à API da Anthropic só ao ler. Como contém dados de saúde, avalie a LGPD (base legal e contrato de tratamento de dados) antes de usar com pacientes reais. Fotos do iPhone chegam por AirDrop ou pelo app Fotos (arraste para a seção).
+
 ### Impressão
 
 **Parar todas as impressões** (barra lateral, embaixo da impressora, e na aba Fila): se um documento começar a sair sem parar, esse botão cancela tudo o que está na fila de impressão do Mac para a impressora escolhida e interrompe a fila do app. O mesmo arquivo também não é enviado duas vezes em menos de 20 segundos.

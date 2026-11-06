@@ -23,6 +23,15 @@ struct ProntuarioView: View {
     @State var geracaoConcluida = false
     @State var importandoFicha = false
     @State var ultimoPaciente: Paciente.ID?
+    // Ler ficha por foto (ProntuarioView+Foto.swift)
+    @State var lendoFoto = false
+    @State var resultadoDaFoto: ResultadoDaFoto?
+    @State var fichaLidaPendente: FichaLida?
+    @State var homonimosDaFoto: [Paciente] = []
+    @State var chaveConfigurada = false
+    @State var chaveDigitada = ""
+    /// Data da avaliação escrita na ficha de papel: vai no lugar da data de hoje.
+    @State var dataDaFicha: String?
     @FocusState var focoNoNome: Bool
     /// Linha da ficha (H.D.A., exame físico…) em que se está digitando.
     @FocusState var linhaEmFoco: String?
@@ -161,6 +170,7 @@ struct ProntuarioView: View {
     var body: some View {
         Form {
             secaoFicha
+            if ficha != nil { secaoFoto }
             secaoPaciente
             if let ficha {
                 secaoIdentificacao(ficha)
@@ -172,6 +182,7 @@ struct ProntuarioView: View {
         .fundoSuave()
         .onAppear {
             armazenamento.instalarFichasProntas()
+            chaveConfigurada = ChaveDaAnthropic.configurada
             if local == nil { localSelecionado = "" }
             validarFicha()
             preencherIdentificacao()
@@ -507,6 +518,10 @@ struct ProntuarioView: View {
     func preencherIdentificacao() {
         guard let ficha else { return }
         for campo in camposDeIdentificacao(ficha) {
+            if let dataDaFicha, ["DATA", "HOJE", "DATA_HOJE", "DATA_ATUAL"].contains(CamposAutomaticos.chave(campo)) {
+                valores[campo] = dataDaFicha
+                continue
+            }
             valores[campo] = GerarView.maiusculas(
                 CamposAutomaticos.valor(para: campo, paciente: pacienteCadastrado, local: local) ?? ""
             )
@@ -516,6 +531,7 @@ struct ProntuarioView: View {
     func limparAtendimento() {
         valores = [:]
         examesExtras = ""
+        dataDaFicha = nil
         aviso = nil
         ultimoDocumento = nil
         geracaoConcluida = false
@@ -530,6 +546,9 @@ struct ProntuarioView: View {
         nomePaciente = ""
         pacienteEscolhido = nil
         ultimoPaciente = nil
+        resultadoDaFoto = nil
+        fichaLidaPendente = nil
+        homonimosDaFoto = []
         recomecarAtendimento()
         focoNoNome = true
     }
