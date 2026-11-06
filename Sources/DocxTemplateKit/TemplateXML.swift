@@ -114,7 +114,7 @@ enum TemplateXML {
         guard !rPr.isEmpty else { return "<w:rPr><w:b/><w:bCs/></w:rPr>" }
         var interno = String(rPr.dropFirst("<w:rPr>".count).dropLast("</w:rPr>".count))
         // Tira negrito já existente (ex.: <w:b w:val="0"/>) para não haver dois.
-        interno = interno.replacingOccurrences(of: #"<w:bCs?(\s[^>]*)?/>"#, with: "", options: .regularExpression)
+        interno = interno.replacingOccurrences(of: #"<w:b(?:Cs)?(?:\s[^>]*)?/>"#, with: "", options: .regularExpression)
         let ns = interno as NSString
         var posicao = 0
         for padrao in [#"<w:rStyle[^>]*/>"#, #"<w:rFonts[^>]*/>"#] {
