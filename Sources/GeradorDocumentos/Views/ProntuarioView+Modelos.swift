@@ -77,23 +77,83 @@ extension ProntuarioView {
         ))
     }
 
-    func secaoModeloDeAtendimento(_ ficha: ModeloDocumento) -> some View {
-        Section {
-            HStack(spacing: 12) {
-                TextField("Buscar doença ou CID (ex.: gonartrose, túnel do carpo, M54)", text: $buscaModelo)
-                    .textFieldStyle(.roundedBorder)
-                Picker("Lado", selection: $ladoModelo) {
-                    ForEach(ModelosDeAtendimento.lados, id: \.self) { lado in
-                        Text(lado.capitalized).tag(lado)
+    /// Atalhos para os modelos mais usados neste local: um clique preenche a ficha. Em grade; arrastar
+    /// ou o clique direito mudam a ordem.
+    @ViewBuilder
+    func gradeDeFavoritos(_ ficha: ModeloDocumento) -> some View {
+        let favoritos = armazenamento.favoritosDeAtendimento(para: local)
+        if !favoritos.isEmpty {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 8)], alignment: .leading, spacing: 8) {
+                ForEach(favoritos, id: \.self) { favorito in
+                    Button {
+                        pedirAplicar(favorito, ficha)
+                    } label: {
+                        Label {
+                            Text(favorito.nome).lineLimit(1).truncationMode(.middle)
+                        } icon: {
+                            Image(systemName: "star.fill")
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(.bordered)
+                    .help("\(favorito.cid) · \(favorito.nome) (\(ladoModelo.lowercased())) — arraste para mudar a ordem")
+                    .draggable(ModelosDeAtendimento.chave(favorito))
+                    .dropDestination(for: String.self) { chaves, _ in
+                        guard let chave = chaves.first,
+                              let arrastado = favoritos.first(where: { ModelosDeAtendimento.chave($0) == chave }),
+                              arrastado != favorito else { return false }
+                        let deOnde = favoritos.firstIndex(of: arrastado) ?? 0
+                        let paraOnde = favoritos.firstIndex(of: favorito) ?? 0
+                        // Para a direita: entra depois do alvo; para a esquerda: antes.
+                        let antesDe = deOnde < paraOnde
+                            ? (paraOnde + 1 < favoritos.count ? favoritos[paraOnde + 1] : nil)
+                            : favorito
+                        armazenamento.moverFavoritoDeAtendimento(arrastado, paraAntesDe: antesDe, noLocal: local)
+                        return true
+                    }
+                    .contextMenu {
+                        let indice = favoritos.firstIndex(of: favorito) ?? 0
+                        Button("Mover para a esquerda") {
+                            armazenamento.moverFavoritoDeAtendimento(favorito, paraAntesDe: favoritos[indice - 1], noLocal: local)
+                        }
+                        .disabled(indice == 0)
+                        Button("Mover para a direita") {
+                            armazenamento.moverFavoritoDeAtendimento(
+                                favorito, paraAntesDe: indice + 2 < favoritos.count ? favoritos[indice + 2] : nil, noLocal: local
+                            )
+                        }
+                        .disabled(indice == favoritos.count - 1)
+                        Button("Mover para o início") {
+                            armazenamento.moverFavoritoDeAtendimento(favorito, paraAntesDe: favoritos.first, noLocal: local)
+                        }
+                        .disabled(indice == 0)
+                        Button("Mover para o fim") {
+                            armazenamento.moverFavoritoDeAtendimento(favorito, paraAntesDe: nil, noLocal: local)
+                        }
+                        .disabled(indice == favoritos.count - 1)
+                        Divider()
+                        Button("Tirar dos favoritos") {
+                            armazenamento.alternarFavoritoDeAtendimento(favorito, noLocal: local)
+                        }
                     }
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(width: 260)
-                .help("O [LADO] do modelo sai como este lado")
             }
-            let resultados = resultadosDoModelo
-            ForEach(resultados) { modelo in
+            .padding(.vertical, 2)
+        }
+    }
+
+    /// Uma linha da busca: estrela (favorito) e o modelo (clique preenche a ficha).
+    func linhaDoResultado(_ modelo: ModeloDeAtendimento, _ ficha: ModeloDocumento) -> some View {
+        HStack(spacing: 8) {
+                let favorito = armazenamento.ehFavoritoDeAtendimento(modelo, noLocal: local)
+                Button {
+                    armazenamento.alternarFavoritoDeAtendimento(modelo, noLocal: local)
+                } label: {
+                    Image(systemName: favorito ? "star.fill" : "star")
+                        .foregroundStyle(favorito ? Color.yellow : Color.secondary)
+                }
+                .buttonStyle(.borderless)
+                .help(favorito ? "Tirar dos favoritos" : "Favoritar em \(local?.nome ?? "este local"): vira um atalho acima da busca")
                 Button {
                     pedirAplicar(modelo, ficha)
                 } label: {
@@ -115,10 +175,36 @@ extension ProntuarioView {
                 .buttonStyle(.plain)
                 .help("Preencher a ficha com este modelo (\(ladoModelo.lowercased()))")
                 .contextMenu {
+                    Button(armazenamento.ehFavoritoDeAtendimento(modelo, noLocal: local) ? "Tirar dos favoritos" : "Adicionar aos favoritos") {
+                        armazenamento.alternarFavoritoDeAtendimento(modelo, noLocal: local)
+                    }
                     if modelo.meu {
                         Button("Apagar este modelo", role: .destructive) { armazenamento.apagarModeloDeAtendimento(modelo) }
                     }
                 }
+        }
+    }
+
+    func secaoModeloDeAtendimento(_ ficha: ModeloDocumento) -> some View {
+        Section {
+            gradeDeFavoritos(ficha)
+            HStack(spacing: 12) {
+                TextField("Buscar", text: $buscaModelo, prompt: Text("Buscar doença ou CID (ex.: gonartrose, túnel do carpo, M54)"))
+                    .labelsHidden()
+                    .textFieldStyle(.roundedBorder)
+                Picker("Lado", selection: $ladoModelo) {
+                    ForEach(ModelosDeAtendimento.lados, id: \.self) { lado in
+                        Text(lado.capitalized).tag(lado)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 260)
+                .help("O [LADO] do modelo sai como este lado")
+            }
+            let resultados = resultadosDoModelo
+            ForEach(resultados) { modelo in
+                linhaDoResultado(modelo, ficha)
             }
             if buscaModelo.trimmingCharacters(in: .whitespaces).count >= 2 && resultados.isEmpty {
                 Text("Nenhum modelo encontrado.").foregroundStyle(.secondary)
@@ -134,7 +220,7 @@ extension ProntuarioView {
         } header: {
             TituloSecao("Modelo de atendimento", icone: "text.book.closed.fill")
         } footer: {
-            Text("Escolha o lado e clique no modelo: Q.P., H.D.A., exame físico, diagnóstico, CID e programação são preenchidos nas linhas da ficha. Complete os ___ e ajuste o que precisar. Os textos são pontos de partida.")
+            Text("A estrela ★ põe o modelo nos favoritos deste local (atalhos acima da busca). Escolha o lado e clique no modelo: Q.P., H.D.A., exame físico, diagnóstico, CID e programação são preenchidos nas linhas da ficha. Complete os ___ e ajuste o que precisar. Os textos são pontos de partida.")
                 .foregroundStyle(.secondary)
         }
         .alert(

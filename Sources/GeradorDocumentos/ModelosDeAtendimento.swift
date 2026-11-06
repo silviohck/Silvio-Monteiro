@@ -33,6 +33,15 @@ enum ModelosDeAtendimento {
             )
         }
 
+    /// Identificação estável do modelo, para os favoritos.
+    static func chave(_ modelo: ModeloDeAtendimento) -> String {
+        modelo.meu ? "meu:\(modelo.id.uuidString)" : "\(modelo.cid)|\(modelo.nome)"
+    }
+
+    static let porChave: [String: ModeloDeAtendimento] = Dictionary(
+        prontos.map { (chave($0), $0) }, uniquingKeysWith: { primeiro, _ in primeiro }
+    )
+
     static func simples(_ texto: String) -> String {
         texto.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "pt_BR"))
     }
@@ -163,5 +172,42 @@ extension Armazenamento {
 
     func apagarModeloDeAtendimento(_ modelo: ModeloDeAtendimento) {
         dados.modelosDeAtendimento.removeAll { $0.id == modelo.id }
+        let chave = ModelosDeAtendimento.chave(modelo)
+        for local in dados.favoritosDeAtendimento.keys { dados.favoritosDeAtendimento[local]?.removeAll { $0 == chave } }
+    }
+}
+
+/// Favoritos do Modelo de atendimento, separados por local (como os favoritos do Gerar documento).
+extension Armazenamento {
+    private func chaveDoLocal(_ local: LocalAtendimento?) -> String { local?.id.uuidString ?? "" }
+
+    func favoritosDeAtendimento(para local: LocalAtendimento?) -> [ModeloDeAtendimento] {
+        let meus = Dictionary(dados.modelosDeAtendimento.map { (ModelosDeAtendimento.chave($0), $0) }, uniquingKeysWith: { a, _ in a })
+        return (dados.favoritosDeAtendimento[chaveDoLocal(local)] ?? []).compactMap { meus[$0] ?? ModelosDeAtendimento.porChave[$0] }
+    }
+
+    func ehFavoritoDeAtendimento(_ modelo: ModeloDeAtendimento, noLocal local: LocalAtendimento?) -> Bool {
+        (dados.favoritosDeAtendimento[chaveDoLocal(local)] ?? []).contains(ModelosDeAtendimento.chave(modelo))
+    }
+
+    func alternarFavoritoDeAtendimento(_ modelo: ModeloDeAtendimento, noLocal local: LocalAtendimento?) {
+        let chave = ModelosDeAtendimento.chave(modelo)
+        var lista = dados.favoritosDeAtendimento[chaveDoLocal(local)] ?? []
+        if let indice = lista.firstIndex(of: chave) { lista.remove(at: indice) } else { lista.append(chave) }
+        dados.favoritosDeAtendimento[chaveDoLocal(local)] = lista
+    }
+
+    /// Põe o favorito antes de `destino` (nil = no fim).
+    func moverFavoritoDeAtendimento(_ modelo: ModeloDeAtendimento, paraAntesDe destino: ModeloDeAtendimento?, noLocal local: LocalAtendimento?) {
+        let chave = ModelosDeAtendimento.chave(modelo)
+        var lista = dados.favoritosDeAtendimento[chaveDoLocal(local)] ?? []
+        guard let origem = lista.firstIndex(of: chave) else { return }
+        lista.remove(at: origem)
+        if let destino, let alvo = lista.firstIndex(of: ModelosDeAtendimento.chave(destino)) {
+            lista.insert(chave, at: alvo)
+        } else {
+            lista.append(chave)
+        }
+        dados.favoritosDeAtendimento[chaveDoLocal(local)] = lista
     }
 }
