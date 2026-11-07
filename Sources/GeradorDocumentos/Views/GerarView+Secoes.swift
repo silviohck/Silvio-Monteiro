@@ -183,7 +183,6 @@ extension GerarView {
     func secaoSalvar(_ modelo: ModeloDocumento) -> some View {
         Section {
             Toggle("Abrir o documento depois de gerar", isOn: $abrirAoGerar)
-            OpcaoRegistroPDF()
             HStack {
                 Picker("Depois de gerar", selection: $acaoDepoisDeGerar) {
                     Text("Adicionar à fila de impressão").tag("fila")

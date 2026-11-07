@@ -497,7 +497,6 @@ struct ProntuarioView: View {
 
     func secaoGerar(_ ficha: ModeloDocumento) -> some View {
         Section {
-            OpcaoRegistroPDF()
             HStack {
                 Picker("Depois de gerar", selection: $acaoDepoisDeGerar) {
                     Text("Adicionar à fila de impressão").tag("fila")
@@ -653,10 +652,8 @@ struct ProntuarioView: View {
                 aviso = "Prontuário na fila de impressão (\(armazenamento.pendentesNaFila) aguardando)"
             }
         }
-        let abrir = !(acaoDepoisDeGerar == "fila" || acaoDepoisDeGerar == "imprimir")
-        armazenamento.salvarRegistroSeLigado(destino, local: local?.nome, paciente: nome) { complemento in
-            if let complemento, aviso != nil { aviso = (aviso ?? "") + complemento }
-            if abrir { NSWorkspace.shared.open(destino) }
+        if !(acaoDepoisDeGerar == "fila" || acaoDepoisDeGerar == "imprimir") {
+            NSWorkspace.shared.open(destino)
         }
         armazenamento.limparDocumentosTemporarios()
     }

@@ -82,7 +82,7 @@ enum Impressao {
         }
     }
 
-    /// Um pedido ao Word por vez (impressões e PDFs de registro), na ordem em que foram feitos.
+    /// Um pedido ao Word por vez, na ordem em que foram feitos.
     static let filaDoWord = DispatchQueue(label: "Orthck.Word", qos: .userInitiated)
 
     static var wordInstalado: Bool {
@@ -181,53 +181,6 @@ enum Impressao {
                 print out alvo
             end repeat
             if manterAberto is "nao" then close alvo saving no
-          end timeout
-        end tell
-    end run
-    """
-
-    /// Abre o documento no Word e salva uma cópia em PDF em `pdf` (chamar na `filaDoWord`).
-    /// Se o documento já estava aberto, continua aberto. Devolve nil ou a mensagem de erro.
-    static func salvarComoPDF(_ arquivo: URL, em pdf: URL) -> String? {
-        let resultado = executar("/usr/bin/osascript", ["-e", scriptPDF, arquivo.path, pdf.path, arquivo.lastPathComponent])
-        guard resultado.status == 0 else {
-            return resultado.erro.contains("-1743")
-                ? mensagem(paraErroDoAppleScript: resultado.erro)
-                : "O Word não conseguiu salvar o PDF de registro. \(resultado.erro)"
-        }
-        return FileManager.default.fileExists(atPath: pdf.path) ? nil : "O Word não gravou o PDF de registro."
-    }
-
-    private static let scriptPDF = """
-    on run argv
-        set arquivo to (POSIX file (item 1 of argv)) as alias
-        set destino to (POSIX file (item 2 of argv)) as text
-        set nomeDoArquivo to item 3 of argv
-        tell application "Microsoft Word"
-          with timeout of 300 seconds
-            set jaAberto to false
-            try
-                repeat with i from 1 to (count of documents)
-                    if (name of document i) is nomeDoArquivo then set jaAberto to true
-                end repeat
-            end try
-            open arquivo
-            set alvo to missing value
-            repeat 60 times
-                try
-                    repeat with i from 1 to (count of documents)
-                        if (name of document i) is nomeDoArquivo then
-                            set alvo to document i
-                            exit repeat
-                        end if
-                    end repeat
-                end try
-                if alvo is not missing value then exit repeat
-                delay 0.25
-            end repeat
-            if alvo is missing value then error "O Word não abriu " & nomeDoArquivo
-            save as alvo file name destino file format format PDF
-            if not jaAberto then close alvo saving no
           end timeout
         end tell
     end run

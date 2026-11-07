@@ -54,10 +54,6 @@ Aba **Prontuário** na barra lateral: escolha o local e a **ficha** (já vem a *
 
 **Negrito:** em qualquer campo (Prontuário ou Gerar documento), selecione um trecho e aperte **⌘B** (menu Editar › Negrito, ou o botão Negrito no Prontuário). O trecho fica entre `**` na tela e sai em negrito no Word; ⌘B de novo tira.
 
-### PDF de registro
-
-Com **Salvar uma cópia em PDF para registro** ligado (no Gerar documento e no Prontuário), cada documento gerado ganha um PDF reduzido, só para registro, em **<sua pasta de usuário> › Registro de arquivos › Local de atendimento › Nome do paciente** (fora de Documentos, que o macOS protege) (a pasta base muda em **Escolher pasta…**). O PDF é feito pelo próprio Word, igual ao documento, e depois reduzido pelo filtro do macOS. O Word continua sendo o arquivo usado para imprimir.
-
 ### Impressão
 
 **Parar todas as impressões** (barra lateral, embaixo da impressora, e na aba Fila): se um documento começar a sair sem parar, esse botão cancela tudo o que está na fila de impressão do Mac para a impressora escolhida e interrompe a fila do app. O mesmo arquivo também não é enviado duas vezes em menos de 20 segundos.

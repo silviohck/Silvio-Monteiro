@@ -201,13 +201,9 @@ extension GerarView {
                 aviso = "Salvo e na fila de impressão (\(armazenamento.pendentesNaFila) aguardando)\(copiado)"
             }
         }
-        // PDF de registro (Registro de arquivos › local › paciente) antes de abrir: o Word salva o PDF e
-        // fecha o documento; abrir antes faria ele fechar o que você está vendo.
-        let abrir = abrirAoGerar || acaoDepoisDeGerar == "salvar"
-        armazenamento.salvarRegistroSeLigado(destino, local: local?.nome, paciente: nome) { complemento in
-            if let complemento, aviso != nil { aviso = (aviso ?? "") + complemento }
-            // "Só abrir" abre sempre: o documento não fica guardado, é para usar agora.
-            if abrir { NSWorkspace.shared.open(destino) }
+        // "Só abrir" abre sempre: o documento não fica guardado, é para usar agora.
+        if abrirAoGerar || acaoDepoisDeGerar == "salvar" {
+            NSWorkspace.shared.open(destino)
         }
         armazenamento.limparDocumentosTemporarios()
     }
