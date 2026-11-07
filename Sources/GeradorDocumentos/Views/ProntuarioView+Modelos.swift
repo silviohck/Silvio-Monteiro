@@ -83,6 +83,18 @@ extension ProntuarioView {
     func gradeDeFavoritos(_ ficha: ModeloDocumento) -> some View {
         let favoritos = armazenamento.favoritosDeAtendimento(para: local)
         if !favoritos.isEmpty {
+            HStack {
+                Text("Favoritos deste local").fonteApp(.legenda).foregroundStyle(.secondary)
+                Spacer()
+                Button(organizandoFavoritos ? "Pronto" : "Reorganizar") {
+                    withAnimation(.easeInOut(duration: 0.15)) { organizandoFavoritos.toggle() }
+                }
+                .buttonStyle(.link)
+                .help("Mudar a ordem dos favoritos com as setas, ou tirar um deles")
+            }
+            if organizandoFavoritos {
+                organizarFavoritos(favoritos)
+            } else {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 8)], alignment: .leading, spacing: 8) {
                 ForEach(favoritos, id: \.self) { favorito in
                     Button {
@@ -139,7 +151,43 @@ extension ProntuarioView {
                 }
             }
             .padding(.vertical, 2)
+            }
         }
+    }
+
+    /// Modo "Reorganizar": cada favorito com setas para a esquerda/direita e um X para tirar.
+    func organizarFavoritos(_ favoritos: [ModeloDeAtendimento]) -> some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 240), spacing: 8)], alignment: .leading, spacing: 8) {
+            ForEach(Array(favoritos.enumerated()), id: \.element) { indice, favorito in
+                HStack(spacing: 6) {
+                    Button {
+                        armazenamento.moverFavoritoDeAtendimento(favorito, paraAntesDe: favoritos[indice - 1], noLocal: local)
+                    } label: { Image(systemName: "chevron.left") }
+                    .disabled(indice == 0)
+                    .help("Mover para a esquerda")
+                    Text("\(indice + 1). \(favorito.nome)")
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button {
+                        armazenamento.moverFavoritoDeAtendimento(
+                            favorito, paraAntesDe: indice + 2 < favoritos.count ? favoritos[indice + 2] : nil, noLocal: local
+                        )
+                    } label: { Image(systemName: "chevron.right") }
+                    .disabled(indice == favoritos.count - 1)
+                    .help("Mover para a direita")
+                    Button {
+                        armazenamento.alternarFavoritoDeAtendimento(favorito, noLocal: local)
+                    } label: { Image(systemName: "xmark") }
+                    .help("Tirar dos favoritos")
+                }
+                .buttonStyle(.borderless)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(RoundedRectangle(cornerRadius: 6).stroke(Tema.borda))
+            }
+        }
+        .padding(.vertical, 2)
     }
 
     /// Uma linha da busca: estrela (favorito) e o modelo (clique preenche a ficha).

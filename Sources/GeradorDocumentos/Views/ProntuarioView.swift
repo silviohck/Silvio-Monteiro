@@ -25,6 +25,8 @@ struct ProntuarioView: View {
     @State var salvandoModelo = false
     @State var nomeNovoModelo = ""
     @State var buscaMeusModelos = ""
+    @State var organizandoFavoritos = false
+    @State var confirmandoLimparFicha = false
     @State var aviso: String?
     @State var ultimoDocumento: URL?
     @State var geracaoConcluida = false
@@ -537,6 +539,18 @@ struct ProntuarioView: View {
                     .buttonStyle(.borderedProminent)
                     .opacity(ultimoDocumento == nil ? 0.6 : 1)
                     .help("Limpa o paciente e o atendimento; o local e a ficha continuam")
+                    Button(role: .destructive) {
+                        confirmandoLimparFicha = true
+                    } label: {
+                        Label("Limpar ficha", systemImage: "eraser").frame(maxWidth: .infinity)
+                    }
+                    .help("Apaga tudo o que foi escrito no atendimento desta ficha; o paciente continua")
+                    .confirmationDialog("Limpar a ficha?", isPresented: $confirmandoLimparFicha) {
+                        Button("Limpar ficha", role: .destructive) { recomecarAtendimento() }
+                        Button("Cancelar", role: .cancel) {}
+                    } message: {
+                        Text("Queixa, H.D.A., exame, diagnóstico, CID, programação e o que mais foi digitado nesta ficha são apagados. A identificação volta a vir do cadastro e o paciente continua escolhido.")
+                    }
                     Divider()
                     Button { Negrito.alternar() } label: {
                         Label("Negrito (⌘B)", systemImage: "bold").frame(maxWidth: .infinity)
