@@ -2,16 +2,22 @@ import Foundation
 
 /// Pacientes atendidos (pelo Histórico), para o painel lateral da tela Gerar documento.
 extension Armazenamento {
-    /// Dias em que houve documento gerado, do mais recente para o mais antigo.
-    var diasComAtendimento: [Date] {
+    /// Dias em que houve documento gerado (depois de `desde`, se a lista foi limpa), do mais recente para o mais antigo.
+    func diasComAtendimento(desde: Date? = nil) -> [Date] {
         let calendario = Calendar.current
-        return Set(dados.historico.map { calendario.startOfDay(for: $0.data) }).sorted(by: >)
+        let documentos = dados.historico.filter { desde == nil || $0.data > desde! }
+        return Set(documentos.map { calendario.startOfDay(for: $0.data) }).sorted(by: >)
     }
 
     /// Os pacientes atendidos mais recentes, com o último documento de cada um.
     /// `local` nil = todos os locais; `dia` = só quem teve documento nesse dia.
-    func pacientesRecentes(local: String?, dia: Date?, limite: Int) -> [(paciente: Paciente, ultimo: DocumentoGerado)] {
+    /// `desde`: só documentos depois que a lista foi limpa; `ocultos`: paciente tirado da lista até essa data
+    /// (volta a aparecer se tiver documento novo). Limpar a lista não apaga o Histórico.
+    func pacientesRecentes(
+        local: String?, dia: Date?, limite: Int, desde: Date? = nil, ocultos: [UUID: Date] = [:]
+    ) -> [(paciente: Paciente, ultimo: DocumentoGerado)] {
         var documentos = dados.historico
+        if let desde { documentos = documentos.filter { $0.data > desde } }
         if let local {
             documentos = documentos.filter { $0.local.map { Self.mesmoNome($0, local) } ?? false }
         }
@@ -24,6 +30,7 @@ extension Armazenamento {
             let paciente = paciente(documento.pacienteID)
                 ?? dados.pacientes.first { $0.nome.caseInsensitiveCompare(documento.paciente) == .orderedSame }
             guard let paciente, vistos.insert(paciente.id).inserted else { continue }
+            if let ate = ocultos[paciente.id], documento.data <= ate { continue }
             lista.append((paciente, documento))
             if lista.count == limite { break }
         }

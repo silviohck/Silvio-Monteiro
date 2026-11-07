@@ -24,6 +24,7 @@ struct ProntuarioView: View {
     @State var modeloParaAplicar: ModeloDeAtendimento?
     @State var salvandoModelo = false
     @State var nomeNovoModelo = ""
+    @State var buscaMeusModelos = ""
     @State var aviso: String?
     @State var ultimoDocumento: URL?
     @State var geracaoConcluida = false
@@ -165,14 +166,22 @@ struct ProntuarioView: View {
     // MARK: Tela
 
     var body: some View {
+        HStack(alignment: .top, spacing: 0) {
+            formulario
+            Divider()
+            painelLateral
+        }
+    }
+
+    var formulario: some View {
         Form {
             secaoFicha
             secaoPaciente
             if let ficha {
                 secaoIdentificacao(ficha)
+                secaoMeusModelos(ficha)
                 secaoModeloDeAtendimento(ficha)
                 secaoAtendimento(ficha)
-                secaoGerar(ficha)
             }
         }
         .formStyle(.grouped)
@@ -214,22 +223,6 @@ struct ProntuarioView: View {
                 fichaSelecionada = nova.id.uuidString
             } catch {
                 armazenamento.erro = "Não foi possível importar a ficha: \(error.localizedDescription)"
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button { Negrito.alternar() } label: {
-                    Label("Negrito", systemImage: "bold")
-                        .labelStyle(.titleAndIcon)
-                }
-                .help("Negrito (⌘B): selecione um trecho no campo; ele sai em negrito no Word")
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button(action: proximoPaciente) {
-                    Label("Próximo paciente", systemImage: "arrow.uturn.left.circle.fill")
-                        .labelStyle(.titleAndIcon)
-                }
-                .help("Limpa o paciente e o atendimento; o local e a ficha continuam")
             }
         }
     }
@@ -495,48 +488,66 @@ struct ProntuarioView: View {
         return !continuacoes(de: campo, em: ficha).isEmpty
     }
 
-    func secaoGerar(_ ficha: ModeloDocumento) -> some View {
-        Section {
-            HStack {
-                Picker("Depois de gerar", selection: $acaoDepoisDeGerar) {
-                    Text("Adicionar à fila de impressão").tag("fila")
-                    Text("Imprimir agora").tag("imprimir")
-                    Text("Só abrir").tag("salvar")
-                }
-                .pickerStyle(.menu)
-                Spacer()
-                Stepper(value: $copias, in: 1...20) {
-                    Text("\(copias) \(copias == 1 ? "cópia" : "cópias")").monospacedDigit()
-                }
-                .fixedSize()
-            }
-            HStack {
-                if let aviso {
-                    Label(aviso, systemImage: "checkmark.circle.fill").foregroundStyle(Tema.sucesso)
-                    if let ultimoDocumento {
-                        Button("Abrir") { NSWorkspace.shared.open(ultimoDocumento) }
-                            .buttonStyle(.link)
+    /// Painel fixo à direita: gerar, próximo paciente e negrito sempre à vista, sem rolar até o fim.
+    var painelLateral: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                TituloSecao("Gerar", icone: "doc.badge.plus")
+                if ficha == nil {
+                    Text("Escolha a ficha do prontuário.").foregroundStyle(.secondary)
+                } else {
+                    Picker("Depois de gerar", selection: $acaoDepoisDeGerar) {
+                        Text("Adicionar à fila de impressão").tag("fila")
+                        Text("Imprimir agora").tag("imprimir")
+                        Text("Só abrir").tag("salvar")
                     }
-                }
-                Spacer()
-                Button(action: proximoPaciente) {
-                    Label("Próximo paciente", systemImage: "arrow.uturn.left.circle.fill")
-                }
-                .controlSize(.large)
-                .tint(Tema.sucesso)
-                .buttonStyle(.borderedProminent)
-                .opacity(ultimoDocumento == nil ? 0.6 : 1)
-                Button("Gerar prontuário") { gerar() }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    Stepper(value: $copias, in: 1...20) {
+                        Text("\(copias) \(copias == 1 ? "cópia" : "cópias")").monospacedDigit()
+                    }
+                    Button {
+                        gerar()
+                    } label: {
+                        Label("Gerar prontuário", systemImage: "doc.badge.plus")
+                            .frame(maxWidth: .infinity)
+                    }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
-                    .keyboardShortcut(.defaultAction)
+                    // ⌘↩ (e não só Enter): o Enter nas linhas da ficha quebra a linha, não gera.
+                    .keyboardShortcut(.return, modifiers: .command)
                     .disabled(geracaoConcluida || precisaEscolherPaciente || nomeDigitado.isEmpty)
                     .help(geracaoConcluida ? "Este prontuário já foi gerado. Altere os dados ou clique em Próximo paciente."
-                        : nomeDigitado.isEmpty ? "Digite o nome do paciente" : "Gerar o prontuário em Word (Enter)")
+                        : nomeDigitado.isEmpty ? "Digite o nome do paciente" : "Gerar o prontuário em Word (⌘↩)")
+                    if let aviso {
+                        Label(aviso, systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(Tema.sucesso)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if let ultimoDocumento {
+                            Button("Abrir o documento") { NSWorkspace.shared.open(ultimoDocumento) }
+                                .buttonStyle(.link)
+                        }
+                    }
+                    Button(action: proximoPaciente) {
+                        Label("Próximo paciente", systemImage: "arrow.uturn.left.circle.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .controlSize(.large)
+                    .tint(Tema.sucesso)
+                    .buttonStyle(.borderedProminent)
+                    .opacity(ultimoDocumento == nil ? 0.6 : 1)
+                    .help("Limpa o paciente e o atendimento; o local e a ficha continuam")
+                    Divider()
+                    Button { Negrito.alternar() } label: {
+                        Label("Negrito (⌘B)", systemImage: "bold").frame(maxWidth: .infinity)
+                    }
+                    .help("Selecione um trecho no campo e clique (ou ⌘B): ele sai em negrito no Word")
+                }
             }
-        } header: {
-            TituloSecao("Gerar", icone: "doc.badge.plus")
+            .padding(16)
         }
+        .frame(width: 280)
+        .background(Tema.lateral)
     }
 
     // MARK: Ações

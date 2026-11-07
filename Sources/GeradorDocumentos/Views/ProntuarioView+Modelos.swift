@@ -27,7 +27,7 @@ extension ProntuarioView {
     }
 
     var resultadosDoModelo: [ModeloDeAtendimento] {
-        ModelosDeAtendimento.buscar(buscaModelo, meus: armazenamento.dados.modelosDeAtendimento)
+        ModelosDeAtendimento.buscar(buscaModelo, meus: [])
     }
 
     func pedirAplicar(_ modelo: ModeloDeAtendimento, _ ficha: ModeloDocumento) {
@@ -185,6 +185,40 @@ extension ProntuarioView {
         }
     }
 
+    /// Os modelos que você salvou, separados dos que vêm no app.
+    func secaoMeusModelos(_ ficha: ModeloDocumento) -> some View {
+        let meus = armazenamento.dados.modelosDeAtendimento
+            .filter { buscaMeusModelos.count < 2 || ModelosDeAtendimento.simples($0.nome + " " + $0.cid).contains(ModelosDeAtendimento.simples(buscaMeusModelos)) }
+            .sorted { $0.nome.localizedStandardCompare($1.nome) == .orderedAscending }
+        return Section {
+            if armazenamento.dados.modelosDeAtendimento.count > 6 {
+                TextField("Buscar", text: $buscaMeusModelos, prompt: Text("Buscar nos meus modelos"))
+                    .labelsHidden()
+                    .textFieldStyle(.roundedBorder)
+            }
+            if armazenamento.dados.modelosDeAtendimento.isEmpty {
+                Text("Você ainda não salvou nenhum modelo. Escreva o atendimento (ou parta de um modelo do app), ajuste e clique em “Salvar o que está escrito…”.")
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(meus) { modelo in
+                linhaDoResultado(modelo, ficha)
+            }
+            HStack {
+                Spacer()
+                Button("Salvar o que está escrito como meu modelo…") {
+                    nomeNovoModelo = valores[campoDiagnostico(ficha) ?? "", default: ""]
+                    salvandoModelo = true
+                }
+                .buttonStyle(.link)
+            }
+        } header: {
+            TituloSecao("Meus modelos", icone: "person.text.rectangle")
+        } footer: {
+            Text("Só os modelos que você salvou. Com o mesmo nome, substitui o anterior; clique direito para apagar. Não salve dados de um paciente específico.")
+                .foregroundStyle(.secondary)
+        }
+    }
+
     func secaoModeloDeAtendimento(_ ficha: ModeloDocumento) -> some View {
         Section {
             gradeDeFavoritos(ficha)
@@ -209,16 +243,8 @@ extension ProntuarioView {
             if buscaModelo.trimmingCharacters(in: .whitespaces).count >= 2 && resultados.isEmpty {
                 Text("Nenhum modelo encontrado.").foregroundStyle(.secondary)
             }
-            HStack {
-                Spacer()
-                Button("Salvar o que está escrito como meu modelo…") {
-                    nomeNovoModelo = valores[campoDiagnostico(ficha) ?? "", default: ""]
-                    salvandoModelo = true
-                }
-                .buttonStyle(.link)
-            }
         } header: {
-            TituloSecao("Modelo de atendimento", icone: "text.book.closed.fill")
+            TituloSecao("Modelos de atendimento do app", icone: "text.book.closed.fill")
         } footer: {
             Text("A estrela ★ põe o modelo nos favoritos deste local (atalhos acima da busca). Escolha o lado e clique no modelo: Q.P., H.D.A., exame físico, diagnóstico, CID e programação são preenchidos nas linhas da ficha. Complete os ___ e ajuste o que precisar. Os textos são pontos de partida.")
                 .foregroundStyle(.secondary)

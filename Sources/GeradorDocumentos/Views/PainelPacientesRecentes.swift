@@ -17,17 +17,58 @@ struct PainelPacientesRecentes: View {
     }
     /// nil = todas as datas; senão, só quem teve documento gerado nesse dia.
     @State private var dia: Date?
+    /// "Limpar lista": só aparecem atendimentos depois deste momento (o Histórico continua inteiro).
+    @AppStorage("recentesLimposEm") private var limposEm: Double = 0
+    /// Pacientes tirados da lista um a um: "id=momento;id=momento".
+    @AppStorage("recentesOcultos") private var ocultosTexto = ""
+    @State private var confirmandoLimpeza = false
+
+    private var desde: Date? { limposEm > 0 ? Date(timeIntervalSince1970: limposEm) : nil }
+
+    private var ocultos: [UUID: Date] {
+        var mapa: [UUID: Date] = [:]
+        for par in ocultosTexto.split(separator: ";") {
+            let partes = par.split(separator: "=")
+            if partes.count == 2, let id = UUID(uuidString: String(partes[0])), let quando = Double(partes[1]) {
+                mapa[id] = Date(timeIntervalSince1970: quando)
+            }
+        }
+        return mapa
+    }
+
+    private func tirarDaLista(_ paciente: Paciente) {
+        var mapa = ocultos
+        mapa[paciente.id] = Date()
+        ocultosTexto = mapa.map { "\($0.key.uuidString)=\($0.value.timeIntervalSince1970)" }.joined(separator: ";")
+    }
 
     var body: some View {
-        let dias = armazenamento.diasComAtendimento
+        let dias = armazenamento.diasComAtendimento(desde: desde)
         // Os mais recentes entram na lista; na tela, ficam em ordem alfabética.
         let itens = armazenamento.pacientesRecentes(
-            local: filtro.isEmpty ? nil : filtro, dia: dia, limite: dia == nil ? 12 : .max
+            local: filtro.isEmpty ? nil : filtro, dia: dia, limite: dia == nil ? 12 : .max,
+            desde: desde, ocultos: ocultos
         ).sorted { $0.paciente.nome.localizedStandardCompare($1.paciente.nome) == .orderedAscending }
         VStack(alignment: .leading, spacing: 10) {
             filaDeImpressao
             Divider().padding(.vertical, 2)
-            TituloSecao("Atendidos recentemente", icone: "clock.arrow.circlepath")
+            HStack {
+                TituloSecao("Atendidos recentemente", icone: "clock.arrow.circlepath")
+                Spacer()
+                Button("Limpar") { confirmandoLimpeza = true }
+                    .buttonStyle(.link)
+                    .help("Esvazia esta lista (o Histórico e os cadastros continuam). Pacientes novos voltam a aparecer.")
+            }
+            .confirmationDialog("Limpar a lista de atendidos recentemente?", isPresented: $confirmandoLimpeza) {
+                Button("Limpar lista") {
+                    limposEm = Date().timeIntervalSince1970
+                    ocultosTexto = ""
+                    dia = nil
+                }
+                Button("Cancelar", role: .cancel) {}
+            } message: {
+                Text("Só a lista ao lado fica vazia. Nada é apagado: o Histórico e os cadastros dos pacientes continuam.")
+            }
             Picker("Local", selection: $filtro) {
                 Text("Todos os locais").tag("")
                 ForEach(armazenamento.locaisOrdenados) { local in
@@ -67,6 +108,9 @@ struct PainelPacientesRecentes: View {
                             selecionado: item.paciente.id == pacienteAtual
                         ) {
                             escolher(item.paciente)
+                        }
+                        .contextMenu {
+                            Button("Tirar desta lista") { tirarDaLista(item.paciente) }
                         }
                     }
                 }
