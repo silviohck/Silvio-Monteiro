@@ -36,8 +36,8 @@ extension ProntuarioView {
     }
 
     func pedirAplicar(_ modelo: ModeloDeAtendimento, _ ficha: ModeloDocumento) {
-        let ocupado = alvos(ficha).contains { !valores[$0, default: ""].trimmingCharacters(in: .whitespaces).isEmpty }
-        if ocupado { modeloParaAplicar = modelo } else { aplicar(modelo, ficha) }
+        // Sem pedir confirmação: o modelo troca o que estiver escrito.
+        aplicar(modelo, ficha)
     }
 
     /// Preenche a ficha com o modelo, no lado escolhido; textos longos ocupam as linhas em ordem.
