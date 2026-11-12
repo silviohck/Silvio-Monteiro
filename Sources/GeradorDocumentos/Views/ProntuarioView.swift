@@ -330,7 +330,7 @@ struct ProntuarioView: View {
         Section {
             ForEach(campos, id: \.self) { campo in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(Self.titulo(campo)).fontWeight(.semibold)
+                    tituloComLimpar(Self.titulo(campo), campos: [campo] + Self.continuacoes(de: campo, em: ficha))
                     let outras = Self.continuacoes(de: campo, em: ficha)
                     if !outras.isEmpty {
                         linhasDaFicha([campo] + outras)
@@ -355,7 +355,15 @@ struct ProntuarioView: View {
             }
             if Self.campoDeExames(ficha) == nil && !Self.temLinhas(Self.campoDoExameFisico(ficha), em: ficha) && campoLivre(ficha) == nil {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Exames complementares").fontWeight(.semibold)
+                    HStack {
+                        Text("Exames complementares").fontWeight(.semibold)
+                        Spacer()
+                        if !examesExtras.isEmpty {
+                            Button("Limpar") { examesExtras = "" }
+                                .buttonStyle(.link)
+                                .help("Apagar o que está escrito em Exames complementares")
+                        }
+                    }
                     TextField("Exames complementares", text: Binding(
                         get: { examesExtras },
                         set: { examesExtras = GerarView.maiusculas($0); geracaoConcluida = false; aviso = nil }
@@ -428,6 +436,25 @@ struct ProntuarioView: View {
                 }
             }
         )
+    }
+
+    /// Título do campo com "Limpar" à direita (aparece quando há algo escrito); apaga o campo e as linhas dele.
+    func tituloComLimpar(_ titulo: String, campos: [String]) -> some View {
+        let temTexto = campos.contains { !valores[$0, default: ""].trimmingCharacters(in: .whitespaces).isEmpty }
+        return HStack {
+            Text(titulo).fontWeight(.semibold)
+            Spacer()
+            if temTexto {
+                Button("Limpar") {
+                    for campo in campos { valores[campo] = "" }
+                    geracaoConcluida = false
+                    aviso = nil
+                    ultimoDocumento = nil
+                }
+                .buttonStyle(.link)
+                .help("Apagar o que está escrito em \(titulo)")
+            }
+        }
     }
 
     /// Enter numa linha da ficha: o texto depois do cursor desce para a linha de baixo (as seguintes
