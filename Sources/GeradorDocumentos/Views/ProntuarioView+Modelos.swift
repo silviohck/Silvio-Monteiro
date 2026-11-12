@@ -16,12 +16,17 @@ extension ProntuarioView {
         campo(f) { $0.contains("PROGRAMACAO") || $0.contains("CONDUTA") || $0.contains("PLANO") || $0.contains("TRATAMENTO") }
     }
     func campoPerfil(_ f: ModeloDocumento) -> String? { campo(f) { $0.contains("PERFIL") } }
+    /// Ficha de texto livre (ex.: Alagoa Grande): um só campo com linhas, sem queixa/história/exame separados.
+    func campoLivre(_ f: ModeloDocumento) -> String? {
+        guard campoQP(f) == nil, campoHDA(f) == nil, campoConduta(f) == nil else { return nil }
+        return campo(f) { $0 == "ATENDIMENTO" || $0 == "EVOLUCAO" || $0 == "TEXTO" }
+    }
 
     /// O campo e as linhas seguintes dele ({{HDA}}, {{HDA_LINHA_2}}…).
     func grupo(_ campo: String, _ ficha: ModeloDocumento) -> [String] { [campo] + Self.continuacoes(de: campo, em: ficha) }
 
     func alvos(_ ficha: ModeloDocumento) -> [String] {
-        [campoQP(ficha), campoHDA(ficha), campoExame(ficha), campoDiagnostico(ficha), campoCID(ficha), campoConduta(ficha)]
+        [campoQP(ficha), campoHDA(ficha), campoExame(ficha), campoDiagnostico(ficha), campoCID(ficha), campoConduta(ficha), campoLivre(ficha)]
             .compactMap { $0 }
             .flatMap { grupo($0, ficha) }
     }
@@ -37,6 +42,10 @@ extension ProntuarioView {
 
     /// Preenche a ficha com o modelo, no lado escolhido; textos longos ocupam as linhas em ordem.
     func aplicar(_ modelo: ModeloDeAtendimento, _ ficha: ModeloDocumento) {
+        if let livre = campoLivre(ficha) {
+            aplicarNoTextoLivre(modelo, livre, ficha)
+            return
+        }
         func por(_ campo: String?, _ texto: String) {
             guard let campo else { return }
             let final = GerarView.maiusculas(ModelosDeAtendimento.comLado(texto, ladoModelo))
@@ -58,6 +67,37 @@ extension ProntuarioView {
         buscaModelo = ""
     }
 
+    /// Ficha de texto livre: o modelo ocupa as linhas em sequência, cada parte começando numa linha nova
+    /// (Q.P., H.D.A., exame físico, diagnóstico com CID e conduta).
+    func aplicarNoTextoLivre(_ modelo: ModeloDeAtendimento, _ livre: String, _ ficha: ModeloDocumento) {
+        let lado = { (texto: String) in GerarView.maiusculas(ModelosDeAtendimento.comLado(texto, ladoModelo)) }
+        let diagnostico = [modelo.diagnostico, modelo.cid.isEmpty ? "" : "CID 10: \(modelo.cid)"]
+            .filter { !$0.isEmpty }.joined(separator: " — ")
+        var partes: [(String, String)] = [
+            ("Q.P.: ", modelo.qp), ("H.D.A.: ", modelo.hda), ("EXAME FÍSICO: ", modelo.exame),
+            ("DIAGNÓSTICO: ", diagnostico), ("CONDUTA: ", modelo.conduta),
+        ].filter { !$0.1.trimmingCharacters(in: .whitespaces).isEmpty }
+        // Um modelo seu salvo de uma ficha livre tem só o texto: entra sem títulos.
+        if partes.count == 1 { partes[0].0 = "" }
+        var linhasDoTexto: [String] = []
+        for (titulo, texto) in partes {
+            linhasDoTexto += Self.quebrarEmLinhas(lado(titulo + texto))
+        }
+        let linhas = grupo(livre, ficha)
+        for (indice, campo) in linhas.enumerated() {
+            if indice < linhas.count - 1 {
+                valores[campo] = indice < linhasDoTexto.count ? linhasDoTexto[indice] : ""
+            } else {
+                // O que não couber fica na última linha.
+                valores[campo] = linhasDoTexto.dropFirst(indice).joined(separator: " ")
+            }
+        }
+        geracaoConcluida = false
+        aviso = nil
+        ultimoDocumento = nil
+        buscaModelo = ""
+    }
+
     /// O que está escrito na ficha vira um modelo seu (o lado escolhido volta a ser [LADO]).
     func salvarComoMeuModelo(_ ficha: ModeloDocumento) {
         let nome = nomeNovoModelo.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -69,6 +109,13 @@ extension ProntuarioView {
                 .filter { !$0.isEmpty }
                 .joined(separator: " ")
             return ModelosDeAtendimento.semLado(junto, ladoModelo)
+        }
+        if let livre = campoLivre(ficha) {
+            // Ficha de texto livre: o texto todo fica no modelo (entra sem títulos ao usar de novo).
+            armazenamento.salvarModeloDeAtendimento(ModeloDeAtendimento(
+                nome: nome, cid: "", diagnostico: "", qp: "", hda: texto(livre), exame: "", conduta: ""
+            ))
+            return
         }
         armazenamento.salvarModeloDeAtendimento(ModeloDeAtendimento(
             nome: nome, cid: texto(campoCID(ficha)), diagnostico: texto(campoDiagnostico(ficha)),

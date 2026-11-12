@@ -10,34 +10,39 @@ extension Armazenamento {
             .sorted { $0.nome.localizedStandardCompare($1.nome) == .orderedAscending }
     }
 
-    /// Grava as fichas que vêm com o app (se faltarem) e as liga ao local de mesmo nome (Araruna).
+    /// Grava as fichas que vêm com o app (se faltarem) e liga cada uma ao local de mesmo nome
+    /// (Araruna, Alagoa Grande).
     func instalarFichasProntas() {
+        for pronta in FichasProntas.todas { instalar(pronta) }
+    }
+
+    private func instalar(_ pronta: FichasProntas.Pronta) {
         let arquivos = FileManager.default
-        let url = pastaModelos.appendingPathComponent(FichasProntas.arquivoAraruna)
-        if !arquivos.fileExists(atPath: url.path), let conteudo = FichasProntas.araruna {
+        let url = pastaModelos.appendingPathComponent(pronta.arquivo)
+        if !arquivos.fileExists(atPath: url.path), let conteudo = pronta.conteudo() {
             try? conteudo.write(to: url, options: .atomic)
         }
         guard arquivos.fileExists(atPath: url.path) else { return }
         let campos = (try? DocxTemplate.placeholders(in: url)) ?? []
-        let localDeAraruna = dados.locais.first {
-            $0.nome.range(of: "araruna", options: [.caseInsensitive, .diacriticInsensitive]) != nil
+        let localDaFicha = dados.locais.first {
+            $0.nome.range(of: pronta.local, options: [.caseInsensitive, .diacriticInsensitive]) != nil
         }
-        if let indice = dados.fichas.firstIndex(where: { $0.id == FichasProntas.idAraruna }) {
+        if let indice = dados.fichas.firstIndex(where: { $0.id == pronta.id }) {
             var ficha = dados.fichas[indice]
             // Versão nova da ficha embutida: passa a usar o arquivo novo.
-            if ficha.arquivo != FichasProntas.arquivoAraruna {
+            if ficha.arquivo != pronta.arquivo {
                 let antigo = urlDoModelo(ficha)
-                ficha.arquivo = FichasProntas.arquivoAraruna
+                ficha.arquivo = pronta.arquivo
                 ficha.campos = campos
                 try? arquivos.removeItem(at: antigo)
             }
-            if ficha.localID == nil, let localDeAraruna { ficha.localID = localDeAraruna.id }
+            if ficha.localID == nil, let localDaFicha { ficha.localID = localDaFicha.id }
             if ficha != dados.fichas[indice] { dados.fichas[indice] = ficha }
             return
         }
         dados.fichas.append(ModeloDocumento(
-            id: FichasProntas.idAraruna, nome: FichasProntas.nomeAraruna, arquivo: FichasProntas.arquivoAraruna,
-            campos: campos, categoria: "Prontuário", localID: localDeAraruna?.id
+            id: pronta.id, nome: pronta.nome, arquivo: pronta.arquivo,
+            campos: campos, categoria: "Prontuário", localID: localDaFicha?.id
         ))
     }
 
@@ -56,7 +61,7 @@ extension Armazenamento {
 
     /// As fichas que vêm com o app não são apagadas (voltariam ao abrir).
     func removerFicha(_ ficha: ModeloDocumento) {
-        guard ficha.id != FichasProntas.idAraruna else { return }
+        guard !FichasProntas.ehPronta(ficha) else { return }
         try? FileManager.default.removeItem(at: urlDoModelo(ficha))
         dados.fichas.removeAll { $0.id == ficha.id }
     }

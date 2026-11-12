@@ -121,7 +121,7 @@ struct ProntuarioView: View {
     }
 
 
-    static let partesLongas = ["QUEIXA", "HDA", "HISTORIA", "ANAMNESE", "EXAME", "PROGRAMACAO", "CONDUTA",
+    static let partesLongas = ["ATENDIMENTO", "QUEIXA", "HDA", "HISTORIA", "ANAMNESE", "EXAME", "PROGRAMACAO", "CONDUTA",
                                "EVOLUCAO", "PLANO", "OBSERVAC", "TRATAMENTO", "PRESCRICAO", "HIPOTESE"]
 
     static func ehLongo(_ campo: String) -> Bool {
@@ -137,6 +137,7 @@ struct ProntuarioView: View {
             "EXAME_FISICO": "Exame físico", "EXAMES_COMPLEMENTARES": "Exames complementares",
             "PROGRAMACAO_TERAPEUTICA": "Programação terapêutica", "CONDUTA": "Conduta",
             "DIAGNOSTICO": "Diagnóstico", "CID": "CID-10", "PERFIL_CER_II": "Perfil CER II",
+            "ATENDIMENTO": "Atendimento", "EVOLUCAO": "Evolução",
             "DATA_NASCIMENTO": "Data de nascimento", "ENDERECO": "Endereço", "NUMERO": "Número",
             "CIDADE_PACIENTE": "Cidade", "TELEFONE": "Telefone", "DATA": "Data da avaliação",
             "CNS": "CNS (cartão do SUS)", "BAIRRO": "Bairro", "CEP": "CEP", "UF": "UF", "CPF": "CPF",
@@ -253,7 +254,7 @@ struct ProntuarioView: View {
                 if let ficha {
                     Button("Abrir a ficha no Word") { NSWorkspace.shared.open(armazenamento.urlDoModelo(ficha)) }
                         .help("Só para ver a ficha. Alterações feitas nela aqui podem ser substituídas por uma versão nova do app.")
-                    if ficha.id != FichasProntas.idAraruna {
+                    if !FichasProntas.ehPronta(ficha) {
                         Button("Remover ficha", role: .destructive) {
                             armazenamento.removerFicha(ficha)
                             fichaSelecionada = ""
@@ -352,7 +353,7 @@ struct ProntuarioView: View {
                 }
                 .padding(.vertical, 2)
             }
-            if Self.campoDeExames(ficha) == nil && !Self.temLinhas(Self.campoDoExameFisico(ficha), em: ficha) {
+            if Self.campoDeExames(ficha) == nil && !Self.temLinhas(Self.campoDoExameFisico(ficha), em: ficha) && campoLivre(ficha) == nil {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Exames complementares").fontWeight(.semibold)
                     TextField("Exames complementares", text: Binding(
