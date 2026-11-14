@@ -123,6 +123,11 @@ struct GerarView: View {
         .formStyle(.grouped)
         .fundoSuave()
         .onAppear {
+            // O paciente que estava no Prontuário continua aqui.
+            if !armazenamento.nomeEmAtendimento.isEmpty && nomePaciente != armazenamento.nomeEmAtendimento {
+                nomePaciente = armazenamento.nomeEmAtendimento
+                pacienteEscolhido = armazenamento.pacienteEmAtendimento
+            }
             if local == nil { localSelecionado = "" }
             validarModelo()
             preencher(.tudo)
@@ -136,6 +141,7 @@ struct GerarView: View {
                 nomePaciente = emMaiusculas
                 return
             }
+            armazenamento.nomeEmAtendimento = novo
             // Outro nome depois de gerar = outro paciente: os campos do documento anterior não seguem
             // (o cadastro pode continuar nil entre dois pacientes novos). Antes de gerar, corrigir
             // o nome não apaga o que já foi digitado nos campos.
@@ -178,7 +184,10 @@ struct GerarView: View {
                     .environmentObject(armazenamento)
             }
         }
-        .onChange(of: pacienteCadastrado?.id) { _ in preencher(.paciente) }
+        .onChange(of: pacienteCadastrado?.id) { novo in
+            armazenamento.pacienteEmAtendimento = novo
+            preencher(.paciente)
+        }
         .onChange(of: localSelecionado) { _ in
             // Um local diferente inicia novo contexto; evita carregar campos do documento anterior.
             aviso = nil

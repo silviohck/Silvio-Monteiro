@@ -177,6 +177,24 @@ enum Impressao {
                 delay 0.25
             end repeat
             if alvo is missing value then error "O Word não abriu " & nomeDoArquivo
+            -- Confere a pasta também: um documento de mesmo nome aberto de outra pasta não é impresso no lugar.
+            set outraPasta to false
+            try
+                set caminhoAberto to (full name of alvo) as text
+                set caminhoEsperado to (POSIX file (item 1 of argv)) as text
+                set AppleScript's text item delimiters to ":"
+                set partesAbertas to text items of caminhoAberto
+                set partesEsperadas to text items of caminhoEsperado
+                set AppleScript's text item delimiters to ""
+                if (count of partesAbertas) > 1 and (count of partesEsperadas) > 1 then
+                    ignoring case
+                        if (item -2 of partesAbertas) is not (item -2 of partesEsperadas) then set outraPasta to true
+                    end ignoring
+                end if
+            on error
+                set AppleScript's text item delimiters to ""
+            end try
+            if outraPasta then error "ORTHCK_OUTRO_DOCUMENTO"
             repeat copias times
                 print out alvo
             end repeat
@@ -187,6 +205,9 @@ enum Impressao {
     """
 
     private static func mensagem(paraErroDoAppleScript erro: String) -> String {
+        if erro.contains("ORTHCK_OUTRO_DOCUMENTO") {
+            return "O Word já tinha aberto outro documento com o mesmo nome, de outra pasta. Nada foi impresso, para não sair o documento errado. Feche os documentos abertos no Word e imprima de novo."
+        }
         if erro.contains("-1743") {
             return "O macOS bloqueou o controle do Word. Libere em Ajustes do Sistema → Privacidade e Segurança → Automação → Orthck → Microsoft Word."
         }

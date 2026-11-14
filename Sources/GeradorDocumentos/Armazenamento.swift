@@ -12,6 +12,10 @@ final class Armazenamento: ObservableObject {
         didSet { salvar() }
     }
     @Published var erro: String?
+    /// Paciente que está sendo atendido agora, compartilhado entre Gerar documento e Prontuário (para não
+    /// digitar o nome de novo ao trocar de aba). Só na memória: não vai para os dados nem para o Drive.
+    @Published var nomeEmAtendimento = ""
+    @Published var pacienteEmAtendimento: UUID?
     @Published var sincronizacao = EstadoSincronizacao()
     /// Criando o .zip da pasta sincronizada.
     @Published var compactando = false

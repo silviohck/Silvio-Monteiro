@@ -191,6 +191,11 @@ struct ProntuarioView: View {
         .fundoSuave()
         .onAppear {
             armazenamento.instalarFichasProntas()
+            // O paciente que estava no Gerar documento continua aqui.
+            if !armazenamento.nomeEmAtendimento.isEmpty && nomePaciente != armazenamento.nomeEmAtendimento {
+                nomePaciente = armazenamento.nomeEmAtendimento
+                pacienteEscolhido = armazenamento.pacienteEmAtendimento
+            }
             if local == nil { localSelecionado = "" }
             validarFicha()
             preencherIdentificacao()
@@ -207,11 +212,13 @@ struct ProntuarioView: View {
                 nomePaciente = emMaiusculas
                 return
             }
+            armazenamento.nomeEmAtendimento = novo
             if let id = pacienteEscolhido, !homonimos.contains(where: { $0.id == id }) { pacienteEscolhido = nil }
             // Outro nome depois de gerar = outro paciente: nada do atendimento anterior continua.
             if geracaoConcluida || ultimoDocumento != nil { recomecarAtendimento() }
         }
         .onChange(of: pacienteCadastrado?.id) { novo in
+            armazenamento.pacienteEmAtendimento = novo
             // Trocou de um paciente para outro: a anamnese e o exame do anterior não seguem.
             if let anterior = ultimoPaciente, anterior != novo { limparAtendimento() }
             ultimoPaciente = novo
