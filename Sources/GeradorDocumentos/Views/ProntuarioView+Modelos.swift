@@ -67,6 +67,25 @@ extension ProntuarioView {
         buscaModelo = ""
     }
 
+    /// Trocou o lado no seletor: o lado muda em tudo o que já está escrito no atendimento, concordando
+    /// com a palavra anterior (OMBRO DIREITO → OMBRO ESQUERDO, À DIREITA → À ESQUERDA, BILATERAL…).
+    func trocarLadoNoTexto(de antigo: String, para novo: String) {
+        guard !antigo.isEmpty, antigo != novo, let ficha else { return }
+        let campos = camposClinicos(ficha).flatMap { grupo($0, ficha) }
+        for campo in campos {
+            let texto = valores[campo, default: ""]
+            guard !texto.isEmpty else { continue }
+            let trocado = ModelosDeAtendimento.comLado(ModelosDeAtendimento.semLado(texto, antigo), novo)
+            if trocado != texto { valores[campo] = trocado }
+        }
+        if !examesExtras.isEmpty {
+            examesExtras = ModelosDeAtendimento.comLado(ModelosDeAtendimento.semLado(examesExtras, antigo), novo)
+        }
+        geracaoConcluida = false
+        aviso = nil
+        ultimoDocumento = nil
+    }
+
     /// Ficha de texto livre: o modelo ocupa as linhas em sequência, cada parte começando numa linha nova
     /// (Q.P., H.D.A., exame físico, diagnóstico com CID e conduta).
     func aplicarNoTextoLivre(_ modelo: ModeloDeAtendimento, _ livre: String, _ ficha: ModeloDocumento) {

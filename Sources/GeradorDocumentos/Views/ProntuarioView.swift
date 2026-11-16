@@ -25,6 +25,8 @@ struct ProntuarioView: View {
     @State var salvandoModelo = false
     @State var nomeNovoModelo = ""
     @State var buscaMeusModelos = ""
+    /// Lado antes da troca no seletor (Direito/Esquerdo/Bilateral), para trocar no texto já escrito.
+    @State var ladoAnterior = ""
     @State var organizandoFavoritos = false
     @State var confirmandoLimparFicha = false
     @State var aviso: String?
@@ -191,6 +193,7 @@ struct ProntuarioView: View {
         .fundoSuave()
         .onAppear {
             armazenamento.instalarFichasProntas()
+            ladoAnterior = ladoModelo
             // O paciente que estava no Gerar documento continua aqui.
             if !armazenamento.nomeEmAtendimento.isEmpty && nomePaciente != armazenamento.nomeEmAtendimento {
                 nomePaciente = armazenamento.nomeEmAtendimento
@@ -206,6 +209,10 @@ struct ProntuarioView: View {
             recomecarAtendimento()
         }
         .onChange(of: fichaSelecionada) { _ in recomecarAtendimento() }
+        .onChange(of: ladoModelo) { novo in
+            trocarLadoNoTexto(de: ladoAnterior, para: novo)
+            ladoAnterior = novo
+        }
         .onChange(of: nomePaciente) { novo in
             let emMaiusculas = GerarView.maiusculas(novo)
             if novo != emMaiusculas {
