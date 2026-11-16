@@ -201,8 +201,24 @@ enum Impressao {
                 set caminhoAberto to (full name of alvo) as text
             end try
             if my outraPasta(caminhoAberto, (item 1 of argv)) then error "ORTHCK_OUTRO_DOCUMENTO"
+            -- O Word imprime o documento que está à frente, mesmo indicando outro. Antes de imprimir, o
+            -- documento certo tem de ser o ativo: abrir de novo um documento já aberto o traz para a frente.
+            set ativo to false
+            repeat 20 times
+                try
+                    if (name of active document) is nomeDoArquivo then
+                        set ativo to true
+                        exit repeat
+                    end if
+                end try
+                open arquivo
+                delay 0.25
+            end repeat
+            if not ativo then error "ORTHCK_NAO_ATIVO"
             repeat copias times
-                print out alvo
+                -- Confere de novo a cada cópia: se outro documento passou para a frente, para.
+                if (name of active document) is not nomeDoArquivo then error "ORTHCK_NAO_ATIVO"
+                print out active document
             end repeat
             if manterAberto is "nao" then close alvo saving no
           end timeout
@@ -211,6 +227,9 @@ enum Impressao {
     """
 
     private static func mensagem(paraErroDoAppleScript erro: String) -> String {
+        if erro.contains("ORTHCK_NAO_ATIVO") {
+            return "O Word não deixou o documento à frente para imprimir (outro documento estava ativo). Nada foi impresso, para não sair o documento errado. Feche os documentos abertos no Word e reenvie."
+        }
         if erro.contains("ORTHCK_OUTRO_DOCUMENTO") {
             return "O Word já tinha aberto outro documento com o mesmo nome, de outra pasta. Nada foi impresso, para não sair o documento errado. Feche os documentos abertos no Word e imprima de novo."
         }
