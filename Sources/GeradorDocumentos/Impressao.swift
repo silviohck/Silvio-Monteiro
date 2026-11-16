@@ -145,6 +145,24 @@ enum Impressao {
     /// Abre o arquivo e imprime exatamente ele, achado pelo nome — não o "documento ativo", que pode
     /// ainda ser o anterior enquanto o Word abre o novo.
     private static let script = """
+    -- Fora do "tell Word": as palavras aqui são do AppleScript (dentro do Word, algumas, como "case",
+    -- são propriedades dele e o script não compila).
+    on outraPasta(caminhoAberto, caminhoPOSIX)
+        try
+            set caminhoEsperado to (POSIX file caminhoPOSIX) as text
+            set AppleScript's text item delimiters to ":"
+            set partesAbertas to text items of caminhoAberto
+            set partesEsperadas to text items of caminhoEsperado
+            set AppleScript's text item delimiters to ""
+            if (count of partesAbertas) < 2 or (count of partesEsperadas) < 2 then return false
+            -- Comparação de texto do AppleScript já ignora maiúsculas.
+            return (item -2 of partesAbertas) is not (item -2 of partesEsperadas)
+        on error
+            set AppleScript's text item delimiters to ""
+            return false
+        end try
+    end outraPasta
+
     on run argv
         set arquivo to (POSIX file (item 1 of argv)) as alias
         set manterAberto to item 2 of argv
@@ -178,23 +196,11 @@ enum Impressao {
             end repeat
             if alvo is missing value then error "O Word não abriu " & nomeDoArquivo
             -- Confere a pasta também: um documento de mesmo nome aberto de outra pasta não é impresso no lugar.
-            set outraPasta to false
+            set caminhoAberto to ""
             try
                 set caminhoAberto to (full name of alvo) as text
-                set caminhoEsperado to (POSIX file (item 1 of argv)) as text
-                set AppleScript's text item delimiters to ":"
-                set partesAbertas to text items of caminhoAberto
-                set partesEsperadas to text items of caminhoEsperado
-                set AppleScript's text item delimiters to ""
-                if (count of partesAbertas) > 1 and (count of partesEsperadas) > 1 then
-                    ignoring case
-                        if (item -2 of partesAbertas) is not (item -2 of partesEsperadas) then set outraPasta to true
-                    end ignoring
-                end if
-            on error
-                set AppleScript's text item delimiters to ""
             end try
-            if outraPasta then error "ORTHCK_OUTRO_DOCUMENTO"
+            if my outraPasta(caminhoAberto, (item 1 of argv)) then error "ORTHCK_OUTRO_DOCUMENTO"
             repeat copias times
                 print out alvo
             end repeat
