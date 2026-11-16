@@ -124,7 +124,8 @@ enum ModelosDeAtendimento {
             if antes.hasSuffix(" À ") || antes == "À " {
                 if lado == "BILATERAL" {
                     antes.removeLast(2)
-                    palavra = "BILATERALMENTE"
+                    // "POSITIVO À [LADO]" → "POSITIVO BILATERALMENTE"; "GONARTROSE À [LADO]" → "GONARTROSE BILATERAL".
+                    palavra = genero(antes: Substring(antes)) == .nenhum ? "BILATERAL" : "BILATERALMENTE"
                 } else {
                     palavra = feminino
                 }
@@ -145,13 +146,16 @@ enum ModelosDeAtendimento {
 
     /// O contrário de `comLado`, para salvar um texto como modelo: o lado volta a ser [LADO].
     static func semLado(_ texto: String, _ lado: String) -> String {
-        let padrao: String
+        // "À DIREITA" / "BILATERALMENTE" voltam a ser "À [LADO]" (o À decide a concordância de novo).
+        let padroes: [String]
         switch lado {
-        case "DIREITO": padrao = #"\b(À )?DIREIT[AO]\b"#
-        case "ESQUERDO": padrao = #"\b(À )?ESQUERD[AO]\b"#
-        default: padrao = #"\bBILATERAL(MENTE)?\b"#
+        case "DIREITO": padroes = [#"\bÀ DIREITA\b"#, #"\bDIREIT[AO]\b"#]
+        case "ESQUERDO": padroes = [#"\bÀ ESQUERDA\b"#, #"\bESQUERD[AO]\b"#]
+        default: padroes = [#"\bBILATERALMENTE\b"#, #"\bBILATERAL\b"#]
         }
-        return texto.replacingOccurrences(of: padrao, with: "[LADO]", options: .regularExpression)
+        return texto
+            .replacingOccurrences(of: padroes[0], with: "À [LADO]", options: .regularExpression)
+            .replacingOccurrences(of: padroes[1], with: "[LADO]", options: .regularExpression)
     }
 }
 
