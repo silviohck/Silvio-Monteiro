@@ -121,6 +121,8 @@ struct GerarView: View {
             }
         }
         .formStyle(.grouped)
+        // Texto alinhado à esquerda: à direita, o espaço digitado no fim só aparecia com a letra seguinte.
+        .multilineTextAlignment(.leading)
         .fundoSuave()
         .onAppear {
             // O paciente que estava no Prontuário continua aqui.

@@ -278,6 +278,8 @@ struct PacienteEditor: View {
             }
         }
         .formStyle(.grouped)
+        // Texto alinhado à esquerda: à direita, o espaço digitado no fim só aparecia com a letra seguinte.
+        .multilineTextAlignment(.leading)
         .fundoSuave()
     }
 }
