@@ -422,7 +422,9 @@ struct ProntuarioView: View {
                 .padding(.vertical, 5)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
-                .onTapGesture { linhaEmFoco = campo }
+                // Clique fora do texto (no número ou no fim da linha): entra na linha com o cursor no fim,
+                // sem selecionar o que está escrito (senão a próxima letra apagaria tudo).
+                .onTapGesture { if linhaEmFoco != campo { focar(campo, cursor: nil) } }
                 .overlay(alignment: .bottom) {
                     Rectangle().fill(Tema.borda).frame(height: 1)
                 }
@@ -443,10 +445,14 @@ struct ProntuarioView: View {
                 geracaoConcluida = false
                 aviso = nil
                 ultimoDocumento = nil
+                let seguinteAntes = indice + 1 < campos.count ? valores[campos[indice + 1], default: ""] : ""
                 if fluir(campos, aPartirDe: indice), indice + 1 < campos.count {
-                    // Depois da digitação terminar: mudar o foco durante a edição atrapalha o campo.
+                    // A palavra que não coube desceu: continua digitando logo depois dela, na linha de baixo,
+                    // com o cursor no lugar (sem selecionar a linha, o que apagaria o texto ao digitar).
                     let proxima = campos[indice + 1]
-                    DispatchQueue.main.async { linhaEmFoco = proxima }
+                    let descida = (valores[proxima, default: ""] as NSString).length
+                        - (seguinteAntes.isEmpty ? 0 : (seguinteAntes as NSString).length + 1)
+                    focar(proxima, cursor: max(0, descida))
                 }
             }
         )
@@ -497,12 +503,23 @@ struct ProntuarioView: View {
         geracaoConcluida = false
         aviso = nil
         ultimoDocumento = nil
-        let proxima = campos[indice + 1]
+        focar(campos[indice + 1], cursor: 0)
+    }
+
+    /// Passa o cursor para a linha `campo`, na posição `cursor` (nil = fim), sem deixar texto selecionado:
+    /// ao entrar num campo o macOS seleciona tudo, e a próxima letra digitada apagaria a linha.
+    func focar(_ campo: String, cursor: Int?) {
         DispatchQueue.main.async {
-            linhaEmFoco = proxima
-            // Ao entrar no campo o macOS seleciona tudo: põe o cursor no começo da linha.
+            linhaEmFoco = campo
+            func posicionar() {
+                guard let editor = NSApp.keyWindow?.firstResponder as? NSTextView else { return }
+                let tamanho = (editor.string as NSString).length
+                editor.setSelectedRange(NSRange(location: min(cursor ?? tamanho, tamanho), length: 0))
+            }
+            // Duas vezes: logo que o campo recebe o foco e depois que o macOS termina de selecionar.
             DispatchQueue.main.async {
-                (NSApp.keyWindow?.firstResponder as? NSTextView)?.setSelectedRange(NSRange(location: 0, length: 0))
+                posicionar()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { posicionar() }
             }
         }
     }
