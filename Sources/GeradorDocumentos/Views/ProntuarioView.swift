@@ -27,6 +27,10 @@ struct ProntuarioView: View {
     @State var buscaMeusModelos = ""
     /// Lado antes da troca no seletor (Direito/Esquerdo/Bilateral), para trocar no texto já escrito.
     @State var ladoAnterior = ""
+    /// Ao gerar, tira do documento os ___ que ficaram sem preencher (a tela continua igual).
+    @AppStorage("tirarLacunas") var tirarLacunas = true
+    /// Campo com o cursor, guardado num objeto para o atalho Tab (lido fora do corpo da tela).
+    @StateObject var rastreio = RastreioDoProntuario()
     @State var organizandoFavoritos = false
     @State var confirmandoLimparFicha = false
     @State var aviso: String?
@@ -196,6 +200,7 @@ struct ProntuarioView: View {
         .onAppear {
             armazenamento.instalarFichasProntas()
             ladoAnterior = ladoModelo
+            instalarAtalhoTab()
             // O paciente que estava no Gerar documento continua aqui.
             if !armazenamento.nomeEmAtendimento.isEmpty && nomePaciente != armazenamento.nomeEmAtendimento {
                 nomePaciente = armazenamento.nomeEmAtendimento
@@ -211,6 +216,8 @@ struct ProntuarioView: View {
             recomecarAtendimento()
         }
         .onChange(of: fichaSelecionada) { _ in recomecarAtendimento() }
+        .onChange(of: linhaEmFoco) { campo in rastreio.campo = campo }
+        .onDisappear { removerAtalhoTab() }
         .onChange(of: ladoModelo) { novo in
             trocarLadoNoTexto(de: ladoAnterior, para: novo)
             ladoAnterior = novo
@@ -355,11 +362,13 @@ struct ProntuarioView: View {
                             .labelsHidden()
                             .lineLimit(4...14)
                             .textFieldStyle(.roundedBorder)
+                            .focused($linhaEmFoco, equals: campo)
                     } else {
                         TextField(Self.titulo(campo), text: valor(campo), axis: .vertical)
                             .labelsHidden()
                             .lineLimit(1...3)
                             .textFieldStyle(.roundedBorder)
+                            .focused($linhaEmFoco, equals: campo)
                     }
                     if SugestoesCID.ehCampoCID(campo) {
                         SugestoesCID(texto: valores[campo, default: ""]) { codigo in
@@ -510,13 +519,14 @@ struct ProntuarioView: View {
 
     /// Passa o cursor para a linha `campo`, na posição `cursor` (nil = fim), sem deixar texto selecionado:
     /// ao entrar num campo o macOS seleciona tudo, e a próxima letra digitada apagaria a linha.
-    func focar(_ campo: String, cursor: Int?) {
+    func focar(_ campo: String, cursor: Int?, selecionar: Int = 0) {
         DispatchQueue.main.async {
             linhaEmFoco = campo
             func posicionar() {
                 guard let editor = NSApp.keyWindow?.firstResponder as? NSTextView else { return }
                 let tamanho = (editor.string as NSString).length
-                editor.setSelectedRange(NSRange(location: min(cursor ?? tamanho, tamanho), length: 0))
+                let inicio = min(cursor ?? tamanho, tamanho)
+                editor.setSelectedRange(NSRange(location: inicio, length: min(selecionar, tamanho - inicio)))
             }
             // Duas vezes: logo que o campo recebe o foco e depois que o macOS termina de selecionar.
             DispatchQueue.main.async {
@@ -569,6 +579,8 @@ struct ProntuarioView: View {
                     Stepper(value: $copias, in: 1...20) {
                         Text("\(copias) \(copias == 1 ? "cópia" : "cópias")").monospacedDigit()
                     }
+                    Toggle("Tirar os ___ não preenchidos", isOn: $tirarLacunas)
+                        .help("Ao gerar, os ___ que ficaram sem preencher saem do documento (\"HÁ ___\" some; \"DERRAME ___\" sai inteiro). Desligado, saem impressos como linha para escrever à mão.")
                     Button {
                         gerar()
                     } label: {
@@ -678,6 +690,17 @@ struct ProntuarioView: View {
         if Self.campoDeExames(ficha) == nil, !exames.isEmpty, let alvo = Self.campoDoExameFisico(ficha) {
             let exame = finais[alvo, default: ""].trimmingCharacters(in: .whitespacesAndNewlines)
             finais[alvo] = [exame, "EXAMES COMPLEMENTARES: \(exames)"].filter { !$0.isEmpty }.joined(separator: "\n")
+        }
+        // Os ___ que ficaram sem preencher saem do documento (cada grupo de linhas junto, para as frases
+        // que continuam na linha de baixo; as linhas continuam as mesmas).
+        if tirarLacunas {
+            for campo in ficha.campos where !Self.ehContinuacao(campo) {
+                let linhas = [campo] + Self.continuacoes(de: campo, em: ficha)
+                let junto = linhas.map { finais[$0, default: ""] }.joined(separator: "\n")
+                guard junto.contains("___") else { continue }
+                let partes = Lacunas.remover(junto).components(separatedBy: "\n")
+                for (indice, nome) in linhas.enumerated() { finais[nome] = indice < partes.count ? partes[indice] : "" }
+            }
         }
         // Campos com linhas ({{HDA}}, {{HDA_LINHA_2}}…) já vêm organizados linha por linha da tela;
         // o negrito (**…**) que passa de uma linha para a outra é fechado e reaberto em cada linha.

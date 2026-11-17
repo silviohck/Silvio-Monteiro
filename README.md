@@ -52,6 +52,8 @@ Aba **Prontuário** na barra lateral: escolha o local e a **ficha** (já vem a *
 
 **Modelos de atendimento:** no Prontuário, em **Modelo de atendimento**, busque a doença ou o CID (ex.: gonartrose, túnel do carpo, M54), escolha o lado (Direito, Esquerdo, Bilateral) e clique no modelo: Q.P., H.D.A., exame físico, diagnóstico, CID e programação são preenchidos nas linhas da ficha, com o lado concordando (JOELHO DIREITO, MÃO DIREITA, GONARTROSE À DIREITA). São 1.050 modelos — todos os CID ortopédicos (236 escritos um a um e 814 por tipo de CID). A **estrela ★** põe o modelo nos **favoritos** deste local: atalhos acima da busca, reorganizáveis arrastando ou pelo clique direito, como os do Gerar documento. **Meus modelos** (parte própria, separada dos modelos do app): **Salvar o que está escrito como meu modelo…** guarda a sua versão; clique direito para apagar. Os textos são pontos de partida: complete os `___` e ajuste.
 
+**Preencher rápido:** no Prontuário, **Tab** pula para o próximo `___` (⇧Tab volta), já selecionado — é só digitar por cima. Com **Tirar os ___ não preenchidos** ligado (painel da direita), os que sobrarem saem do documento ao gerar: "HÁ ___" some e trechos vazios como "DERRAME ___" saem inteiros (os títulos das seções ficam).
+
 **Negrito:** em qualquer campo (Prontuário ou Gerar documento), selecione um trecho e aperte **⌘B** (menu Editar › Negrito, ou o botão Negrito no Prontuário). O trecho fica entre `**` na tela e sai em negrito no Word; ⌘B de novo tira.
 
 ### Impressão
