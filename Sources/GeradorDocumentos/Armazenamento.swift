@@ -649,6 +649,13 @@ final class Armazenamento: ObservableObject {
         dados.filaImpressao.removeAll { $0.id == id }
     }
 
+    /// "Limpar fila": tira todos os itens (aguardando, com erro e enviados). Os documentos e o Histórico
+    /// continuam; nada é impresso nem cancelado na impressora.
+    func limparFila() {
+        guard !processandoFila else { return }
+        dados.filaImpressao.removeAll()
+    }
+
     func limparEnviadosDaFila() {
         guard !processandoFila else { return }
         dados.filaImpressao.removeAll { $0.situacao == .enviado }

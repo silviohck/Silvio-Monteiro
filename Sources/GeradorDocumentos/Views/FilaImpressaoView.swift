@@ -7,6 +7,7 @@ struct FilaImpressaoView: View {
     @EnvironmentObject private var armazenamento: Armazenamento
     @AppStorage("impressora") private var impressora = ""
     @State private var selecionados = Set<UUID>()
+    @State private var confirmandoLimparFila = false
     @State private var confirmarReenvio: ItemFilaImpressao?
 
     private var fila: [ItemFilaImpressao] { armazenamento.dados.filaImpressao }
@@ -116,6 +117,23 @@ struct FilaImpressaoView: View {
                 .disabled(selecionadosPendentes.isEmpty || armazenamento.processandoFila)
 
                 Spacer()
+                Button(role: .destructive) {
+                    confirmandoLimparFila = true
+                } label: {
+                    Label("Limpar fila", systemImage: "trash")
+                }
+                .controlSize(.large)
+                .disabled(armazenamento.dados.filaImpressao.isEmpty || armazenamento.processandoFila)
+                .help("Tira todos os documentos da fila (os arquivos Word e o Histórico continuam)")
+                .confirmationDialog("Limpar a fila de impressão?", isPresented: $confirmandoLimparFila) {
+                    Button("Limpar fila", role: .destructive) {
+                        armazenamento.limparFila()
+                        selecionados.removeAll()
+                    }
+                    Button("Cancelar", role: .cancel) {}
+                } message: {
+                    Text("Todos os documentos saem da fila e não serão impressos. Os arquivos Word e o Histórico continuam.")
+                }
                 if enviados > 0 {
                     Button("Limpar enviados") {
                         armazenamento.limparEnviadosDaFila()
