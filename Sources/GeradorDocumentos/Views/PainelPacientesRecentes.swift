@@ -44,11 +44,11 @@ struct PainelPacientesRecentes: View {
 
     var body: some View {
         let dias = armazenamento.diasComAtendimento(desde: desde)
-        // Os mais recentes entram na lista; na tela, ficam em ordem alfabética.
+        // Do atendimento mais recente para o mais antigo (a lista já vem nessa ordem).
         let itens = armazenamento.pacientesRecentes(
             local: filtro.isEmpty ? nil : filtro, dia: dia, limite: dia == nil ? 12 : .max,
             desde: desde, ocultos: ocultos
-        ).sorted { $0.paciente.nome.localizedStandardCompare($1.paciente.nome) == .orderedAscending }
+        )
         VStack(alignment: .leading, spacing: 10) {
             filaDeImpressao
             Divider().padding(.vertical, 2)
