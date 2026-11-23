@@ -231,9 +231,10 @@ extension GerarView {
                 .buttonStyle(.borderedProminent)
                 .opacity(ultimoDocumento == nil ? 0.6 : 1)
                 .help("Recomeça do início para o próximo paciente (⇧⌘N). Só o local de atendimento continua.")
+                // ⌘↩, não Enter sozinho: Enter ao terminar de digitar o nome gerava sem querer.
                 Button("Gerar documento") { gerar() }
                     .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.defaultAction)
+                    .keyboardShortcut(.return, modifiers: .command)
                     .disabled(
                         geracaoConcluida
                             || precisaEscolherPaciente
@@ -241,7 +242,7 @@ extension GerarView {
                     )
                     .help(geracaoConcluida
                         ? "Este documento já foi gerado. Altere os dados, escolha outro modelo ou clique em Próximo paciente."
-                        : (precisaEscolherPaciente ? "Escolha qual dos pacientes com este nome é o certo" : ""))
+                        : (precisaEscolherPaciente ? "Escolha qual dos pacientes com este nome é o certo" : "Gerar o documento (⌘↩)"))
                     .controlSize(.large)
             }
         } header: {
