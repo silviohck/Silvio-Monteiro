@@ -12,10 +12,17 @@ final class Armazenamento: ObservableObject {
         didSet { salvar() }
     }
     @Published var erro: String?
+    /// Há mudanças esperando a gravação (ver salvar()).
+    private var gravacaoAgendada = false
+    /// Modelos por local, já filtrados e em ordem; refeito quando os dados mudam.
+    private var cacheModelos: [UUID?: [ModeloDocumento]] = [:]
+    /// Locais onde cada paciente já foi atendido (pelo Histórico); refeito quando os dados mudam.
+    private var cacheLocaisDosPacientes: [UUID: [UUID]]?
     /// Paciente que está sendo atendido agora, compartilhado entre Gerar documento e Prontuário (para não
     /// digitar o nome de novo ao trocar de aba). Só na memória: não vai para os dados nem para o Drive.
-    @Published var nomeEmAtendimento = ""
-    @Published var pacienteEmAtendimento: UUID?
+    /// Sem @Published: só é lido ao abrir a aba; publicar a cada letra redesenhava o app inteiro.
+    var nomeEmAtendimento = ""
+    var pacienteEmAtendimento: UUID?
     @Published var sincronizacao = EstadoSincronizacao()
     /// Criando o .zip da pasta sincronizada.
     @Published var compactando = false
@@ -217,7 +224,8 @@ final class Armazenamento: ObservableObject {
 
     /// Modelos que aparecem para um local: os dele e os de todos os locais, em ordem alfabética de subpasta e nome.
     func modelos(para local: LocalAtendimento?) -> [ModeloDocumento] {
-        dados.modelos
+        if let pronto = cacheModelos[local?.id] { return pronto }
+        let lista = dados.modelos
             .filter { modelo in
                 guard let dono = localDoModelo(modelo) else { return true }
                 return dono.id == local?.id
@@ -228,6 +236,8 @@ final class Armazenamento: ObservableObject {
                 }
                 return a.nome.localizedStandardCompare(b.nome) == .orderedAscending
             }
+        cacheModelos[local?.id] = lista
+        return lista
     }
 
     // MARK: Favoritos
@@ -347,13 +357,32 @@ final class Armazenamento: ObservableObject {
     /// Locais onde o paciente já foi atendido: o do cadastro e os dos documentos gerados para ele.
     func locaisDoPaciente(_ paciente: Paciente) -> [LocalAtendimento] {
         var ids: [UUID] = paciente.localID.map { [$0] } ?? []
-        for documento in dados.historico where documento.pacienteID == paciente.id {
-            guard let nome = documento.local,
-                  let local = dados.locais.first(where: { Self.mesmoNome($0.nome, nome) }),
-                  !ids.contains(local.id) else { continue }
-            ids.append(local.id)
+        for id in locaisAtendidos()[paciente.id] ?? [] where !ids.contains(id) {
+            ids.append(id)
         }
         return ids.compactMap(local)
+    }
+
+    /// Paciente → locais onde já teve documento, numa passada só pelo Histórico (em vez de uma por
+    /// paciente a cada letra digitada no nome).
+    private func locaisAtendidos() -> [UUID: [UUID]] {
+        if let pronto = cacheLocaisDosPacientes { return pronto }
+        var mapa: [UUID: [UUID]] = [:]
+        var localPorNome: [String: UUID] = [:]
+        for documento in dados.historico {
+            guard let pacienteID = documento.pacienteID, let nome = documento.local else { continue }
+            let id: UUID
+            if let conhecido = localPorNome[nome] {
+                id = conhecido
+            } else {
+                guard let achado = dados.locais.first(where: { Self.mesmoNome($0.nome, nome) }) else { continue }
+                localPorNome[nome] = achado.id
+                id = achado.id
+            }
+            if !(mapa[pacienteID]?.contains(id) ?? false) { mapa[pacienteID, default: []].append(id) }
+        }
+        cacheLocaisDosPacientes = mapa
+        return mapa
     }
 
     /// "Alagoa Grande" ou "Alagoa Grande, Araruna"
@@ -815,6 +844,7 @@ final class Armazenamento: ObservableObject {
         }
 
         // Cópia dos dados de agora, para poder voltar atrás.
+        gravarAgora()
         if !deOutroComputador, FileManager.default.fileExists(atPath: arquivoDados.path) {
             let formatador = DateFormatter()
             formatador.dateFormat = "yyyy-MM-dd-HHmmss"
@@ -906,7 +936,21 @@ final class Armazenamento: ObservableObject {
         }
     }
 
+    /// Muitas mudanças seguidas (a sincronização da pasta mexe em vários modelos, um a um) viram uma
+    /// gravação só, logo em seguida, em vez de regravar o arquivo inteiro a cada mudança — era isso que
+    /// deixava o app lento. A gravação continua atômica, com o backup do dia.
     private func salvar() {
+        cacheModelos = [:]
+        cacheLocaisDosPacientes = nil
+        guard !gravacaoAgendada else { return }
+        gravacaoAgendada = true
+        DispatchQueue.main.async { [weak self] in self?.gravarAgora() }
+    }
+
+    /// Grava já o que estiver esperando (antes de ler o arquivo de dados, de copiar ou de fechar o app).
+    func gravarAgora() {
+        guard gravacaoAgendada else { return }
+        gravacaoAgendada = false
         fazerBackupDoDia()
         do {
             try Self.codificador.encode(dados).write(to: arquivoDados, options: .atomic)

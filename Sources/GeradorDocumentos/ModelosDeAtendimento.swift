@@ -48,21 +48,37 @@ enum ModelosDeAtendimento {
 
     /// Busca pelo nome da doença, pelo diagnóstico ou pelo CID (com ou sem ponto). Primeiro os seus
     /// modelos, depois os escritos um a um e por último os modelos por tipo.
+    /// Nome, CID e onde procurar, já sem acentos e em maiúsculas, para a busca.
+    struct TextoDeBusca {
+        let cid: String
+        let onde: String
+        let nome: String
+
+        init(_ modelo: ModeloDeAtendimento) {
+            cid = ModelosDeAtendimento.simples(modelo.cid).replacingOccurrences(of: ".", with: "")
+            onde = ModelosDeAtendimento.simples(modelo.nome + " " + modelo.diagnostico + " " + modelo.cid)
+            nome = ModelosDeAtendimento.simples(modelo.nome)
+        }
+    }
+
+    static let textosDosProntos: [TextoDeBusca] = prontos.map(TextoDeBusca.init)
+
     static func buscar(_ termo: String, meus: [ModeloDeAtendimento], limite: Int = 12) -> [ModeloDeAtendimento] {
         let texto = simples(termo).trimmingCharacters(in: .whitespacesAndNewlines)
         guard texto.count >= 2 else { return [] }
         let palavras = texto.split(separator: " ").map(String.init)
         let codigo = texto.replacingOccurrences(of: ".", with: "")
-        func nota(_ modelo: ModeloDeAtendimento) -> Int? {
-            let cid = simples(modelo.cid).replacingOccurrences(of: ".", with: "")
-            let onde = simples(modelo.nome + " " + modelo.diagnostico + " " + modelo.cid)
+        func nota(_ modelo: ModeloDeAtendimento, _ pronto: TextoDeBusca? = nil) -> Int? {
+            let busca = pronto ?? TextoDeBusca(modelo)
+            let cid = busca.cid
+            let onde = busca.onde
             var nota: Int
             if cid == codigo {
                 nota = 0
             } else if codigo.first?.isLetter == true, codigo.dropFirst().first?.isNumber == true, cid.hasPrefix(codigo) {
                 nota = 1
             } else if palavras.allSatisfy({ onde.contains($0) }) {
-                nota = simples(modelo.nome).hasPrefix(texto) ? 2 : 3
+                nota = busca.nome.hasPrefix(texto) ? 2 : 3
             } else {
                 return nil
             }
@@ -70,8 +86,13 @@ enum ModelosDeAtendimento {
             return nota
         }
         var achados: [(modelo: ModeloDeAtendimento, nota: Int)] = []
-        for modelo in meus + prontos {
+        for modelo in meus {
             if let valor = nota(modelo) { achados.append((modelo, valor)) }
+        }
+        // Os textos de busca dos modelos do app ficam prontos uma vez só (antes eram refeitos
+        // a cada letra digitada em qualquer linha da ficha).
+        for (indice, modelo) in prontos.enumerated() {
+            if let valor = nota(modelo, textosDosProntos[indice]) { achados.append((modelo, valor)) }
         }
         achados.sort { a, b in
             if a.nota != b.nota { return a.nota < b.nota }

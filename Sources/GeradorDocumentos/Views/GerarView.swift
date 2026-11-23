@@ -82,10 +82,13 @@ struct GerarView: View {
     var sugestoes: [Paciente] {
         guard nomeDigitado.count >= 2, homonimos.isEmpty else { return [] }
         // Só pacientes do local escolhido (cadastrados nele ou já atendidos nele); sem local, todos.
-        return Array(armazenamento.pacientesOrdenados.filter { paciente in
+        // Filtra antes de pôr em ordem (ordenar todos os pacientes a cada letra deixava a digitação lenta).
+        return Array(armazenamento.dados.pacientes.filter { paciente in
             paciente.nome.range(of: nomeDigitado, options: [.caseInsensitive, .diacriticInsensitive]) != nil
                 && (local == nil || armazenamento.locaisDoPaciente(paciente).contains { $0.id == local?.id })
-        }.prefix(8))
+        }
+        .sorted { $0.nome.localizedStandardCompare($1.nome) == .orderedAscending }
+        .prefix(8))
     }
 
     var body: some View {

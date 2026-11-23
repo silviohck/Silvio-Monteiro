@@ -68,10 +68,12 @@ struct ProntuarioView: View {
 
     var sugestoes: [Paciente] {
         guard nomeDigitado.count >= 2, homonimos.isEmpty else { return [] }
-        return Array(armazenamento.pacientesOrdenados.filter { paciente in
+        return Array(armazenamento.dados.pacientes.filter { paciente in
             paciente.nome.range(of: nomeDigitado, options: [.caseInsensitive, .diacriticInsensitive]) != nil
                 && (local == nil || armazenamento.locaisDoPaciente(paciente).contains { $0.id == local?.id })
-        }.prefix(6))
+        }
+        .sorted { $0.nome.localizedStandardCompare($1.nome) == .orderedAscending }
+        .prefix(6))
     }
 
     /// Campos que vêm do cadastro, do local ou da data (menos o nome, que é a caixa do paciente).

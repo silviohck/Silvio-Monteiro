@@ -19,6 +19,7 @@ extension Armazenamento {
         defer { enviandoPastaAoDrive = false }
         let zip = FileManager.default.temporaryDirectory.appendingPathComponent("orthck-\(UUID().uuidString).zip")
         defer { try? FileManager.default.removeItem(at: zip) }
+        gravarAgora()
         let dadosDoApp = arquivoDados
         try await Task.detached(priority: .userInitiated) {
             try Armazenamento.criarZip(da: pasta, dados: dadosDoApp, em: zip)

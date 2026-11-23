@@ -68,6 +68,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// (no máximo 15 segundos; sem internet, fecha assim mesmo).
     @MainActor
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        // Grava na hora o que ainda esperava a gravação (ela é feita logo depois de cada mudança).
+        Armazenamento.atual?.gravarAgora()
         guard let armazenamento = Armazenamento.atual, armazenamento.envioPendente else { return .terminateNow }
         var respondido = false
         let responder = {

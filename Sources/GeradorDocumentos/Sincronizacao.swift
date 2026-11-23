@@ -179,9 +179,12 @@ extension Armazenamento {
 
         var estado = EstadoSincronizacao(emAndamento: true, ultima: sincronizacao.ultima)
         let configuracao = dados
-        let arquivos = LeituraDaPasta.ler(
-            raiz: raiz, ignorar: Set(configuracao.pastasIgnoradas), compartilhada: configuracao.ehCompartilhada
-        )
+        // Ler a pasta (muitos arquivos, às vezes no iCloud) fora da tela, para o app não travar
+        // cada vez que volta para a frente.
+        let ignorar = Set(configuracao.pastasIgnoradas)
+        let arquivos = await Task.detached(priority: .userInitiated) {
+            LeituraDaPasta.ler(raiz: raiz, ignorar: ignorar, compartilhada: configuracao.ehCompartilhada)
+        }.value
         let caminhos = Set(arquivos.map(\.caminho))
         if arquivos.isEmpty && dados.modelos.contains(where: { $0.origem != nil }) {
             // Pasta vazia de repente (iCloud carregando, disco desconectado): não apaga nada.
@@ -291,6 +294,7 @@ extension Armazenamento {
 
         compactando = true
         defer { compactando = false }
+        gravarAgora()
         let dadosDoApp = arquivoDados
         do {
             try await Task.detached(priority: .userInitiated) {
