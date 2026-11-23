@@ -34,8 +34,11 @@ extension GerarView {
         }
         if !modelos.contains(where: { $0.id.uuidString == modeloSelecionado }) {
             // Ao trocar de local, fica com o modelo de mesmo nome deste local, se houver.
+            // Nunca escolhe sozinho o primeiro da lista: com mais de um modelo na subpasta, fica
+            // "Escolha…" até você escolher — senão um clique rápido em Gerar saía com o modelo errado.
             let mesmoNome = modeloEscolhido.flatMap { anterior in modelos.first { $0.nome == anterior.nome } }
-            modeloSelecionado = (mesmoNome ?? modelos.first)?.id.uuidString ?? ""
+            let unico = modelos.count == 1 ? modelos.first : nil
+            modeloSelecionado = (mesmoNome ?? unico)?.id.uuidString ?? ""
         }
     }
 
