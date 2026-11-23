@@ -135,6 +135,9 @@ extension GerarView {
                             Text(modelo.nome).tag(modelo.id.uuidString)
                         }
                     }
+                    // Refaz o menu a cada troca: o menu do macOS podia continuar mostrando um modelo
+                    // diferente do escolhido de verdade quando a lista mudava.
+                    .id("\(subpasta)|\(modelo?.id.uuidString ?? "")")
                     if let modelo {
                         let favorito = armazenamento.ehFavorito(modelo, noLocal: local?.id)
                         Button {
@@ -232,7 +235,8 @@ extension GerarView {
                 .opacity(ultimoDocumento == nil ? 0.6 : 1)
                 .help("Recomeça do início para o próximo paciente (⇧⌘N). Só o local de atendimento continua.")
                 // ⌘↩, não Enter sozinho: Enter ao terminar de digitar o nome gerava sem querer.
-                Button("Gerar documento") { gerar() }
+                // O nome no botão é o do modelo que vai sair de verdade (o mesmo que gerar() usa).
+                Button("Gerar “\(modelo.nome)”") { gerar(esperado: modelo.id) }
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.return, modifiers: .command)
                     .disabled(

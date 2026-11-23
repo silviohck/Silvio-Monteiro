@@ -134,10 +134,16 @@ extension GerarView {
 
     /// Gera o modelo que está na tela no momento do clique. Não recebe o modelo como parâmetro de
     /// propósito: o botão pode ter sido desenhado antes de uma troca de modelo, e usaria o anterior.
-    func gerar() {
+    /// `esperado`: o modelo escrito no botão. Se o modelo de agora for outro (tela desatualizada),
+    /// não gera nada: melhor pedir um novo clique do que sair o documento errado.
+    func gerar(esperado: ModeloDocumento.ID? = nil) {
         guard !geracaoConcluida, !precisaEscolherPaciente else { return }
         guard let modelo else {
             armazenamento.erro = "Escolha a subpasta e o modelo antes de gerar o documento."
+            return
+        }
+        if let esperado, esperado != modelo.id {
+            armazenamento.erro = "O modelo escolhido mudou para “\(modelo.nome)”. Confira o Modelo e clique em Gerar de novo."
             return
         }
         // Sempre da versão mais nova do modelo: se ele foi editado e a sincronização ainda não passou,
