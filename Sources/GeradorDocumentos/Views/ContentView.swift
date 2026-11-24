@@ -115,73 +115,33 @@ struct ContentView: View {
     }
 }
 
-/// Cria um .zip com todos os arquivos da pasta sincronizada (para levar a outro computador ou guardar).
-/// Backup na barra lateral: compactar a pasta (com os dados) e importar um arquivo de dados .json.
+/// Backup na barra lateral: as cópias diárias dos dados e a restauração guiada.
+/// (A cópia no Google Drive fica logo abaixo.)
 struct CompactarPastaBotao: View {
     @EnvironmentObject private var armazenamento: Armazenamento
-    @State private var arquivoParaImportar: URL?
-    @State private var resultado: String?
+    @State private var restaurando = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             TituloSecao("Backup", icone: "archivebox.fill")
-            if armazenamento.urlPastaSincronizada != nil {
-                Button {
-                    Task { await armazenamento.compactarPastaSincronizada() }
-                } label: {
-                    Label(armazenamento.compactando ? "Compactando…" : "Compactar (.zip)…", systemImage: "doc.zipper")
-                        .frame(maxWidth: .infinity)
-                }
-                .disabled(armazenamento.compactando)
-                .help("Cria um .zip com todos os arquivos da pasta sincronizada e os dados do app")
-            }
             Button {
-                arquivoParaImportar = escolherArquivoDeDados()
+                restaurando = true
             } label: {
-                Label("Importar dados (.json)…", systemImage: "square.and.arrow.down.on.square")
+                Label("Restaurar uma cópia…", systemImage: "clock.arrow.circlepath")
                     .frame(maxWidth: .infinity)
             }
-            .help("Traz pacientes, locais, histórico e fila de um backup (dados.json ou “Orthck - dados (backup).json”)")
-            EnviarPastaAoDrive()
+            .help("Volta os pacientes, locais e histórico para uma das cópias diárias guardadas pelo app")
+            Text("Uma cópia dos dados é guardada sozinha todo dia (últimos 30 dias).")
+                .fonteApp(.legenda)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             CopiaNaNuvem()
                 .padding(.top, 4)
         }
-        .confirmationDialog(
-            "Importar “\(arquivoParaImportar?.lastPathComponent ?? "")”?",
-            isPresented: Binding(get: { arquivoParaImportar != nil }, set: { if !$0 { arquivoParaImportar = nil } }),
-            presenting: arquivoParaImportar
-        ) { url in
-            Button("Juntar com os dados atuais") { importar(url, modo: .juntar) }
-            Button("Substituir todos os dados", role: .destructive) { importar(url, modo: .substituir) }
-            Button("Cancelar", role: .cancel) {}
-        } message: { _ in
-            Text("Juntar: entram os pacientes, locais e documentos que ainda não estão aqui. Substituir: os dados atuais são trocados pelos do arquivo (restaurar um backup). Antes, uma cópia dos dados atuais é guardada em Backups.")
+        .sheet(isPresented: $restaurando) {
+            RestaurarBackupView()
+                .environmentObject(armazenamento)
         }
-        .alert("Importação concluída", isPresented: Binding(get: { resultado != nil }, set: { if !$0 { resultado = nil } })) {
-            Button("OK") { resultado = nil }
-        } message: {
-            Text(resultado ?? "")
-        }
-    }
-
-    private func escolherArquivoDeDados() -> URL? {
-        let painel = NSOpenPanel()
-        painel.allowedContentTypes = [.json]
-        painel.allowsMultipleSelection = false
-        painel.canChooseDirectories = false
-        painel.message = "Escolha o arquivo de dados do Orthck (dados.json, um backup da pasta Backups ou o “Orthck - dados (backup).json” do .zip)."
-        painel.prompt = "Importar"
-        painel.directoryURL = armazenamento.pastaBackups
-        return painel.runModal() == .OK ? painel.url : nil
-    }
-
-    private func importar(_ url: URL, modo: Armazenamento.ModoDeImportacao) {
-        do {
-            resultado = try armazenamento.importarDados(de: url, modo: modo)
-        } catch {
-            armazenamento.erro = error.localizedDescription
-        }
-        arquivoParaImportar = nil
     }
 }
 

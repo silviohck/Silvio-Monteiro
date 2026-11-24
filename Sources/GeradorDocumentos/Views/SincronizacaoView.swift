@@ -126,10 +126,6 @@ struct AjustesSincronizacaoView: View {
                 .buttonStyle(.borderedProminent)
                 if let url = armazenamento.urlPastaSincronizada {
                     Button("Abrir no Finder") { NSWorkspace.shared.open(url) }
-                    Button(armazenamento.compactando ? "Compactando…" : "Compactar (.zip)…") {
-                        Task { await armazenamento.compactarPastaSincronizada() }
-                    }
-                    .disabled(armazenamento.compactando)
                 }
             }
 

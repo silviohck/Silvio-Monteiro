@@ -24,10 +24,6 @@ final class Armazenamento: ObservableObject {
     var nomeEmAtendimento = ""
     var pacienteEmAtendimento: UUID?
     @Published var sincronizacao = EstadoSincronizacao()
-    /// Criando o .zip da pasta sincronizada.
-    @Published var compactando = false
-    /// Enviando o .zip da pasta sincronizada ao Google Drive.
-    @Published var enviandoPastaAoDrive = false
     /// Bloqueio global: não dispara duas sequências de impressão simultaneamente.
     @Published private(set) var processandoFila = false
 
@@ -870,9 +866,9 @@ final class Armazenamento: ObservableObject {
             let antes = novos.modelos.count
             novos.modelos.removeAll { $0.origem == nil && !FileManager.default.fileExists(atPath: urlDoModelo($0).path) }
             let semArquivo = antes - novos.modelos.count
-            for indice in novos.filaImpressao.indices where novos.filaImpressao[indice].situacao == .enviando {
-                novos.filaImpressao[indice].situacao = .incerto
-            }
+            // A fila de impressão continua a de agora: a de uma cópia antiga poderia trazer de volta,
+            // como "aguardando", documentos que já foram impressos depois dela.
+            novos.filaImpressao = dados.filaImpressao
             dados = novos
             separarTiposPorLocal()
             var resumo = "Dados substituídos: \(novos.pacientes.count) pacientes, \(novos.locais.count) locais e \(novos.historico.count) documentos no histórico."
